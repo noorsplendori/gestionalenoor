@@ -2919,7 +2919,7 @@ try{
 const firestore=getFirestore(app);
 const SESSION_KEY="noor_firebase_current_user_v1";
 const ACTIVE_SECTION_KEY="noor_active_section_v1";
-let persistenceReady=setPersistence(auth,browserLocalPersistence).catch((e)=>console.warn('Persistenza Firebase:',e));
+let persistenceReady=setPersistence(auth,indexedDBLocalPersistence).catch((e)=>{console.warn('Persistenza IndexedDB Firebase:',e);return setPersistence(auth,browserLocalPersistence)}).catch((e)=>console.warn('Persistenza Firebase:',e));
 let allAccessLogs=[];
 
 function $(id){return document.getElementById(id)}
@@ -3013,11 +3013,10 @@ function showLogin(){
   document.body.classList.add('login-active');
 }
 function showWaitingIfCached(){
-  if(readCachedUser()){
-    const screen=$('loginScreen');
-    if(screen){screen.classList.add('hidden');screen.style.display='none'}
-    document.body.classList.remove('login-active');
-  }else showLogin();
+  // Durante il controllo Firebase non mostro subito la pagina login: evita il flash al refresh.
+  const screen=$('loginScreen');
+  if(screen){screen.classList.add('hidden');screen.style.display='none'}
+  document.body.classList.remove('login-active');
 }
 function clearLoginPassword(){const p=$('loginPassword');if(p){p.value='';p.type='password'}const b=$('loginShowPasswordBtn');if(b)b.textContent='Mostra'}
 function firebaseErrorMessage(error){
@@ -3144,13 +3143,27 @@ window.renderFirebaseAccessLogs=async function(){
   tbody.innerHTML='<tr><td colspan="7">Caricamento accessi...</td></tr>';
   try{
     await persistenceReady;
-    const q=query(collection(firestore,'accessLogs'),orderBy('createdAtClient','desc'),limit(500));
-    const snap=await getDocs(q);
-    allAccessLogs=snap.docs.map(d=>({id:d.id,...(d.data()||{})}));
+    // Lettura semplice senza orderBy: evita errori di indice/query su mobile e con regole Firestore essenziali.
+    const snap=await getDocs(collection(firestore,'accessLogs'));
+    let logs=snap.docs.map(d=>({id:d.id,...(d.data()||{})}));
+    // Recupero ruoli/nome dalla raccolta users per gli accessi vecchi che non avevano il ruolo salvato.
+    const userMap={};
+    try{
+      const usersSnap=await getDocs(collection(firestore,'users'));
+      usersSnap.docs.forEach(d=>{const u=d.data()||{}; userMap[d.id]=u; if(u.email)userMap[String(u.email).toLowerCase()]=u;});
+    }catch(e){console.warn('Ruoli utenti non caricati:',e)}
+    allAccessLogs=logs.map(x=>{
+      const u=userMap[x.uid]||userMap[String(x.email||'').toLowerCase()]||{};
+      return Object.assign({},x,{name:x.name||u.name||'',role:x.role||u.role||''});
+    }).sort((a,b)=>{
+      const da=dateValue(a.createdAt)||dateValue(a.createdAtClient)||new Date(0);
+      const db=dateValue(b.createdAt)||dateValue(b.createdAtClient)||new Date(0);
+      return db-da;
+    }).slice(0,500);
     filterFirebaseAccessLogs();
   }catch(e){
     console.error('Errore accessLogs:',e);
-    tbody.innerHTML='<tr><td colspan="7">Errore caricamento accessi. Controlla regole Firestore e connessione.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="7">Errore caricamento accessi. Controlla regole Firestore: devi consentire lettura ad utenti autenticati su accessLogs e users.</td></tr>';
   }
 };
 
