@@ -41,8 +41,19 @@ function json(statusCode, body){
 }
 
 function cleanRole(role){
-  const allowed = ['owner','manager','warehouse','seller'];
+  const allowed = ['owner','manager','warehouse','seller','supervisor'];
   return allowed.includes(role) ? role : 'seller';
+}
+
+function cleanExtraPermissions(input){
+  const allowed = ['sell','viewProducts','manageProducts','viewStock','manageStock','viewDiscounts','manageDiscounts','viewOrders','cancelOrders','editPayment','createClosure','editClosure','viewRevenue','viewCosts','viewAccessLogs'];
+  const out = {};
+  if(input && typeof input === 'object'){
+    for(const key of allowed){
+      if(input[key] === true || input[key] === 1) out[key] = true;
+    }
+  }
+  return out;
 }
 
 exports.handler = async (event) => {
@@ -70,6 +81,7 @@ exports.handler = async (event) => {
     const password = String(body.password || '').trim();
     const role = cleanRole(body.role);
     const active = body.active !== false;
+    const extraPermissions = cleanExtraPermissions(body.extraPermissions || {});
 
     if(!name) return json(400, {error:'Nome dipendente mancante'});
     if(!email) return json(400, {error:'Email dipendente mancante'});
@@ -106,6 +118,7 @@ exports.handler = async (event) => {
       name,
       email,
       role,
+      extraPermissions,
       active,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedBy: decoded.uid,
@@ -126,6 +139,7 @@ exports.handler = async (event) => {
       targetEmail: email,
       targetName: name,
       role,
+      extraPermissions,
       active,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       createdAtClient: new Date().toISOString()
@@ -139,6 +153,7 @@ exports.handler = async (event) => {
         name,
         email,
         role,
+        extraPermissions,
         active
       }
     });
