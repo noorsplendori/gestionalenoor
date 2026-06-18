@@ -3280,5 +3280,130 @@ setTimeout(()=>{
   setTimeout(install,300);setTimeout(install,1000);setTimeout(install,2500);
 })();
 </script>
+
+
+<style id="noor-employee-firebase-bridge-css">
+  #empPasswordBridgeWrap .hint{font-size:12px;text-transform:none;letter-spacing:0;font-weight:700;margin-top:4px}
+  #employeesFirebaseStatus{margin-top:10px;font-weight:900;text-align:center;color:#8a5700}
+</style>
+<script id="noor-employee-firebase-bridge-js">
+(function(){
+  'use strict';
+  function $(id){return document.getElementById(id)}
+  function toastMsg(msg,type){
+    if(typeof window.safeToast==='function') return window.safeToast(msg,type);
+    if(typeof window.toast==='function') return window.toast(msg);
+    alert(msg);
+  }
+  function ensurePasswordField(){
+    var form=$('employeeForm'); if(!form)return;
+    if(!$('empFirebaseUid')){var h=document.createElement('input');h.type='hidden';h.id='empFirebaseUid';form.insertBefore(h,form.firstChild);}
+    if(!$('empPassword')){
+      var statusField=$('empActive')?.closest('.field');
+      var wrap=document.createElement('div');
+      wrap.className='field two';
+      wrap.id='empPasswordBridgeWrap';
+      wrap.innerHTML='<label>Password iniziale</label><input id="empPassword" type="password" autocomplete="new-password" placeholder="Minimo 6 caratteri"><div class="hint">Obbligatoria solo per nuovo dipendente Firebase. Se modifichi un dipendente, lasciala vuota per non cambiarla.</div>';
+      if(statusField&&statusField.parentNode) statusField.insertAdjacentElement('afterend',wrap); else form.insertBefore(wrap,form.querySelector('.field.full'));
+    }
+    var submit=form.querySelector('button[type="submit"]'); if(submit)submit.textContent='Salva dipendente';
+    if(!$('employeesFirebaseStatus')){
+      var st=document.createElement('div'); st.id='employeesFirebaseStatus';
+      form.appendChild(st);
+    }
+  }
+  function setStatus(msg,color){var el=$('employeesFirebaseStatus'); if(el){el.textContent=msg||''; el.style.color=color||'#8a5700';}}
+  function employeeEmailValid(email){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email||''));}
+  async function getToken(){
+    var u=window.currentFirebaseUser;
+    if(u&&typeof u.getIdToken==='function') return await u.getIdToken(true);
+    throw new Error('Sessione Firebase non trovata. Esci e rientra.');
+  }
+  function upsertLocalEmployee(item){
+    try{
+      if(typeof db!=='object'||!db)return;
+      db.employees=Array.isArray(db.employees)?db.employees:[];
+      var localId=$('employeeId')?.value||item.uid||item.firebaseUid||item.id;
+      var existing=db.employees.find(function(e){return String(e.firebaseUid||e.uid||e.id)===String(item.uid||item.firebaseUid) || String(e.id)===String(localId)});
+      var data={
+        id: existing?.id || localId || item.uid || ('emp_'+Date.now()),
+        firebaseUid:item.uid||item.firebaseUid||'',
+        uid:item.uid||item.firebaseUid||'',
+        name:item.name||$('empName')?.value.trim()||'',
+        email:item.email||$('empEmail')?.value.trim()||'',
+        role:item.role||$('empRole')?.value||'seller',
+        active:item.active!==false,
+        createdAt: existing?.createdAt || new Date().toISOString(),
+        updatedAt:new Date().toISOString()
+      };
+      if(existing){Object.assign(existing,data);} else db.employees.push(data);
+      try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db));}catch(e){}
+    }catch(e){console.warn('Salvataggio locale dipendente:',e)}
+  }
+  async function saveEmployeeFirebase(ev){
+    if(ev){ev.preventDefault();ev.stopPropagation();}
+    try{
+      if(typeof canAccess==='function' && !canAccess('manageEmployees')){toastMsg('Solo il Super Admin può salvare dipendenti.');return false;}
+      ensurePasswordField();
+      var id=$('employeeId')?.value||'';
+      var firebaseUid=$('empFirebaseUid')?.value||id||'';
+      var name=$('empName')?.value.trim()||'';
+      var email=$('empEmail')?.value.trim().toLowerCase()||'';
+      var password=$('empPassword')?.value||'';
+      var role=$('empRole')?.value||'seller';
+      var active=($('empActive')?.value||'true')==='true';
+      if(!name){toastMsg('Inserisci nome e cognome.');return false;}
+      if(!employeeEmailValid(email)){toastMsg('Per creare un accesso Firebase serve una email valida, non un telefono.');return false;}
+      var action=firebaseUid?'update':'create';
+      if(action==='create' && password.length<6){toastMsg('Inserisci una password iniziale di almeno 6 caratteri.');return false;}
+      if(action==='update' && password && password.length<6){toastMsg('La nuova password deve avere almeno 6 caratteri.');return false;}
+      setStatus(action==='create'?'Creazione dipendente Firebase in corso...':'Aggiornamento dipendente Firebase in corso...');
+      var token=await getToken();
+      var res=await fetch('/.netlify/functions/createEmployee',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body:JSON.stringify({action:action,uid:firebaseUid,name:name,email:email,password:password,role:role,active:active})
+      });
+      var data=await res.json().catch(function(){return {error:'Risposta non valida dalla Function'}});
+      if(!res.ok||!data.ok) throw new Error(data.error||'Errore salvataggio dipendente Firebase');
+      upsertLocalEmployee(data.user||{uid:firebaseUid,name:name,email:email,role:role,active:active});
+      if($('employeeForm'))$('employeeForm').reset();
+      if($('employeeId'))$('employeeId').value='';
+      if($('empFirebaseUid'))$('empFirebaseUid').value='';
+      if($('empPassword'))$('empPassword').value='';
+      if(typeof renderEmployees==='function')renderEmployees();
+      if(typeof applyEmployeePermissions==='function')applyEmployeePermissions();
+      setStatus('Dipendente salvato su Firebase.', '#128a3a');
+      toastMsg('Dipendente salvato su Firebase.','success');
+      return false;
+    }catch(err){
+      console.error('saveEmployee Firebase:',err);
+      setStatus(err.message||'Errore Firebase','#b51545');
+      toastMsg(err.message||'Errore salvataggio dipendente Firebase.');
+      return false;
+    }
+  }
+  function install(){
+    ensurePasswordField();
+    var form=$('employeeForm'); if(form){form.onsubmit=saveEmployeeFirebase; form.addEventListener('submit',saveEmployeeFirebase,true);}
+    window.saveEmployee=saveEmployeeFirebase;
+    var oldEdit=window.editEmployee;
+    window.editEmployee=function(id){
+      if(typeof oldEdit==='function') oldEdit.apply(this,arguments);
+      setTimeout(function(){
+        ensurePasswordField();
+        try{
+          var e=(db.employees||[]).find(function(x){return String(x.id)===String(id)||String(x.uid)===String(id)||String(x.firebaseUid)===String(id)});
+          if(e&&$('empFirebaseUid'))$('empFirebaseUid').value=e.firebaseUid||e.uid||'';
+          if($('empPassword'))$('empPassword').value='';
+        }catch(err){}
+      },50);
+    };
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install); else install();
+  setTimeout(install,500);setTimeout(install,1500);setTimeout(install,3000);
+})();
+</script>
+
 </body>
 </html>
