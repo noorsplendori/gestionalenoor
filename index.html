@@ -1373,6 +1373,279 @@ function printDocument(title,bodyHtml){
 </style></head><body><div class="sheet"><div class="no-print"><button onclick="window.print()" style="padding:10px 16px;border:0;border-radius:12px;background:#e86aa7;color:white;font-weight:900;cursor:pointer">Stampa / Salva PDF</button></div><div class="head"><div><div class="brand">Noor Profumi Pro</div><div class="sub">${escapePrint(title)} · ${now}</div></div><div class="badge">Documento PDF</div></div>${bodyHtml}<div class="footer">Documento generato dal gestionale Noor Profumi Pro.</div></div><script>setTimeout(()=>window.print(),350)<\/script>
 
 
+
+
+<style id="firebase-stable-session-accesslogs-final">
+  .menu-dropdown .btn.secondary{display:flex!important;align-items:center!important;gap:8px!important}
+  #accessLogs .table-wrap table{min-width:760px}
+  #accessLogsMenuBtn{font-weight:950!important}
+  #firebaseAuthLoader{position:fixed;inset:0;z-index:49999;display:none;align-items:center;justify-content:center;background:rgba(255,250,253,.88);backdrop-filter:blur(10px);font-weight:950;color:var(--text)}
+  #firebaseAuthLoader.show{display:flex}
+</style>
+
+<script type="module" id="firebase-stable-session-accesslogs-final-script">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFirestore, doc, getDoc, collection, addDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+  authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+  projectId:"gestionalenoor-2fa61",
+  storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+  messagingSenderId:"66670691093",
+  appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+  measurementId:"G-0HSQB7XLJG"
+};
+
+const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const firestore=getFirestore(app);
+const SESSION_KEY="noor_firebase_current_user_v1";
+const $=(id)=>document.getElementById(id);
+const persistenceReady=setPersistence(auth,browserLocalPersistence).catch(err=>{
+  console.warn('Persistenza Firebase non impostata:',err);
+});
+
+function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function fmtDate(v){
+  try{
+    let d=v?.toDate?v.toDate():new Date(v||Date.now());
+    return d.toLocaleString('it-IT',{dateStyle:'short',timeStyle:'medium'});
+  }catch(e){return ''}
+}
+function loader(show,msg='Controllo sessione...'){
+  let el=$('firebaseAuthLoader');
+  if(!el){el=document.createElement('div');el.id='firebaseAuthLoader';document.body.appendChild(el)}
+  el.textContent=msg;
+  el.classList.toggle('show',!!show);
+}
+function setStatus(msg,type='error'){
+  let el=$('firebaseLoginStatus');
+  if(!el){
+    el=document.createElement('div');el.id='firebaseLoginStatus';
+    const actions=document.querySelector('.login-actions')||$('loginForm');
+    if(actions)actions.insertAdjacentElement('afterend',el);
+  }
+  el.style.color=type==='success'?'#128a3a':type==='loading'?'#8a5700':'#b51545';
+  el.textContent=msg||'';
+}
+function toastCenter(msg,type){
+  if(typeof window.toastCenter==='function' && window.toastCenter!==toastCenter){try{return window.toastCenter(msg,type)}catch(e){}}
+  if(typeof window.toast==='function'){try{return window.toast(msg,type)}catch(e){}}
+  let t=$('firebaseToastCenter');
+  if(!t){t=document.createElement('div');t.id='firebaseToastCenter';t.className='toast';document.body.appendChild(t)}
+  t.className='toast show'+(type==='success'?' success':'');
+  t.textContent=msg;
+  clearTimeout(window.__firebaseToastTimer);
+  window.__firebaseToastTimer=setTimeout(()=>t.classList.remove('show'),2600);
+}
+function showLogin(){
+  loader(false);
+  $('loginScreen')?.classList.remove('hidden');
+  document.body.classList.add('login-active');
+}
+function showApp(){
+  loader(false);
+  $('loginScreen')?.classList.add('hidden');
+  document.body.classList.remove('login-active');
+  setStatus('');
+  try{ if(typeof window.renderAll==='function') window.renderAll(); }catch(e){}
+  try{ if(typeof window.applyEmployeePermissions==='function') window.applyEmployeePermissions(); }catch(e){}
+  try{ installAccessLogsOnlineSection(); renderAccessLogsOnline(); }catch(e){console.warn(e)}
+}
+function clearLoginPassword(){const p=$('loginPassword'); if(p)p.value='';}
+async function getUserProfile(user){
+  if(!user)throw new Error('NO_AUTH_USER');
+  const snap=await getDoc(doc(firestore,'users',user.uid));
+  if(!snap.exists())throw new Error('NO_USER_PROFILE');
+  const profile={id:user.uid,...snap.data()};
+  if(profile.active===false)throw new Error('USER_DISABLED');
+  return profile;
+}
+function setLocalActiveUser(user,profile){
+  const emp={id:user.uid,loginEmail:user.email,email:user.email,name:profile.name||user.email,role:profile.role||'seller',active:true,firebaseUid:user.uid};
+  try{sessionStorage.setItem(SESSION_KEY,user.uid)}catch(e){}
+  try{sessionStorage.setItem('noor_current_login_employee_v2',user.uid)}catch(e){}
+  try{
+    if(typeof window.settings!=='undefined'&&window.settings){window.settings.activeEmployeeId=user.uid; if(typeof window.saveSettings==='function')window.saveSettings();}
+  }catch(e){}
+  try{
+    if(typeof window.db!=='undefined'&&window.db){
+      if(!Array.isArray(window.db.employees))window.db.employees=[];
+      const i=window.db.employees.findIndex(x=>String(x.id)===String(user.uid));
+      if(i>=0)window.db.employees[i]={...window.db.employees[i],...emp}; else window.db.employees.unshift(emp);
+      if(typeof window.persistDb==='function')window.persistDb();
+    }
+  }catch(e){}
+  const badge=$('activeEmployeeBadge'); if(badge)badge.textContent=(profile.role==='owner'?'Super Admin':profile.name||user.email);
+}
+async function writeAccessLog(user,result,note){
+  try{
+    await addDoc(collection(firestore,'accessLogs'),{
+      uid:user?.uid||null,
+      email:user?.email||String(user?.email||$('loginEmail')?.value||'').trim(),
+      result,
+      note:note||'',
+      userAgent:navigator.userAgent,
+      createdAt:serverTimestamp(),
+      createdAtClient:new Date().toISOString()
+    });
+  }catch(e){console.warn('Access log non salvato:',e)}
+}
+function firebaseErrorMessage(error){
+  if(error?.message==='NO_USER_PROFILE')return 'Utente autenticato, ma manca il profilo Firestore in users/{UID}.';
+  if(error?.message==='USER_DISABLED')return 'Utente disattivato. Contatta il Super Admin.';
+  if(error?.code==='auth/invalid-credential'||error?.code==='auth/wrong-password'||error?.code==='auth/user-not-found')return 'Email o password Firebase non corretti.';
+  if(error?.code==='auth/too-many-requests')return 'Troppi tentativi. Attendi qualche minuto e riprova.';
+  if(error?.code==='auth/network-request-failed')return 'Errore di rete. Controlla la connessione.';
+  if(error?.code==='auth/unauthorized-domain')return 'Dominio Netlify non autorizzato in Firebase Authentication.';
+  return 'Accesso non riuscito: '+(error?.code||error?.message||'errore sconosciuto');
+}
+
+window.loginSubmit=async function(ev){
+  if(ev){ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation()}
+  const email=($('loginEmail')?.value||'').trim();
+  const password=$('loginPassword')?.value||'';
+  if(!email||!password){setStatus('Inserisci email e password.');return false}
+  const submitBtn=document.querySelector('#loginForm button[type="submit"]');
+  if(submitBtn){submitBtn.disabled=true;submitBtn.textContent='Accesso...'}
+  try{
+    await persistenceReady;
+    setStatus('Accesso in corso...','loading');
+    const cred=await signInWithEmailAndPassword(auth,email,password);
+    const profile=await getUserProfile(cred.user);
+    setLocalActiveUser(cred.user,profile);
+    await writeAccessLog(cred.user,'success','Login Firebase riuscito');
+    setStatus('Accesso effettuato.','success');
+    showApp();
+    toastCenter('Accesso effettuato: '+(profile.name||cred.user.email),'success');
+  }catch(error){
+    console.error('Errore login Firebase:',error);
+    try{await writeAccessLog({email},'failed',error.code||error.message||'Login fallito')}catch(e){}
+    const msg=firebaseErrorMessage(error);
+    setStatus(msg);toastCenter(msg);showLogin();
+  }finally{
+    if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='Entra'}
+  }
+  return false;
+};
+
+window.logoutUser=async function(){
+  const user=auth.currentUser;
+  try{if(user)await writeAccessLog(user,'logout','Logout Firebase')}catch(e){}
+  try{await signOut(auth)}catch(e){console.warn('Logout Firebase:',e)}
+  try{sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem('noor_current_login_employee_v2')}catch(e){}
+  try{if(typeof window.settings!=='undefined'&&window.settings){delete window.settings.activeEmployeeId;if(typeof window.saveSettings==='function')window.saveSettings()}}catch(e){}
+  const overlay=$('logoutConfirmOverlay');if(overlay)overlay.classList.remove('show');
+  clearLoginPassword();showLogin();toastCenter('Sei uscito dal gestionale.','success');
+  return false;
+};
+window.confirmLogoutUser=function(){
+  try{if(typeof window.closeTopMenu==='function')window.closeTopMenu()}catch(e){}
+  const overlay=$('logoutConfirmOverlay');
+  if(overlay){overlay.classList.add('show');overlay.setAttribute('aria-hidden','false');return false}
+  if(confirm('Vuoi uscire dal gestionale?'))return window.logoutUser();
+  return false;
+};
+function installPasswordToggle(){
+  const btn=$('loginShowPasswordBtn'); const input=$('loginPassword'); if(!btn||!input)return;
+  btn.type='button'; btn.onclick=function(ev){ev.preventDefault();ev.stopPropagation();input.type=input.type==='password'?'text':'password';btn.textContent=input.type==='password'?'Mostra':'Nascondi';input.focus();return false};
+}
+function installLoginForm(){
+  const form=$('loginForm'); if(form){form.setAttribute('novalidate','novalidate');form.onsubmit=window.loginSubmit;form.addEventListener('submit',window.loginSubmit,true)}
+  const enterBtn=document.querySelector('#loginForm button[type="submit"]'); if(enterBtn){enterBtn.onclick=function(ev){return window.loginSubmit(ev)}}
+  const hint=$('loginDemoHint'); if(hint)hint.textContent='';
+}
+function installLogoutButton(){
+  const menu=$('topMenu'); if(!menu)return;
+  let btn=$('logoutMenuButton'); if(!btn){btn=document.createElement('button');btn.id='logoutMenuButton';btn.className='btn secondary';btn.type='button'}
+  btn.textContent='⏻ Esci'; btn.onclick=function(ev){ev.preventDefault();ev.stopPropagation();return window.confirmLogoutUser()};
+  menu.appendChild(btn);
+}
+function installResetPasswordUI(){
+  const openBtn=$('openResetLoginBtn'); if(openBtn){openBtn.onclick=function(ev){ev.preventDefault();$('loginResetBox')?.classList.toggle('show');return false}}
+  const confirmBtn=$('confirmResetLoginBtn'); if(confirmBtn){confirmBtn.onclick=function(ev){ev.preventDefault();setStatus('Il reset password online sarà gestito dal Super Admin nella fase successiva.');return false}}
+}
+
+function installAccessLogsOnlineSection(){
+  let sec=$('accessLogs');
+  const main=document.querySelector('main.app');
+  if(!sec && main){
+    sec=document.createElement('section');
+    sec.id='accessLogs'; sec.className='section';
+    sec.innerHTML=`<div class="card panel"><div class="panel-title"><div><h2>Controllo Accessi</h2><p class="hint">Accessi registrati online da Firebase / Firestore.</p></div><button class="btn secondary" type="button" id="refreshAccessLogsBtn">Aggiorna</button></div><div class="access-log-kpis"><div class="access-log-kpi">Login riusciti<b id="logOkCount">0</b></div><div class="access-log-kpi">Login falliti<b id="logFailCount">0</b></div><div class="access-log-kpi">Logout<b id="logLogoutCount">0</b></div><div class="access-log-kpi">Totale eventi<b id="logTotalCount">0</b></div></div><div class="filter-bar"><div class="field"><label>Cerca</label><input id="accessLogSearch" placeholder="email, nota, dispositivo"></div><div class="field"><label>Esito</label><select id="accessLogResult"><option value="">Tutti</option><option value="success">Login riuscito</option><option value="failed">Fallito</option><option value="logout">Logout</option></select></div><div class="filter-actions"><button class="btn small gold" type="button" id="applyAccessFilterBtn">Filtra</button></div></div><div class="table-wrap"><table><thead><tr><th>Data / Ora</th><th>Email</th><th>Esito</th><th>Note</th><th>Dispositivo</th></tr></thead><tbody id="accessLogsTable"></tbody></table></div></div>`;
+    main.appendChild(sec);
+  }
+  try{
+    const h=sec?.querySelector('h2'); if(h)h.textContent='Controllo Accessi';
+    const hp=sec?.querySelector('.panel-title .hint'); if(hp)hp.textContent='Accessi registrati online da Firebase / Firestore.';
+  }catch(e){}
+  const menu=$('topMenu');
+  if(menu){
+    let b=$('accessLogsMenuBtn');
+    if(!b){b=document.createElement('button'); b.id='accessLogsMenuBtn'; b.className='btn secondary'; b.type='button';}
+    b.textContent='Controllo Accessi';
+    b.onclick=function(){ if(typeof window.go==='function')window.go('accessLogs'); renderAccessLogsOnline(); if(typeof window.closeTopMenu==='function')window.closeTopMenu(); };
+    const logout=$('logoutMenuButton');
+    if(b.parentNode!==menu) menu.insertBefore(b, logout||null);
+    else if(logout && b.nextSibling!==logout) menu.insertBefore(b, logout);
+  }
+  $('refreshAccessLogsBtn')?.addEventListener('click',renderAccessLogsOnline);
+  $('applyAccessFilterBtn')?.addEventListener('click',renderAccessLogsOnline);
+  $('accessLogSearch')?.addEventListener('input',()=>{clearTimeout(window.__accessLogFilterTimer);window.__accessLogFilterTimer=setTimeout(renderAccessLogsOnline,250)});
+  $('accessLogResult')?.addEventListener('change',renderAccessLogsOnline);
+}
+
+window.renderAccessLogs=renderAccessLogsOnline;
+window.renderAccessLogsOnline=renderAccessLogsOnline;
+async function renderAccessLogsOnline(){
+  installAccessLogsOnlineSection();
+  const tbody=$('accessLogsTable'); if(!tbody)return;
+  tbody.innerHTML='<tr><td colspan="5" class="hint">Caricamento accessi...</td></tr>';
+  try{
+    const snap=await getDocs(collection(firestore,'accessLogs'));
+    let rows=[]; snap.forEach(d=>rows.push({id:d.id,...d.data()}));
+    rows.sort((a,b)=>String(b.createdAtClient||'').localeCompare(String(a.createdAtClient||'')));
+    const q=($('accessLogSearch')?.value||'').trim().toLowerCase();
+    const res=$('accessLogResult')?.value||'';
+    if(res)rows=rows.filter(r=>String(r.result||'')===res);
+    if(q)rows=rows.filter(r=>(String(r.email||'')+' '+String(r.note||'')+' '+String(r.userAgent||'')).toLowerCase().includes(q));
+    $('logOkCount') && ($('logOkCount').textContent=rows.filter(r=>r.result==='success').length);
+    $('logFailCount') && ($('logFailCount').textContent=rows.filter(r=>r.result==='failed').length);
+    $('logLogoutCount') && ($('logLogoutCount').textContent=rows.filter(r=>r.result==='logout').length);
+    $('logTotalCount') && ($('logTotalCount').textContent=rows.length);
+    tbody.innerHTML=rows.slice(0,200).map(r=>{
+      const cls=r.result==='success'?'log-success':r.result==='failed'?'log-fail':'log-logout';
+      const label=r.result==='success'?'Login riuscito':r.result==='failed'?'Fallito':r.result==='logout'?'Logout':esc(r.result||'');
+      return `<tr><td>${esc(fmtDate(r.createdAt)||fmtDate(r.createdAtClient))}</td><td>${esc(r.email||'')}</td><td><span class="${cls}">${label}</span></td><td>${esc(r.note||'')}</td><td>${esc(String(r.userAgent||'').slice(0,90))}</td></tr>`;
+    }).join('') || '<tr><td colspan="5" class="hint">Nessun accesso trovato.</td></tr>';
+  }catch(e){
+    console.error('Errore lettura accessLogs:',e);
+    tbody.innerHTML='<tr><td colspan="5" class="hint">Errore durante la lettura del Registro Accessi. Controlla le regole Firestore.</td></tr>';
+  }
+}
+
+function bootStableFirebase(){installLoginForm();installPasswordToggle();installLogoutButton();installResetPasswordUI();installAccessLogsOnlineSection();loader(true);}
+document.addEventListener('DOMContentLoaded',bootStableFirebase);
+if(document.readyState!=='loading')bootStableFirebase();
+
+await persistenceReady;
+onAuthStateChanged(auth,async(user)=>{
+  if(!user){showLogin();return}
+  try{
+    const profile=await getUserProfile(user);
+    setLocalActiveUser(user,profile);
+    showApp();
+  }catch(error){
+    console.warn('Sessione Firebase non valida:',error);
+    await signOut(auth).catch(()=>{});
+    setStatus(firebaseErrorMessage(error));
+    showLogin();
+  }
+});
+</script>
+
 </body></html>`);
   w.document.close();
 }
@@ -2182,7 +2455,280 @@ load();
   function printHtml(title, body){
     const w=window.open('','_blank'); if(!w){toast('Popup bloccato dal browser.');return;}
     const name=esc(settings?.appName||'Noor Profumi Pro');
-    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font-family:Arial,sans-serif;color:#3b1027;padding:28px}h1{margin:0 0 6px}.muted{color:#8f5a72}.box{border:1px solid #f2c6da;border-radius:18px;padding:14px;margin:12px 0}.row{display:flex;justify-content:space-between;border-bottom:1px solid #f7dcea;padding:8px 0}.total{font-size:26px;font-weight:900}.chip{display:inline-block;background:#fff0f7;border:1px solid #f2c6da;border-radius:999px;padding:7px 10px;margin:4px}</style></head><body><h1>${name}</h1><div class="muted">${esc(title)}</div>${body}<script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font-family:Arial,sans-serif;color:#3b1027;padding:28px}h1{margin:0 0 6px}.muted{color:#8f5a72}.box{border:1px solid #f2c6da;border-radius:18px;padding:14px;margin:12px 0}.row{display:flex;justify-content:space-between;border-bottom:1px solid #f7dcea;padding:8px 0}.total{font-size:26px;font-weight:900}.chip{display:inline-block;background:#fff0f7;border:1px solid #f2c6da;border-radius:999px;padding:7px 10px;margin:4px}</style></head><body><h1>${name}</h1><div class="muted">${esc(title)}</div>${body}<script>setTimeout(()=>window.print(),300)<\/script>
+
+<style id="firebase-stable-session-accesslogs-final">
+  .menu-dropdown .btn.secondary{display:flex!important;align-items:center!important;gap:8px!important}
+  #accessLogs .table-wrap table{min-width:760px}
+  #accessLogsMenuBtn{font-weight:950!important}
+  #firebaseAuthLoader{position:fixed;inset:0;z-index:49999;display:none;align-items:center;justify-content:center;background:rgba(255,250,253,.88);backdrop-filter:blur(10px);font-weight:950;color:var(--text)}
+  #firebaseAuthLoader.show{display:flex}
+</style>
+
+<script type="module" id="firebase-stable-session-accesslogs-final-script">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFirestore, doc, getDoc, collection, addDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+  authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+  projectId:"gestionalenoor-2fa61",
+  storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+  messagingSenderId:"66670691093",
+  appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+  measurementId:"G-0HSQB7XLJG"
+};
+
+const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const firestore=getFirestore(app);
+const SESSION_KEY="noor_firebase_current_user_v1";
+const $=(id)=>document.getElementById(id);
+const persistenceReady=setPersistence(auth,browserLocalPersistence).catch(err=>{
+  console.warn('Persistenza Firebase non impostata:',err);
+});
+
+function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function fmtDate(v){
+  try{
+    let d=v?.toDate?v.toDate():new Date(v||Date.now());
+    return d.toLocaleString('it-IT',{dateStyle:'short',timeStyle:'medium'});
+  }catch(e){return ''}
+}
+function loader(show,msg='Controllo sessione...'){
+  let el=$('firebaseAuthLoader');
+  if(!el){el=document.createElement('div');el.id='firebaseAuthLoader';document.body.appendChild(el)}
+  el.textContent=msg;
+  el.classList.toggle('show',!!show);
+}
+function setStatus(msg,type='error'){
+  let el=$('firebaseLoginStatus');
+  if(!el){
+    el=document.createElement('div');el.id='firebaseLoginStatus';
+    const actions=document.querySelector('.login-actions')||$('loginForm');
+    if(actions)actions.insertAdjacentElement('afterend',el);
+  }
+  el.style.color=type==='success'?'#128a3a':type==='loading'?'#8a5700':'#b51545';
+  el.textContent=msg||'';
+}
+function toastCenter(msg,type){
+  if(typeof window.toastCenter==='function' && window.toastCenter!==toastCenter){try{return window.toastCenter(msg,type)}catch(e){}}
+  if(typeof window.toast==='function'){try{return window.toast(msg,type)}catch(e){}}
+  let t=$('firebaseToastCenter');
+  if(!t){t=document.createElement('div');t.id='firebaseToastCenter';t.className='toast';document.body.appendChild(t)}
+  t.className='toast show'+(type==='success'?' success':'');
+  t.textContent=msg;
+  clearTimeout(window.__firebaseToastTimer);
+  window.__firebaseToastTimer=setTimeout(()=>t.classList.remove('show'),2600);
+}
+function showLogin(){
+  loader(false);
+  $('loginScreen')?.classList.remove('hidden');
+  document.body.classList.add('login-active');
+}
+function showApp(){
+  loader(false);
+  $('loginScreen')?.classList.add('hidden');
+  document.body.classList.remove('login-active');
+  setStatus('');
+  try{ if(typeof window.renderAll==='function') window.renderAll(); }catch(e){}
+  try{ if(typeof window.applyEmployeePermissions==='function') window.applyEmployeePermissions(); }catch(e){}
+  try{ installAccessLogsOnlineSection(); renderAccessLogsOnline(); }catch(e){console.warn(e)}
+}
+function clearLoginPassword(){const p=$('loginPassword'); if(p)p.value='';}
+async function getUserProfile(user){
+  if(!user)throw new Error('NO_AUTH_USER');
+  const snap=await getDoc(doc(firestore,'users',user.uid));
+  if(!snap.exists())throw new Error('NO_USER_PROFILE');
+  const profile={id:user.uid,...snap.data()};
+  if(profile.active===false)throw new Error('USER_DISABLED');
+  return profile;
+}
+function setLocalActiveUser(user,profile){
+  const emp={id:user.uid,loginEmail:user.email,email:user.email,name:profile.name||user.email,role:profile.role||'seller',active:true,firebaseUid:user.uid};
+  try{sessionStorage.setItem(SESSION_KEY,user.uid)}catch(e){}
+  try{sessionStorage.setItem('noor_current_login_employee_v2',user.uid)}catch(e){}
+  try{
+    if(typeof window.settings!=='undefined'&&window.settings){window.settings.activeEmployeeId=user.uid; if(typeof window.saveSettings==='function')window.saveSettings();}
+  }catch(e){}
+  try{
+    if(typeof window.db!=='undefined'&&window.db){
+      if(!Array.isArray(window.db.employees))window.db.employees=[];
+      const i=window.db.employees.findIndex(x=>String(x.id)===String(user.uid));
+      if(i>=0)window.db.employees[i]={...window.db.employees[i],...emp}; else window.db.employees.unshift(emp);
+      if(typeof window.persistDb==='function')window.persistDb();
+    }
+  }catch(e){}
+  const badge=$('activeEmployeeBadge'); if(badge)badge.textContent=(profile.role==='owner'?'Super Admin':profile.name||user.email);
+}
+async function writeAccessLog(user,result,note){
+  try{
+    await addDoc(collection(firestore,'accessLogs'),{
+      uid:user?.uid||null,
+      email:user?.email||String(user?.email||$('loginEmail')?.value||'').trim(),
+      result,
+      note:note||'',
+      userAgent:navigator.userAgent,
+      createdAt:serverTimestamp(),
+      createdAtClient:new Date().toISOString()
+    });
+  }catch(e){console.warn('Access log non salvato:',e)}
+}
+function firebaseErrorMessage(error){
+  if(error?.message==='NO_USER_PROFILE')return 'Utente autenticato, ma manca il profilo Firestore in users/{UID}.';
+  if(error?.message==='USER_DISABLED')return 'Utente disattivato. Contatta il Super Admin.';
+  if(error?.code==='auth/invalid-credential'||error?.code==='auth/wrong-password'||error?.code==='auth/user-not-found')return 'Email o password Firebase non corretti.';
+  if(error?.code==='auth/too-many-requests')return 'Troppi tentativi. Attendi qualche minuto e riprova.';
+  if(error?.code==='auth/network-request-failed')return 'Errore di rete. Controlla la connessione.';
+  if(error?.code==='auth/unauthorized-domain')return 'Dominio Netlify non autorizzato in Firebase Authentication.';
+  return 'Accesso non riuscito: '+(error?.code||error?.message||'errore sconosciuto');
+}
+
+window.loginSubmit=async function(ev){
+  if(ev){ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation()}
+  const email=($('loginEmail')?.value||'').trim();
+  const password=$('loginPassword')?.value||'';
+  if(!email||!password){setStatus('Inserisci email e password.');return false}
+  const submitBtn=document.querySelector('#loginForm button[type="submit"]');
+  if(submitBtn){submitBtn.disabled=true;submitBtn.textContent='Accesso...'}
+  try{
+    await persistenceReady;
+    setStatus('Accesso in corso...','loading');
+    const cred=await signInWithEmailAndPassword(auth,email,password);
+    const profile=await getUserProfile(cred.user);
+    setLocalActiveUser(cred.user,profile);
+    await writeAccessLog(cred.user,'success','Login Firebase riuscito');
+    setStatus('Accesso effettuato.','success');
+    showApp();
+    toastCenter('Accesso effettuato: '+(profile.name||cred.user.email),'success');
+  }catch(error){
+    console.error('Errore login Firebase:',error);
+    try{await writeAccessLog({email},'failed',error.code||error.message||'Login fallito')}catch(e){}
+    const msg=firebaseErrorMessage(error);
+    setStatus(msg);toastCenter(msg);showLogin();
+  }finally{
+    if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='Entra'}
+  }
+  return false;
+};
+
+window.logoutUser=async function(){
+  const user=auth.currentUser;
+  try{if(user)await writeAccessLog(user,'logout','Logout Firebase')}catch(e){}
+  try{await signOut(auth)}catch(e){console.warn('Logout Firebase:',e)}
+  try{sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem('noor_current_login_employee_v2')}catch(e){}
+  try{if(typeof window.settings!=='undefined'&&window.settings){delete window.settings.activeEmployeeId;if(typeof window.saveSettings==='function')window.saveSettings()}}catch(e){}
+  const overlay=$('logoutConfirmOverlay');if(overlay)overlay.classList.remove('show');
+  clearLoginPassword();showLogin();toastCenter('Sei uscito dal gestionale.','success');
+  return false;
+};
+window.confirmLogoutUser=function(){
+  try{if(typeof window.closeTopMenu==='function')window.closeTopMenu()}catch(e){}
+  const overlay=$('logoutConfirmOverlay');
+  if(overlay){overlay.classList.add('show');overlay.setAttribute('aria-hidden','false');return false}
+  if(confirm('Vuoi uscire dal gestionale?'))return window.logoutUser();
+  return false;
+};
+function installPasswordToggle(){
+  const btn=$('loginShowPasswordBtn'); const input=$('loginPassword'); if(!btn||!input)return;
+  btn.type='button'; btn.onclick=function(ev){ev.preventDefault();ev.stopPropagation();input.type=input.type==='password'?'text':'password';btn.textContent=input.type==='password'?'Mostra':'Nascondi';input.focus();return false};
+}
+function installLoginForm(){
+  const form=$('loginForm'); if(form){form.setAttribute('novalidate','novalidate');form.onsubmit=window.loginSubmit;form.addEventListener('submit',window.loginSubmit,true)}
+  const enterBtn=document.querySelector('#loginForm button[type="submit"]'); if(enterBtn){enterBtn.onclick=function(ev){return window.loginSubmit(ev)}}
+  const hint=$('loginDemoHint'); if(hint)hint.textContent='';
+}
+function installLogoutButton(){
+  const menu=$('topMenu'); if(!menu)return;
+  let btn=$('logoutMenuButton'); if(!btn){btn=document.createElement('button');btn.id='logoutMenuButton';btn.className='btn secondary';btn.type='button'}
+  btn.textContent='⏻ Esci'; btn.onclick=function(ev){ev.preventDefault();ev.stopPropagation();return window.confirmLogoutUser()};
+  menu.appendChild(btn);
+}
+function installResetPasswordUI(){
+  const openBtn=$('openResetLoginBtn'); if(openBtn){openBtn.onclick=function(ev){ev.preventDefault();$('loginResetBox')?.classList.toggle('show');return false}}
+  const confirmBtn=$('confirmResetLoginBtn'); if(confirmBtn){confirmBtn.onclick=function(ev){ev.preventDefault();setStatus('Il reset password online sarà gestito dal Super Admin nella fase successiva.');return false}}
+}
+
+function installAccessLogsOnlineSection(){
+  let sec=$('accessLogs');
+  const main=document.querySelector('main.app');
+  if(!sec && main){
+    sec=document.createElement('section');
+    sec.id='accessLogs'; sec.className='section';
+    sec.innerHTML=`<div class="card panel"><div class="panel-title"><div><h2>Controllo Accessi</h2><p class="hint">Accessi registrati online da Firebase / Firestore.</p></div><button class="btn secondary" type="button" id="refreshAccessLogsBtn">Aggiorna</button></div><div class="access-log-kpis"><div class="access-log-kpi">Login riusciti<b id="logOkCount">0</b></div><div class="access-log-kpi">Login falliti<b id="logFailCount">0</b></div><div class="access-log-kpi">Logout<b id="logLogoutCount">0</b></div><div class="access-log-kpi">Totale eventi<b id="logTotalCount">0</b></div></div><div class="filter-bar"><div class="field"><label>Cerca</label><input id="accessLogSearch" placeholder="email, nota, dispositivo"></div><div class="field"><label>Esito</label><select id="accessLogResult"><option value="">Tutti</option><option value="success">Login riuscito</option><option value="failed">Fallito</option><option value="logout">Logout</option></select></div><div class="filter-actions"><button class="btn small gold" type="button" id="applyAccessFilterBtn">Filtra</button></div></div><div class="table-wrap"><table><thead><tr><th>Data / Ora</th><th>Email</th><th>Esito</th><th>Note</th><th>Dispositivo</th></tr></thead><tbody id="accessLogsTable"></tbody></table></div></div>`;
+    main.appendChild(sec);
+  }
+  try{
+    const h=sec?.querySelector('h2'); if(h)h.textContent='Controllo Accessi';
+    const hp=sec?.querySelector('.panel-title .hint'); if(hp)hp.textContent='Accessi registrati online da Firebase / Firestore.';
+  }catch(e){}
+  const menu=$('topMenu');
+  if(menu){
+    let b=$('accessLogsMenuBtn');
+    if(!b){b=document.createElement('button'); b.id='accessLogsMenuBtn'; b.className='btn secondary'; b.type='button';}
+    b.textContent='Controllo Accessi';
+    b.onclick=function(){ if(typeof window.go==='function')window.go('accessLogs'); renderAccessLogsOnline(); if(typeof window.closeTopMenu==='function')window.closeTopMenu(); };
+    const logout=$('logoutMenuButton');
+    if(b.parentNode!==menu) menu.insertBefore(b, logout||null);
+    else if(logout && b.nextSibling!==logout) menu.insertBefore(b, logout);
+  }
+  $('refreshAccessLogsBtn')?.addEventListener('click',renderAccessLogsOnline);
+  $('applyAccessFilterBtn')?.addEventListener('click',renderAccessLogsOnline);
+  $('accessLogSearch')?.addEventListener('input',()=>{clearTimeout(window.__accessLogFilterTimer);window.__accessLogFilterTimer=setTimeout(renderAccessLogsOnline,250)});
+  $('accessLogResult')?.addEventListener('change',renderAccessLogsOnline);
+}
+
+window.renderAccessLogs=renderAccessLogsOnline;
+window.renderAccessLogsOnline=renderAccessLogsOnline;
+async function renderAccessLogsOnline(){
+  installAccessLogsOnlineSection();
+  const tbody=$('accessLogsTable'); if(!tbody)return;
+  tbody.innerHTML='<tr><td colspan="5" class="hint">Caricamento accessi...</td></tr>';
+  try{
+    const snap=await getDocs(collection(firestore,'accessLogs'));
+    let rows=[]; snap.forEach(d=>rows.push({id:d.id,...d.data()}));
+    rows.sort((a,b)=>String(b.createdAtClient||'').localeCompare(String(a.createdAtClient||'')));
+    const q=($('accessLogSearch')?.value||'').trim().toLowerCase();
+    const res=$('accessLogResult')?.value||'';
+    if(res)rows=rows.filter(r=>String(r.result||'')===res);
+    if(q)rows=rows.filter(r=>(String(r.email||'')+' '+String(r.note||'')+' '+String(r.userAgent||'')).toLowerCase().includes(q));
+    $('logOkCount') && ($('logOkCount').textContent=rows.filter(r=>r.result==='success').length);
+    $('logFailCount') && ($('logFailCount').textContent=rows.filter(r=>r.result==='failed').length);
+    $('logLogoutCount') && ($('logLogoutCount').textContent=rows.filter(r=>r.result==='logout').length);
+    $('logTotalCount') && ($('logTotalCount').textContent=rows.length);
+    tbody.innerHTML=rows.slice(0,200).map(r=>{
+      const cls=r.result==='success'?'log-success':r.result==='failed'?'log-fail':'log-logout';
+      const label=r.result==='success'?'Login riuscito':r.result==='failed'?'Fallito':r.result==='logout'?'Logout':esc(r.result||'');
+      return `<tr><td>${esc(fmtDate(r.createdAt)||fmtDate(r.createdAtClient))}</td><td>${esc(r.email||'')}</td><td><span class="${cls}">${label}</span></td><td>${esc(r.note||'')}</td><td>${esc(String(r.userAgent||'').slice(0,90))}</td></tr>`;
+    }).join('') || '<tr><td colspan="5" class="hint">Nessun accesso trovato.</td></tr>';
+  }catch(e){
+    console.error('Errore lettura accessLogs:',e);
+    tbody.innerHTML='<tr><td colspan="5" class="hint">Errore durante la lettura del Registro Accessi. Controlla le regole Firestore.</td></tr>';
+  }
+}
+
+function bootStableFirebase(){installLoginForm();installPasswordToggle();installLogoutButton();installResetPasswordUI();installAccessLogsOnlineSection();loader(true);}
+document.addEventListener('DOMContentLoaded',bootStableFirebase);
+if(document.readyState!=='loading')bootStableFirebase();
+
+await persistenceReady;
+onAuthStateChanged(auth,async(user)=>{
+  if(!user){showLogin();return}
+  try{
+    const profile=await getUserProfile(user);
+    setLocalActiveUser(user,profile);
+    showApp();
+  }catch(error){
+    console.warn('Sessione Firebase non valida:',error);
+    await signOut(auth).catch(()=>{});
+    setStatus(firebaseErrorMessage(error));
+    showLogin();
+  }
+});
+</script>
+
+</body></html>`);
     w.document.close();
   }
   window.printClosure=function(id){
@@ -2297,7 +2843,280 @@ load();
     const company=[s.companyName,s.companyPhone,s.companyEmail,s.companyVat].filter(Boolean).map(esc).join(' · ');
     const footer=esc(s.pdfFooterMessage||'Documento generato dal gestionale Noor Profumi Pro.');
     const printButton='<div class="no-print"><button onclick="window.print()" style="padding:10px 16px;border:0;border-radius:12px;background:#e86aa7;color:white;font-weight:900;cursor:pointer">Stampa / Salva PDF</button></div>';
-    const html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>'+esc(title)+'</title><style>@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;margin:0;color:#351126;background:#fff}.sheet{padding:8px}.head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:3px solid #f5bfd7;padding-bottom:14px;margin-bottom:18px}.brand{font-size:25px;font-weight:950;color:#b01361}.sub{color:#8f5a72;font-size:12px;margin-top:4px}.badge{display:inline-block;padding:7px 11px;border-radius:999px;background:#fff0f7;color:#9a1554;font-weight:900;font-size:12px;border:1px solid #f4c2d8}.box{border:1px solid #f4c2d8;border-radius:18px;padding:14px;margin:12px 0;background:#fff8fb}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:10px;border-bottom:1px solid #f4c2d8;text-align:left;font-size:12px;vertical-align:middle}th{background:#fff0f7;color:#7b254c;text-transform:uppercase;font-size:11px}.total{text-align:right;font-size:24px;font-weight:950;margin-top:16px;color:#3b1027}.muted{color:#8f5a72}.right{text-align:right}.footer{margin-top:22px;padding-top:12px;border-top:1px solid #f4c2d8;font-size:11px;color:#8f5a72}.no-print{margin:0 0 16px;text-align:right}.prod{display:flex;align-items:center;gap:10px}@media print{.no-print{display:none}}</style></head><body><div class="sheet">'+printButton+'<div class="head"><div>'+logo+'<div class="brand">'+appName+'</div><div class="sub">'+esc(title)+' · '+esc(now)+'</div>'+(company?'<div class="sub">'+company+'</div>':'')+'</div><div class="badge">Documento PDF</div></div>'+bodyHtml+'<div class="footer">'+footer+'</div></div></body></html>';
+    const html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>'+esc(title)+'</title><style>@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;margin:0;color:#351126;background:#fff}.sheet{padding:8px}.head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:3px solid #f5bfd7;padding-bottom:14px;margin-bottom:18px}.brand{font-size:25px;font-weight:950;color:#b01361}.sub{color:#8f5a72;font-size:12px;margin-top:4px}.badge{display:inline-block;padding:7px 11px;border-radius:999px;background:#fff0f7;color:#9a1554;font-weight:900;font-size:12px;border:1px solid #f4c2d8}.box{border:1px solid #f4c2d8;border-radius:18px;padding:14px;margin:12px 0;background:#fff8fb}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:10px;border-bottom:1px solid #f4c2d8;text-align:left;font-size:12px;vertical-align:middle}th{background:#fff0f7;color:#7b254c;text-transform:uppercase;font-size:11px}.total{text-align:right;font-size:24px;font-weight:950;margin-top:16px;color:#3b1027}.muted{color:#8f5a72}.right{text-align:right}.footer{margin-top:22px;padding-top:12px;border-top:1px solid #f4c2d8;font-size:11px;color:#8f5a72}.no-print{margin:0 0 16px;text-align:right}.prod{display:flex;align-items:center;gap:10px}@media print{.no-print{display:none}}</style></head><body><div class="sheet">'+printButton+'<div class="head"><div>'+logo+'<div class="brand">'+appName+'</div><div class="sub">'+esc(title)+' · '+esc(now)+'</div>'+(company?'<div class="sub">'+company+'</div>':'')+'</div><div class="badge">Documento PDF</div></div>'+bodyHtml+'<div class="footer">'+footer+'</div></div>
+
+<style id="firebase-stable-session-accesslogs-final">
+  .menu-dropdown .btn.secondary{display:flex!important;align-items:center!important;gap:8px!important}
+  #accessLogs .table-wrap table{min-width:760px}
+  #accessLogsMenuBtn{font-weight:950!important}
+  #firebaseAuthLoader{position:fixed;inset:0;z-index:49999;display:none;align-items:center;justify-content:center;background:rgba(255,250,253,.88);backdrop-filter:blur(10px);font-weight:950;color:var(--text)}
+  #firebaseAuthLoader.show{display:flex}
+</style>
+
+<script type="module" id="firebase-stable-session-accesslogs-final-script">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFirestore, doc, getDoc, collection, addDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+  authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+  projectId:"gestionalenoor-2fa61",
+  storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+  messagingSenderId:"66670691093",
+  appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+  measurementId:"G-0HSQB7XLJG"
+};
+
+const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const firestore=getFirestore(app);
+const SESSION_KEY="noor_firebase_current_user_v1";
+const $=(id)=>document.getElementById(id);
+const persistenceReady=setPersistence(auth,browserLocalPersistence).catch(err=>{
+  console.warn('Persistenza Firebase non impostata:',err);
+});
+
+function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function fmtDate(v){
+  try{
+    let d=v?.toDate?v.toDate():new Date(v||Date.now());
+    return d.toLocaleString('it-IT',{dateStyle:'short',timeStyle:'medium'});
+  }catch(e){return ''}
+}
+function loader(show,msg='Controllo sessione...'){
+  let el=$('firebaseAuthLoader');
+  if(!el){el=document.createElement('div');el.id='firebaseAuthLoader';document.body.appendChild(el)}
+  el.textContent=msg;
+  el.classList.toggle('show',!!show);
+}
+function setStatus(msg,type='error'){
+  let el=$('firebaseLoginStatus');
+  if(!el){
+    el=document.createElement('div');el.id='firebaseLoginStatus';
+    const actions=document.querySelector('.login-actions')||$('loginForm');
+    if(actions)actions.insertAdjacentElement('afterend',el);
+  }
+  el.style.color=type==='success'?'#128a3a':type==='loading'?'#8a5700':'#b51545';
+  el.textContent=msg||'';
+}
+function toastCenter(msg,type){
+  if(typeof window.toastCenter==='function' && window.toastCenter!==toastCenter){try{return window.toastCenter(msg,type)}catch(e){}}
+  if(typeof window.toast==='function'){try{return window.toast(msg,type)}catch(e){}}
+  let t=$('firebaseToastCenter');
+  if(!t){t=document.createElement('div');t.id='firebaseToastCenter';t.className='toast';document.body.appendChild(t)}
+  t.className='toast show'+(type==='success'?' success':'');
+  t.textContent=msg;
+  clearTimeout(window.__firebaseToastTimer);
+  window.__firebaseToastTimer=setTimeout(()=>t.classList.remove('show'),2600);
+}
+function showLogin(){
+  loader(false);
+  $('loginScreen')?.classList.remove('hidden');
+  document.body.classList.add('login-active');
+}
+function showApp(){
+  loader(false);
+  $('loginScreen')?.classList.add('hidden');
+  document.body.classList.remove('login-active');
+  setStatus('');
+  try{ if(typeof window.renderAll==='function') window.renderAll(); }catch(e){}
+  try{ if(typeof window.applyEmployeePermissions==='function') window.applyEmployeePermissions(); }catch(e){}
+  try{ installAccessLogsOnlineSection(); renderAccessLogsOnline(); }catch(e){console.warn(e)}
+}
+function clearLoginPassword(){const p=$('loginPassword'); if(p)p.value='';}
+async function getUserProfile(user){
+  if(!user)throw new Error('NO_AUTH_USER');
+  const snap=await getDoc(doc(firestore,'users',user.uid));
+  if(!snap.exists())throw new Error('NO_USER_PROFILE');
+  const profile={id:user.uid,...snap.data()};
+  if(profile.active===false)throw new Error('USER_DISABLED');
+  return profile;
+}
+function setLocalActiveUser(user,profile){
+  const emp={id:user.uid,loginEmail:user.email,email:user.email,name:profile.name||user.email,role:profile.role||'seller',active:true,firebaseUid:user.uid};
+  try{sessionStorage.setItem(SESSION_KEY,user.uid)}catch(e){}
+  try{sessionStorage.setItem('noor_current_login_employee_v2',user.uid)}catch(e){}
+  try{
+    if(typeof window.settings!=='undefined'&&window.settings){window.settings.activeEmployeeId=user.uid; if(typeof window.saveSettings==='function')window.saveSettings();}
+  }catch(e){}
+  try{
+    if(typeof window.db!=='undefined'&&window.db){
+      if(!Array.isArray(window.db.employees))window.db.employees=[];
+      const i=window.db.employees.findIndex(x=>String(x.id)===String(user.uid));
+      if(i>=0)window.db.employees[i]={...window.db.employees[i],...emp}; else window.db.employees.unshift(emp);
+      if(typeof window.persistDb==='function')window.persistDb();
+    }
+  }catch(e){}
+  const badge=$('activeEmployeeBadge'); if(badge)badge.textContent=(profile.role==='owner'?'Super Admin':profile.name||user.email);
+}
+async function writeAccessLog(user,result,note){
+  try{
+    await addDoc(collection(firestore,'accessLogs'),{
+      uid:user?.uid||null,
+      email:user?.email||String(user?.email||$('loginEmail')?.value||'').trim(),
+      result,
+      note:note||'',
+      userAgent:navigator.userAgent,
+      createdAt:serverTimestamp(),
+      createdAtClient:new Date().toISOString()
+    });
+  }catch(e){console.warn('Access log non salvato:',e)}
+}
+function firebaseErrorMessage(error){
+  if(error?.message==='NO_USER_PROFILE')return 'Utente autenticato, ma manca il profilo Firestore in users/{UID}.';
+  if(error?.message==='USER_DISABLED')return 'Utente disattivato. Contatta il Super Admin.';
+  if(error?.code==='auth/invalid-credential'||error?.code==='auth/wrong-password'||error?.code==='auth/user-not-found')return 'Email o password Firebase non corretti.';
+  if(error?.code==='auth/too-many-requests')return 'Troppi tentativi. Attendi qualche minuto e riprova.';
+  if(error?.code==='auth/network-request-failed')return 'Errore di rete. Controlla la connessione.';
+  if(error?.code==='auth/unauthorized-domain')return 'Dominio Netlify non autorizzato in Firebase Authentication.';
+  return 'Accesso non riuscito: '+(error?.code||error?.message||'errore sconosciuto');
+}
+
+window.loginSubmit=async function(ev){
+  if(ev){ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation()}
+  const email=($('loginEmail')?.value||'').trim();
+  const password=$('loginPassword')?.value||'';
+  if(!email||!password){setStatus('Inserisci email e password.');return false}
+  const submitBtn=document.querySelector('#loginForm button[type="submit"]');
+  if(submitBtn){submitBtn.disabled=true;submitBtn.textContent='Accesso...'}
+  try{
+    await persistenceReady;
+    setStatus('Accesso in corso...','loading');
+    const cred=await signInWithEmailAndPassword(auth,email,password);
+    const profile=await getUserProfile(cred.user);
+    setLocalActiveUser(cred.user,profile);
+    await writeAccessLog(cred.user,'success','Login Firebase riuscito');
+    setStatus('Accesso effettuato.','success');
+    showApp();
+    toastCenter('Accesso effettuato: '+(profile.name||cred.user.email),'success');
+  }catch(error){
+    console.error('Errore login Firebase:',error);
+    try{await writeAccessLog({email},'failed',error.code||error.message||'Login fallito')}catch(e){}
+    const msg=firebaseErrorMessage(error);
+    setStatus(msg);toastCenter(msg);showLogin();
+  }finally{
+    if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='Entra'}
+  }
+  return false;
+};
+
+window.logoutUser=async function(){
+  const user=auth.currentUser;
+  try{if(user)await writeAccessLog(user,'logout','Logout Firebase')}catch(e){}
+  try{await signOut(auth)}catch(e){console.warn('Logout Firebase:',e)}
+  try{sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem('noor_current_login_employee_v2')}catch(e){}
+  try{if(typeof window.settings!=='undefined'&&window.settings){delete window.settings.activeEmployeeId;if(typeof window.saveSettings==='function')window.saveSettings()}}catch(e){}
+  const overlay=$('logoutConfirmOverlay');if(overlay)overlay.classList.remove('show');
+  clearLoginPassword();showLogin();toastCenter('Sei uscito dal gestionale.','success');
+  return false;
+};
+window.confirmLogoutUser=function(){
+  try{if(typeof window.closeTopMenu==='function')window.closeTopMenu()}catch(e){}
+  const overlay=$('logoutConfirmOverlay');
+  if(overlay){overlay.classList.add('show');overlay.setAttribute('aria-hidden','false');return false}
+  if(confirm('Vuoi uscire dal gestionale?'))return window.logoutUser();
+  return false;
+};
+function installPasswordToggle(){
+  const btn=$('loginShowPasswordBtn'); const input=$('loginPassword'); if(!btn||!input)return;
+  btn.type='button'; btn.onclick=function(ev){ev.preventDefault();ev.stopPropagation();input.type=input.type==='password'?'text':'password';btn.textContent=input.type==='password'?'Mostra':'Nascondi';input.focus();return false};
+}
+function installLoginForm(){
+  const form=$('loginForm'); if(form){form.setAttribute('novalidate','novalidate');form.onsubmit=window.loginSubmit;form.addEventListener('submit',window.loginSubmit,true)}
+  const enterBtn=document.querySelector('#loginForm button[type="submit"]'); if(enterBtn){enterBtn.onclick=function(ev){return window.loginSubmit(ev)}}
+  const hint=$('loginDemoHint'); if(hint)hint.textContent='';
+}
+function installLogoutButton(){
+  const menu=$('topMenu'); if(!menu)return;
+  let btn=$('logoutMenuButton'); if(!btn){btn=document.createElement('button');btn.id='logoutMenuButton';btn.className='btn secondary';btn.type='button'}
+  btn.textContent='⏻ Esci'; btn.onclick=function(ev){ev.preventDefault();ev.stopPropagation();return window.confirmLogoutUser()};
+  menu.appendChild(btn);
+}
+function installResetPasswordUI(){
+  const openBtn=$('openResetLoginBtn'); if(openBtn){openBtn.onclick=function(ev){ev.preventDefault();$('loginResetBox')?.classList.toggle('show');return false}}
+  const confirmBtn=$('confirmResetLoginBtn'); if(confirmBtn){confirmBtn.onclick=function(ev){ev.preventDefault();setStatus('Il reset password online sarà gestito dal Super Admin nella fase successiva.');return false}}
+}
+
+function installAccessLogsOnlineSection(){
+  let sec=$('accessLogs');
+  const main=document.querySelector('main.app');
+  if(!sec && main){
+    sec=document.createElement('section');
+    sec.id='accessLogs'; sec.className='section';
+    sec.innerHTML=`<div class="card panel"><div class="panel-title"><div><h2>Controllo Accessi</h2><p class="hint">Accessi registrati online da Firebase / Firestore.</p></div><button class="btn secondary" type="button" id="refreshAccessLogsBtn">Aggiorna</button></div><div class="access-log-kpis"><div class="access-log-kpi">Login riusciti<b id="logOkCount">0</b></div><div class="access-log-kpi">Login falliti<b id="logFailCount">0</b></div><div class="access-log-kpi">Logout<b id="logLogoutCount">0</b></div><div class="access-log-kpi">Totale eventi<b id="logTotalCount">0</b></div></div><div class="filter-bar"><div class="field"><label>Cerca</label><input id="accessLogSearch" placeholder="email, nota, dispositivo"></div><div class="field"><label>Esito</label><select id="accessLogResult"><option value="">Tutti</option><option value="success">Login riuscito</option><option value="failed">Fallito</option><option value="logout">Logout</option></select></div><div class="filter-actions"><button class="btn small gold" type="button" id="applyAccessFilterBtn">Filtra</button></div></div><div class="table-wrap"><table><thead><tr><th>Data / Ora</th><th>Email</th><th>Esito</th><th>Note</th><th>Dispositivo</th></tr></thead><tbody id="accessLogsTable"></tbody></table></div></div>`;
+    main.appendChild(sec);
+  }
+  try{
+    const h=sec?.querySelector('h2'); if(h)h.textContent='Controllo Accessi';
+    const hp=sec?.querySelector('.panel-title .hint'); if(hp)hp.textContent='Accessi registrati online da Firebase / Firestore.';
+  }catch(e){}
+  const menu=$('topMenu');
+  if(menu){
+    let b=$('accessLogsMenuBtn');
+    if(!b){b=document.createElement('button'); b.id='accessLogsMenuBtn'; b.className='btn secondary'; b.type='button';}
+    b.textContent='Controllo Accessi';
+    b.onclick=function(){ if(typeof window.go==='function')window.go('accessLogs'); renderAccessLogsOnline(); if(typeof window.closeTopMenu==='function')window.closeTopMenu(); };
+    const logout=$('logoutMenuButton');
+    if(b.parentNode!==menu) menu.insertBefore(b, logout||null);
+    else if(logout && b.nextSibling!==logout) menu.insertBefore(b, logout);
+  }
+  $('refreshAccessLogsBtn')?.addEventListener('click',renderAccessLogsOnline);
+  $('applyAccessFilterBtn')?.addEventListener('click',renderAccessLogsOnline);
+  $('accessLogSearch')?.addEventListener('input',()=>{clearTimeout(window.__accessLogFilterTimer);window.__accessLogFilterTimer=setTimeout(renderAccessLogsOnline,250)});
+  $('accessLogResult')?.addEventListener('change',renderAccessLogsOnline);
+}
+
+window.renderAccessLogs=renderAccessLogsOnline;
+window.renderAccessLogsOnline=renderAccessLogsOnline;
+async function renderAccessLogsOnline(){
+  installAccessLogsOnlineSection();
+  const tbody=$('accessLogsTable'); if(!tbody)return;
+  tbody.innerHTML='<tr><td colspan="5" class="hint">Caricamento accessi...</td></tr>';
+  try{
+    const snap=await getDocs(collection(firestore,'accessLogs'));
+    let rows=[]; snap.forEach(d=>rows.push({id:d.id,...d.data()}));
+    rows.sort((a,b)=>String(b.createdAtClient||'').localeCompare(String(a.createdAtClient||'')));
+    const q=($('accessLogSearch')?.value||'').trim().toLowerCase();
+    const res=$('accessLogResult')?.value||'';
+    if(res)rows=rows.filter(r=>String(r.result||'')===res);
+    if(q)rows=rows.filter(r=>(String(r.email||'')+' '+String(r.note||'')+' '+String(r.userAgent||'')).toLowerCase().includes(q));
+    $('logOkCount') && ($('logOkCount').textContent=rows.filter(r=>r.result==='success').length);
+    $('logFailCount') && ($('logFailCount').textContent=rows.filter(r=>r.result==='failed').length);
+    $('logLogoutCount') && ($('logLogoutCount').textContent=rows.filter(r=>r.result==='logout').length);
+    $('logTotalCount') && ($('logTotalCount').textContent=rows.length);
+    tbody.innerHTML=rows.slice(0,200).map(r=>{
+      const cls=r.result==='success'?'log-success':r.result==='failed'?'log-fail':'log-logout';
+      const label=r.result==='success'?'Login riuscito':r.result==='failed'?'Fallito':r.result==='logout'?'Logout':esc(r.result||'');
+      return `<tr><td>${esc(fmtDate(r.createdAt)||fmtDate(r.createdAtClient))}</td><td>${esc(r.email||'')}</td><td><span class="${cls}">${label}</span></td><td>${esc(r.note||'')}</td><td>${esc(String(r.userAgent||'').slice(0,90))}</td></tr>`;
+    }).join('') || '<tr><td colspan="5" class="hint">Nessun accesso trovato.</td></tr>';
+  }catch(e){
+    console.error('Errore lettura accessLogs:',e);
+    tbody.innerHTML='<tr><td colspan="5" class="hint">Errore durante la lettura del Registro Accessi. Controlla le regole Firestore.</td></tr>';
+  }
+}
+
+function bootStableFirebase(){installLoginForm();installPasswordToggle();installLogoutButton();installResetPasswordUI();installAccessLogsOnlineSection();loader(true);}
+document.addEventListener('DOMContentLoaded',bootStableFirebase);
+if(document.readyState!=='loading')bootStableFirebase();
+
+await persistenceReady;
+onAuthStateChanged(auth,async(user)=>{
+  if(!user){showLogin();return}
+  try{
+    const profile=await getUserProfile(user);
+    setLocalActiveUser(user,profile);
+    showApp();
+  }catch(error){
+    console.warn('Sessione Firebase non valida:',error);
+    await signOut(auth).catch(()=>{});
+    setStatus(firebaseErrorMessage(error));
+    showLogin();
+  }
+});
+</script>
+
+</body></html>';
     w.document.open(); w.document.write(html); w.document.close();
   };
   setTimeout(function(){ if(typeof renderSettingsPanel==='function') renderSettingsPanel(); },300);
@@ -2425,7 +3244,280 @@ load();
       return '<div class="r-row"><div><b>'+esc(l.productName||'Prodotto')+'</b><br><small>x '+esc(l.qty||1)+' · '+money(l.price||0)+(l.discountCode||l.manualDiscountCode?' · sconto '+esc(l.discountCode||l.manualDiscountCode):'')+'</small></div><b>'+money(lineTotal)+'</b></div>';
     }).join('');
     var total=Number(o.total||0)||((o.lines||[]).reduce(function(a,l){return a+Number(l.total||0)},0));
-    var html='<!doctype html><html><head><meta charset="utf-8"><title>Ricevuta '+esc(o.orderNumber||o.id)+'</title><style>body{font-family:Arial,sans-serif;margin:0;background:#fff;color:#111}.receipt{width:80mm;max-width:100%;padding:14px;margin:0 auto}.head{text-align:center;border-bottom:1px dashed #999;padding-bottom:10px;margin-bottom:10px}.brand{font-size:20px;font-weight:900}.muted{font-size:12px;color:#555}.r-row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed #ddd;padding:9px 0}.total{display:flex;justify-content:space-between;font-size:20px;font-weight:900;margin-top:12px;padding-top:12px;border-top:2px solid #111}.footer{text-align:center;margin-top:18px;font-size:12px}.pay{margin-top:10px;font-size:13px}@media print{.receipt{width:80mm}.no-print{display:none}}</style></head><body><div class="receipt"><div class="head"><div class="brand">'+esc(company)+'</div><div class="muted">'+esc(phone)+' '+esc(email)+'</div><div class="muted">'+esc(vat)+'</div></div><div class="muted">Data: '+esc(new Date(o.date||Date.now()).toLocaleString('it-IT'))+'</div><div class="muted">Ordine: '+esc(o.orderNumber||o.id)+'</div><div class="pay">Pagamento: <b>'+esc(o.payment||'—')+'</b></div>'+rows+'<div class="total"><span>Totale</span><span>'+money(total)+'</span></div><div class="footer">Grazie per il tuo acquisto</div><div class="no-print" style="text-align:center;margin-top:14px"><button onclick="window.print()">Stampa</button></div></div></body></html>';
+    var html='<!doctype html><html><head><meta charset="utf-8"><title>Ricevuta '+esc(o.orderNumber||o.id)+'</title><style>body{font-family:Arial,sans-serif;margin:0;background:#fff;color:#111}.receipt{width:80mm;max-width:100%;padding:14px;margin:0 auto}.head{text-align:center;border-bottom:1px dashed #999;padding-bottom:10px;margin-bottom:10px}.brand{font-size:20px;font-weight:900}.muted{font-size:12px;color:#555}.r-row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed #ddd;padding:9px 0}.total{display:flex;justify-content:space-between;font-size:20px;font-weight:900;margin-top:12px;padding-top:12px;border-top:2px solid #111}.footer{text-align:center;margin-top:18px;font-size:12px}.pay{margin-top:10px;font-size:13px}@media print{.receipt{width:80mm}.no-print{display:none}}</style></head><body><div class="receipt"><div class="head"><div class="brand">'+esc(company)+'</div><div class="muted">'+esc(phone)+' '+esc(email)+'</div><div class="muted">'+esc(vat)+'</div></div><div class="muted">Data: '+esc(new Date(o.date||Date.now()).toLocaleString('it-IT'))+'</div><div class="muted">Ordine: '+esc(o.orderNumber||o.id)+'</div><div class="pay">Pagamento: <b>'+esc(o.payment||'—')+'</b></div>'+rows+'<div class="total"><span>Totale</span><span>'+money(total)+'</span></div><div class="footer">Grazie per il tuo acquisto</div><div class="no-print" style="text-align:center;margin-top:14px"><button onclick="window.print()">Stampa</button></div></div>
+
+<style id="firebase-stable-session-accesslogs-final">
+  .menu-dropdown .btn.secondary{display:flex!important;align-items:center!important;gap:8px!important}
+  #accessLogs .table-wrap table{min-width:760px}
+  #accessLogsMenuBtn{font-weight:950!important}
+  #firebaseAuthLoader{position:fixed;inset:0;z-index:49999;display:none;align-items:center;justify-content:center;background:rgba(255,250,253,.88);backdrop-filter:blur(10px);font-weight:950;color:var(--text)}
+  #firebaseAuthLoader.show{display:flex}
+</style>
+
+<script type="module" id="firebase-stable-session-accesslogs-final-script">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFirestore, doc, getDoc, collection, addDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+  authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+  projectId:"gestionalenoor-2fa61",
+  storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+  messagingSenderId:"66670691093",
+  appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+  measurementId:"G-0HSQB7XLJG"
+};
+
+const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const firestore=getFirestore(app);
+const SESSION_KEY="noor_firebase_current_user_v1";
+const $=(id)=>document.getElementById(id);
+const persistenceReady=setPersistence(auth,browserLocalPersistence).catch(err=>{
+  console.warn('Persistenza Firebase non impostata:',err);
+});
+
+function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function fmtDate(v){
+  try{
+    let d=v?.toDate?v.toDate():new Date(v||Date.now());
+    return d.toLocaleString('it-IT',{dateStyle:'short',timeStyle:'medium'});
+  }catch(e){return ''}
+}
+function loader(show,msg='Controllo sessione...'){
+  let el=$('firebaseAuthLoader');
+  if(!el){el=document.createElement('div');el.id='firebaseAuthLoader';document.body.appendChild(el)}
+  el.textContent=msg;
+  el.classList.toggle('show',!!show);
+}
+function setStatus(msg,type='error'){
+  let el=$('firebaseLoginStatus');
+  if(!el){
+    el=document.createElement('div');el.id='firebaseLoginStatus';
+    const actions=document.querySelector('.login-actions')||$('loginForm');
+    if(actions)actions.insertAdjacentElement('afterend',el);
+  }
+  el.style.color=type==='success'?'#128a3a':type==='loading'?'#8a5700':'#b51545';
+  el.textContent=msg||'';
+}
+function toastCenter(msg,type){
+  if(typeof window.toastCenter==='function' && window.toastCenter!==toastCenter){try{return window.toastCenter(msg,type)}catch(e){}}
+  if(typeof window.toast==='function'){try{return window.toast(msg,type)}catch(e){}}
+  let t=$('firebaseToastCenter');
+  if(!t){t=document.createElement('div');t.id='firebaseToastCenter';t.className='toast';document.body.appendChild(t)}
+  t.className='toast show'+(type==='success'?' success':'');
+  t.textContent=msg;
+  clearTimeout(window.__firebaseToastTimer);
+  window.__firebaseToastTimer=setTimeout(()=>t.classList.remove('show'),2600);
+}
+function showLogin(){
+  loader(false);
+  $('loginScreen')?.classList.remove('hidden');
+  document.body.classList.add('login-active');
+}
+function showApp(){
+  loader(false);
+  $('loginScreen')?.classList.add('hidden');
+  document.body.classList.remove('login-active');
+  setStatus('');
+  try{ if(typeof window.renderAll==='function') window.renderAll(); }catch(e){}
+  try{ if(typeof window.applyEmployeePermissions==='function') window.applyEmployeePermissions(); }catch(e){}
+  try{ installAccessLogsOnlineSection(); renderAccessLogsOnline(); }catch(e){console.warn(e)}
+}
+function clearLoginPassword(){const p=$('loginPassword'); if(p)p.value='';}
+async function getUserProfile(user){
+  if(!user)throw new Error('NO_AUTH_USER');
+  const snap=await getDoc(doc(firestore,'users',user.uid));
+  if(!snap.exists())throw new Error('NO_USER_PROFILE');
+  const profile={id:user.uid,...snap.data()};
+  if(profile.active===false)throw new Error('USER_DISABLED');
+  return profile;
+}
+function setLocalActiveUser(user,profile){
+  const emp={id:user.uid,loginEmail:user.email,email:user.email,name:profile.name||user.email,role:profile.role||'seller',active:true,firebaseUid:user.uid};
+  try{sessionStorage.setItem(SESSION_KEY,user.uid)}catch(e){}
+  try{sessionStorage.setItem('noor_current_login_employee_v2',user.uid)}catch(e){}
+  try{
+    if(typeof window.settings!=='undefined'&&window.settings){window.settings.activeEmployeeId=user.uid; if(typeof window.saveSettings==='function')window.saveSettings();}
+  }catch(e){}
+  try{
+    if(typeof window.db!=='undefined'&&window.db){
+      if(!Array.isArray(window.db.employees))window.db.employees=[];
+      const i=window.db.employees.findIndex(x=>String(x.id)===String(user.uid));
+      if(i>=0)window.db.employees[i]={...window.db.employees[i],...emp}; else window.db.employees.unshift(emp);
+      if(typeof window.persistDb==='function')window.persistDb();
+    }
+  }catch(e){}
+  const badge=$('activeEmployeeBadge'); if(badge)badge.textContent=(profile.role==='owner'?'Super Admin':profile.name||user.email);
+}
+async function writeAccessLog(user,result,note){
+  try{
+    await addDoc(collection(firestore,'accessLogs'),{
+      uid:user?.uid||null,
+      email:user?.email||String(user?.email||$('loginEmail')?.value||'').trim(),
+      result,
+      note:note||'',
+      userAgent:navigator.userAgent,
+      createdAt:serverTimestamp(),
+      createdAtClient:new Date().toISOString()
+    });
+  }catch(e){console.warn('Access log non salvato:',e)}
+}
+function firebaseErrorMessage(error){
+  if(error?.message==='NO_USER_PROFILE')return 'Utente autenticato, ma manca il profilo Firestore in users/{UID}.';
+  if(error?.message==='USER_DISABLED')return 'Utente disattivato. Contatta il Super Admin.';
+  if(error?.code==='auth/invalid-credential'||error?.code==='auth/wrong-password'||error?.code==='auth/user-not-found')return 'Email o password Firebase non corretti.';
+  if(error?.code==='auth/too-many-requests')return 'Troppi tentativi. Attendi qualche minuto e riprova.';
+  if(error?.code==='auth/network-request-failed')return 'Errore di rete. Controlla la connessione.';
+  if(error?.code==='auth/unauthorized-domain')return 'Dominio Netlify non autorizzato in Firebase Authentication.';
+  return 'Accesso non riuscito: '+(error?.code||error?.message||'errore sconosciuto');
+}
+
+window.loginSubmit=async function(ev){
+  if(ev){ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation()}
+  const email=($('loginEmail')?.value||'').trim();
+  const password=$('loginPassword')?.value||'';
+  if(!email||!password){setStatus('Inserisci email e password.');return false}
+  const submitBtn=document.querySelector('#loginForm button[type="submit"]');
+  if(submitBtn){submitBtn.disabled=true;submitBtn.textContent='Accesso...'}
+  try{
+    await persistenceReady;
+    setStatus('Accesso in corso...','loading');
+    const cred=await signInWithEmailAndPassword(auth,email,password);
+    const profile=await getUserProfile(cred.user);
+    setLocalActiveUser(cred.user,profile);
+    await writeAccessLog(cred.user,'success','Login Firebase riuscito');
+    setStatus('Accesso effettuato.','success');
+    showApp();
+    toastCenter('Accesso effettuato: '+(profile.name||cred.user.email),'success');
+  }catch(error){
+    console.error('Errore login Firebase:',error);
+    try{await writeAccessLog({email},'failed',error.code||error.message||'Login fallito')}catch(e){}
+    const msg=firebaseErrorMessage(error);
+    setStatus(msg);toastCenter(msg);showLogin();
+  }finally{
+    if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='Entra'}
+  }
+  return false;
+};
+
+window.logoutUser=async function(){
+  const user=auth.currentUser;
+  try{if(user)await writeAccessLog(user,'logout','Logout Firebase')}catch(e){}
+  try{await signOut(auth)}catch(e){console.warn('Logout Firebase:',e)}
+  try{sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem('noor_current_login_employee_v2')}catch(e){}
+  try{if(typeof window.settings!=='undefined'&&window.settings){delete window.settings.activeEmployeeId;if(typeof window.saveSettings==='function')window.saveSettings()}}catch(e){}
+  const overlay=$('logoutConfirmOverlay');if(overlay)overlay.classList.remove('show');
+  clearLoginPassword();showLogin();toastCenter('Sei uscito dal gestionale.','success');
+  return false;
+};
+window.confirmLogoutUser=function(){
+  try{if(typeof window.closeTopMenu==='function')window.closeTopMenu()}catch(e){}
+  const overlay=$('logoutConfirmOverlay');
+  if(overlay){overlay.classList.add('show');overlay.setAttribute('aria-hidden','false');return false}
+  if(confirm('Vuoi uscire dal gestionale?'))return window.logoutUser();
+  return false;
+};
+function installPasswordToggle(){
+  const btn=$('loginShowPasswordBtn'); const input=$('loginPassword'); if(!btn||!input)return;
+  btn.type='button'; btn.onclick=function(ev){ev.preventDefault();ev.stopPropagation();input.type=input.type==='password'?'text':'password';btn.textContent=input.type==='password'?'Mostra':'Nascondi';input.focus();return false};
+}
+function installLoginForm(){
+  const form=$('loginForm'); if(form){form.setAttribute('novalidate','novalidate');form.onsubmit=window.loginSubmit;form.addEventListener('submit',window.loginSubmit,true)}
+  const enterBtn=document.querySelector('#loginForm button[type="submit"]'); if(enterBtn){enterBtn.onclick=function(ev){return window.loginSubmit(ev)}}
+  const hint=$('loginDemoHint'); if(hint)hint.textContent='';
+}
+function installLogoutButton(){
+  const menu=$('topMenu'); if(!menu)return;
+  let btn=$('logoutMenuButton'); if(!btn){btn=document.createElement('button');btn.id='logoutMenuButton';btn.className='btn secondary';btn.type='button'}
+  btn.textContent='⏻ Esci'; btn.onclick=function(ev){ev.preventDefault();ev.stopPropagation();return window.confirmLogoutUser()};
+  menu.appendChild(btn);
+}
+function installResetPasswordUI(){
+  const openBtn=$('openResetLoginBtn'); if(openBtn){openBtn.onclick=function(ev){ev.preventDefault();$('loginResetBox')?.classList.toggle('show');return false}}
+  const confirmBtn=$('confirmResetLoginBtn'); if(confirmBtn){confirmBtn.onclick=function(ev){ev.preventDefault();setStatus('Il reset password online sarà gestito dal Super Admin nella fase successiva.');return false}}
+}
+
+function installAccessLogsOnlineSection(){
+  let sec=$('accessLogs');
+  const main=document.querySelector('main.app');
+  if(!sec && main){
+    sec=document.createElement('section');
+    sec.id='accessLogs'; sec.className='section';
+    sec.innerHTML=`<div class="card panel"><div class="panel-title"><div><h2>Controllo Accessi</h2><p class="hint">Accessi registrati online da Firebase / Firestore.</p></div><button class="btn secondary" type="button" id="refreshAccessLogsBtn">Aggiorna</button></div><div class="access-log-kpis"><div class="access-log-kpi">Login riusciti<b id="logOkCount">0</b></div><div class="access-log-kpi">Login falliti<b id="logFailCount">0</b></div><div class="access-log-kpi">Logout<b id="logLogoutCount">0</b></div><div class="access-log-kpi">Totale eventi<b id="logTotalCount">0</b></div></div><div class="filter-bar"><div class="field"><label>Cerca</label><input id="accessLogSearch" placeholder="email, nota, dispositivo"></div><div class="field"><label>Esito</label><select id="accessLogResult"><option value="">Tutti</option><option value="success">Login riuscito</option><option value="failed">Fallito</option><option value="logout">Logout</option></select></div><div class="filter-actions"><button class="btn small gold" type="button" id="applyAccessFilterBtn">Filtra</button></div></div><div class="table-wrap"><table><thead><tr><th>Data / Ora</th><th>Email</th><th>Esito</th><th>Note</th><th>Dispositivo</th></tr></thead><tbody id="accessLogsTable"></tbody></table></div></div>`;
+    main.appendChild(sec);
+  }
+  try{
+    const h=sec?.querySelector('h2'); if(h)h.textContent='Controllo Accessi';
+    const hp=sec?.querySelector('.panel-title .hint'); if(hp)hp.textContent='Accessi registrati online da Firebase / Firestore.';
+  }catch(e){}
+  const menu=$('topMenu');
+  if(menu){
+    let b=$('accessLogsMenuBtn');
+    if(!b){b=document.createElement('button'); b.id='accessLogsMenuBtn'; b.className='btn secondary'; b.type='button';}
+    b.textContent='Controllo Accessi';
+    b.onclick=function(){ if(typeof window.go==='function')window.go('accessLogs'); renderAccessLogsOnline(); if(typeof window.closeTopMenu==='function')window.closeTopMenu(); };
+    const logout=$('logoutMenuButton');
+    if(b.parentNode!==menu) menu.insertBefore(b, logout||null);
+    else if(logout && b.nextSibling!==logout) menu.insertBefore(b, logout);
+  }
+  $('refreshAccessLogsBtn')?.addEventListener('click',renderAccessLogsOnline);
+  $('applyAccessFilterBtn')?.addEventListener('click',renderAccessLogsOnline);
+  $('accessLogSearch')?.addEventListener('input',()=>{clearTimeout(window.__accessLogFilterTimer);window.__accessLogFilterTimer=setTimeout(renderAccessLogsOnline,250)});
+  $('accessLogResult')?.addEventListener('change',renderAccessLogsOnline);
+}
+
+window.renderAccessLogs=renderAccessLogsOnline;
+window.renderAccessLogsOnline=renderAccessLogsOnline;
+async function renderAccessLogsOnline(){
+  installAccessLogsOnlineSection();
+  const tbody=$('accessLogsTable'); if(!tbody)return;
+  tbody.innerHTML='<tr><td colspan="5" class="hint">Caricamento accessi...</td></tr>';
+  try{
+    const snap=await getDocs(collection(firestore,'accessLogs'));
+    let rows=[]; snap.forEach(d=>rows.push({id:d.id,...d.data()}));
+    rows.sort((a,b)=>String(b.createdAtClient||'').localeCompare(String(a.createdAtClient||'')));
+    const q=($('accessLogSearch')?.value||'').trim().toLowerCase();
+    const res=$('accessLogResult')?.value||'';
+    if(res)rows=rows.filter(r=>String(r.result||'')===res);
+    if(q)rows=rows.filter(r=>(String(r.email||'')+' '+String(r.note||'')+' '+String(r.userAgent||'')).toLowerCase().includes(q));
+    $('logOkCount') && ($('logOkCount').textContent=rows.filter(r=>r.result==='success').length);
+    $('logFailCount') && ($('logFailCount').textContent=rows.filter(r=>r.result==='failed').length);
+    $('logLogoutCount') && ($('logLogoutCount').textContent=rows.filter(r=>r.result==='logout').length);
+    $('logTotalCount') && ($('logTotalCount').textContent=rows.length);
+    tbody.innerHTML=rows.slice(0,200).map(r=>{
+      const cls=r.result==='success'?'log-success':r.result==='failed'?'log-fail':'log-logout';
+      const label=r.result==='success'?'Login riuscito':r.result==='failed'?'Fallito':r.result==='logout'?'Logout':esc(r.result||'');
+      return `<tr><td>${esc(fmtDate(r.createdAt)||fmtDate(r.createdAtClient))}</td><td>${esc(r.email||'')}</td><td><span class="${cls}">${label}</span></td><td>${esc(r.note||'')}</td><td>${esc(String(r.userAgent||'').slice(0,90))}</td></tr>`;
+    }).join('') || '<tr><td colspan="5" class="hint">Nessun accesso trovato.</td></tr>';
+  }catch(e){
+    console.error('Errore lettura accessLogs:',e);
+    tbody.innerHTML='<tr><td colspan="5" class="hint">Errore durante la lettura del Registro Accessi. Controlla le regole Firestore.</td></tr>';
+  }
+}
+
+function bootStableFirebase(){installLoginForm();installPasswordToggle();installLogoutButton();installResetPasswordUI();installAccessLogsOnlineSection();loader(true);}
+document.addEventListener('DOMContentLoaded',bootStableFirebase);
+if(document.readyState!=='loading')bootStableFirebase();
+
+await persistenceReady;
+onAuthStateChanged(auth,async(user)=>{
+  if(!user){showLogin();return}
+  try{
+    const profile=await getUserProfile(user);
+    setLocalActiveUser(user,profile);
+    showApp();
+  }catch(error){
+    console.warn('Sessione Firebase non valida:',error);
+    await signOut(auth).catch(()=>{});
+    setStatus(firebaseErrorMessage(error));
+    showLogin();
+  }
+});
+</script>
+
+</body></html>';
     var w=window.open('','_blank','width=420,height=760');
     if(!w){ if(typeof toast==='function') toast('Popup bloccato: abilita le finestre popup per stampare.'); return; }
     w.document.open(); w.document.write(html); w.document.close();
@@ -2648,7 +3740,280 @@ load();
   window.printCustomerReceipt=function(orderId){
     var o=getOrder(orderId); if(!o){toastMsg('Ordine non trovato per lo scontrino.');return;}
     var text=buildReceiptText(o);
-    var html='<!doctype html><html><head><meta charset="utf-8"><title>Scontrino '+receiptNo(o)+'</title><style>body{margin:0;background:#f5f5f5}.paper{width:80mm;max-width:100%;margin:0 auto;background:white;padding:10px 8px;color:#000}pre{font:12px/1.35 "Courier New",monospace;white-space:pre-wrap;margin:0}.actions{display:flex;gap:8px;justify-content:center;padding:12px}.actions button{padding:9px 13px;border:1px solid #bbb;border-radius:8px;background:#fff;cursor:pointer}@media print{body{background:white}.paper{width:80mm;margin:0;padding:0}.actions{display:none}}</style></head><body><div class="paper"><pre>'+text.replace(/[&<>]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]})+'</pre></div><div class="actions"><button onclick="window.print()">Stampa</button><button onclick="window.close()">Chiudi</button></div></body></html>';
+    var html='<!doctype html><html><head><meta charset="utf-8"><title>Scontrino '+receiptNo(o)+'</title><style>body{margin:0;background:#f5f5f5}.paper{width:80mm;max-width:100%;margin:0 auto;background:white;padding:10px 8px;color:#000}pre{font:12px/1.35 "Courier New",monospace;white-space:pre-wrap;margin:0}.actions{display:flex;gap:8px;justify-content:center;padding:12px}.actions button{padding:9px 13px;border:1px solid #bbb;border-radius:8px;background:#fff;cursor:pointer}@media print{body{background:white}.paper{width:80mm;margin:0;padding:0}.actions{display:none}}</style></head><body><div class="paper"><pre>'+text.replace(/[&<>]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]})+'</pre></div><div class="actions"><button onclick="window.print()">Stampa</button><button onclick="window.close()">Chiudi</button></div>
+
+<style id="firebase-stable-session-accesslogs-final">
+  .menu-dropdown .btn.secondary{display:flex!important;align-items:center!important;gap:8px!important}
+  #accessLogs .table-wrap table{min-width:760px}
+  #accessLogsMenuBtn{font-weight:950!important}
+  #firebaseAuthLoader{position:fixed;inset:0;z-index:49999;display:none;align-items:center;justify-content:center;background:rgba(255,250,253,.88);backdrop-filter:blur(10px);font-weight:950;color:var(--text)}
+  #firebaseAuthLoader.show{display:flex}
+</style>
+
+<script type="module" id="firebase-stable-session-accesslogs-final-script">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFirestore, doc, getDoc, collection, addDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+  authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+  projectId:"gestionalenoor-2fa61",
+  storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+  messagingSenderId:"66670691093",
+  appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+  measurementId:"G-0HSQB7XLJG"
+};
+
+const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const firestore=getFirestore(app);
+const SESSION_KEY="noor_firebase_current_user_v1";
+const $=(id)=>document.getElementById(id);
+const persistenceReady=setPersistence(auth,browserLocalPersistence).catch(err=>{
+  console.warn('Persistenza Firebase non impostata:',err);
+});
+
+function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function fmtDate(v){
+  try{
+    let d=v?.toDate?v.toDate():new Date(v||Date.now());
+    return d.toLocaleString('it-IT',{dateStyle:'short',timeStyle:'medium'});
+  }catch(e){return ''}
+}
+function loader(show,msg='Controllo sessione...'){
+  let el=$('firebaseAuthLoader');
+  if(!el){el=document.createElement('div');el.id='firebaseAuthLoader';document.body.appendChild(el)}
+  el.textContent=msg;
+  el.classList.toggle('show',!!show);
+}
+function setStatus(msg,type='error'){
+  let el=$('firebaseLoginStatus');
+  if(!el){
+    el=document.createElement('div');el.id='firebaseLoginStatus';
+    const actions=document.querySelector('.login-actions')||$('loginForm');
+    if(actions)actions.insertAdjacentElement('afterend',el);
+  }
+  el.style.color=type==='success'?'#128a3a':type==='loading'?'#8a5700':'#b51545';
+  el.textContent=msg||'';
+}
+function toastCenter(msg,type){
+  if(typeof window.toastCenter==='function' && window.toastCenter!==toastCenter){try{return window.toastCenter(msg,type)}catch(e){}}
+  if(typeof window.toast==='function'){try{return window.toast(msg,type)}catch(e){}}
+  let t=$('firebaseToastCenter');
+  if(!t){t=document.createElement('div');t.id='firebaseToastCenter';t.className='toast';document.body.appendChild(t)}
+  t.className='toast show'+(type==='success'?' success':'');
+  t.textContent=msg;
+  clearTimeout(window.__firebaseToastTimer);
+  window.__firebaseToastTimer=setTimeout(()=>t.classList.remove('show'),2600);
+}
+function showLogin(){
+  loader(false);
+  $('loginScreen')?.classList.remove('hidden');
+  document.body.classList.add('login-active');
+}
+function showApp(){
+  loader(false);
+  $('loginScreen')?.classList.add('hidden');
+  document.body.classList.remove('login-active');
+  setStatus('');
+  try{ if(typeof window.renderAll==='function') window.renderAll(); }catch(e){}
+  try{ if(typeof window.applyEmployeePermissions==='function') window.applyEmployeePermissions(); }catch(e){}
+  try{ installAccessLogsOnlineSection(); renderAccessLogsOnline(); }catch(e){console.warn(e)}
+}
+function clearLoginPassword(){const p=$('loginPassword'); if(p)p.value='';}
+async function getUserProfile(user){
+  if(!user)throw new Error('NO_AUTH_USER');
+  const snap=await getDoc(doc(firestore,'users',user.uid));
+  if(!snap.exists())throw new Error('NO_USER_PROFILE');
+  const profile={id:user.uid,...snap.data()};
+  if(profile.active===false)throw new Error('USER_DISABLED');
+  return profile;
+}
+function setLocalActiveUser(user,profile){
+  const emp={id:user.uid,loginEmail:user.email,email:user.email,name:profile.name||user.email,role:profile.role||'seller',active:true,firebaseUid:user.uid};
+  try{sessionStorage.setItem(SESSION_KEY,user.uid)}catch(e){}
+  try{sessionStorage.setItem('noor_current_login_employee_v2',user.uid)}catch(e){}
+  try{
+    if(typeof window.settings!=='undefined'&&window.settings){window.settings.activeEmployeeId=user.uid; if(typeof window.saveSettings==='function')window.saveSettings();}
+  }catch(e){}
+  try{
+    if(typeof window.db!=='undefined'&&window.db){
+      if(!Array.isArray(window.db.employees))window.db.employees=[];
+      const i=window.db.employees.findIndex(x=>String(x.id)===String(user.uid));
+      if(i>=0)window.db.employees[i]={...window.db.employees[i],...emp}; else window.db.employees.unshift(emp);
+      if(typeof window.persistDb==='function')window.persistDb();
+    }
+  }catch(e){}
+  const badge=$('activeEmployeeBadge'); if(badge)badge.textContent=(profile.role==='owner'?'Super Admin':profile.name||user.email);
+}
+async function writeAccessLog(user,result,note){
+  try{
+    await addDoc(collection(firestore,'accessLogs'),{
+      uid:user?.uid||null,
+      email:user?.email||String(user?.email||$('loginEmail')?.value||'').trim(),
+      result,
+      note:note||'',
+      userAgent:navigator.userAgent,
+      createdAt:serverTimestamp(),
+      createdAtClient:new Date().toISOString()
+    });
+  }catch(e){console.warn('Access log non salvato:',e)}
+}
+function firebaseErrorMessage(error){
+  if(error?.message==='NO_USER_PROFILE')return 'Utente autenticato, ma manca il profilo Firestore in users/{UID}.';
+  if(error?.message==='USER_DISABLED')return 'Utente disattivato. Contatta il Super Admin.';
+  if(error?.code==='auth/invalid-credential'||error?.code==='auth/wrong-password'||error?.code==='auth/user-not-found')return 'Email o password Firebase non corretti.';
+  if(error?.code==='auth/too-many-requests')return 'Troppi tentativi. Attendi qualche minuto e riprova.';
+  if(error?.code==='auth/network-request-failed')return 'Errore di rete. Controlla la connessione.';
+  if(error?.code==='auth/unauthorized-domain')return 'Dominio Netlify non autorizzato in Firebase Authentication.';
+  return 'Accesso non riuscito: '+(error?.code||error?.message||'errore sconosciuto');
+}
+
+window.loginSubmit=async function(ev){
+  if(ev){ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation()}
+  const email=($('loginEmail')?.value||'').trim();
+  const password=$('loginPassword')?.value||'';
+  if(!email||!password){setStatus('Inserisci email e password.');return false}
+  const submitBtn=document.querySelector('#loginForm button[type="submit"]');
+  if(submitBtn){submitBtn.disabled=true;submitBtn.textContent='Accesso...'}
+  try{
+    await persistenceReady;
+    setStatus('Accesso in corso...','loading');
+    const cred=await signInWithEmailAndPassword(auth,email,password);
+    const profile=await getUserProfile(cred.user);
+    setLocalActiveUser(cred.user,profile);
+    await writeAccessLog(cred.user,'success','Login Firebase riuscito');
+    setStatus('Accesso effettuato.','success');
+    showApp();
+    toastCenter('Accesso effettuato: '+(profile.name||cred.user.email),'success');
+  }catch(error){
+    console.error('Errore login Firebase:',error);
+    try{await writeAccessLog({email},'failed',error.code||error.message||'Login fallito')}catch(e){}
+    const msg=firebaseErrorMessage(error);
+    setStatus(msg);toastCenter(msg);showLogin();
+  }finally{
+    if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='Entra'}
+  }
+  return false;
+};
+
+window.logoutUser=async function(){
+  const user=auth.currentUser;
+  try{if(user)await writeAccessLog(user,'logout','Logout Firebase')}catch(e){}
+  try{await signOut(auth)}catch(e){console.warn('Logout Firebase:',e)}
+  try{sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem('noor_current_login_employee_v2')}catch(e){}
+  try{if(typeof window.settings!=='undefined'&&window.settings){delete window.settings.activeEmployeeId;if(typeof window.saveSettings==='function')window.saveSettings()}}catch(e){}
+  const overlay=$('logoutConfirmOverlay');if(overlay)overlay.classList.remove('show');
+  clearLoginPassword();showLogin();toastCenter('Sei uscito dal gestionale.','success');
+  return false;
+};
+window.confirmLogoutUser=function(){
+  try{if(typeof window.closeTopMenu==='function')window.closeTopMenu()}catch(e){}
+  const overlay=$('logoutConfirmOverlay');
+  if(overlay){overlay.classList.add('show');overlay.setAttribute('aria-hidden','false');return false}
+  if(confirm('Vuoi uscire dal gestionale?'))return window.logoutUser();
+  return false;
+};
+function installPasswordToggle(){
+  const btn=$('loginShowPasswordBtn'); const input=$('loginPassword'); if(!btn||!input)return;
+  btn.type='button'; btn.onclick=function(ev){ev.preventDefault();ev.stopPropagation();input.type=input.type==='password'?'text':'password';btn.textContent=input.type==='password'?'Mostra':'Nascondi';input.focus();return false};
+}
+function installLoginForm(){
+  const form=$('loginForm'); if(form){form.setAttribute('novalidate','novalidate');form.onsubmit=window.loginSubmit;form.addEventListener('submit',window.loginSubmit,true)}
+  const enterBtn=document.querySelector('#loginForm button[type="submit"]'); if(enterBtn){enterBtn.onclick=function(ev){return window.loginSubmit(ev)}}
+  const hint=$('loginDemoHint'); if(hint)hint.textContent='';
+}
+function installLogoutButton(){
+  const menu=$('topMenu'); if(!menu)return;
+  let btn=$('logoutMenuButton'); if(!btn){btn=document.createElement('button');btn.id='logoutMenuButton';btn.className='btn secondary';btn.type='button'}
+  btn.textContent='⏻ Esci'; btn.onclick=function(ev){ev.preventDefault();ev.stopPropagation();return window.confirmLogoutUser()};
+  menu.appendChild(btn);
+}
+function installResetPasswordUI(){
+  const openBtn=$('openResetLoginBtn'); if(openBtn){openBtn.onclick=function(ev){ev.preventDefault();$('loginResetBox')?.classList.toggle('show');return false}}
+  const confirmBtn=$('confirmResetLoginBtn'); if(confirmBtn){confirmBtn.onclick=function(ev){ev.preventDefault();setStatus('Il reset password online sarà gestito dal Super Admin nella fase successiva.');return false}}
+}
+
+function installAccessLogsOnlineSection(){
+  let sec=$('accessLogs');
+  const main=document.querySelector('main.app');
+  if(!sec && main){
+    sec=document.createElement('section');
+    sec.id='accessLogs'; sec.className='section';
+    sec.innerHTML=`<div class="card panel"><div class="panel-title"><div><h2>Controllo Accessi</h2><p class="hint">Accessi registrati online da Firebase / Firestore.</p></div><button class="btn secondary" type="button" id="refreshAccessLogsBtn">Aggiorna</button></div><div class="access-log-kpis"><div class="access-log-kpi">Login riusciti<b id="logOkCount">0</b></div><div class="access-log-kpi">Login falliti<b id="logFailCount">0</b></div><div class="access-log-kpi">Logout<b id="logLogoutCount">0</b></div><div class="access-log-kpi">Totale eventi<b id="logTotalCount">0</b></div></div><div class="filter-bar"><div class="field"><label>Cerca</label><input id="accessLogSearch" placeholder="email, nota, dispositivo"></div><div class="field"><label>Esito</label><select id="accessLogResult"><option value="">Tutti</option><option value="success">Login riuscito</option><option value="failed">Fallito</option><option value="logout">Logout</option></select></div><div class="filter-actions"><button class="btn small gold" type="button" id="applyAccessFilterBtn">Filtra</button></div></div><div class="table-wrap"><table><thead><tr><th>Data / Ora</th><th>Email</th><th>Esito</th><th>Note</th><th>Dispositivo</th></tr></thead><tbody id="accessLogsTable"></tbody></table></div></div>`;
+    main.appendChild(sec);
+  }
+  try{
+    const h=sec?.querySelector('h2'); if(h)h.textContent='Controllo Accessi';
+    const hp=sec?.querySelector('.panel-title .hint'); if(hp)hp.textContent='Accessi registrati online da Firebase / Firestore.';
+  }catch(e){}
+  const menu=$('topMenu');
+  if(menu){
+    let b=$('accessLogsMenuBtn');
+    if(!b){b=document.createElement('button'); b.id='accessLogsMenuBtn'; b.className='btn secondary'; b.type='button';}
+    b.textContent='Controllo Accessi';
+    b.onclick=function(){ if(typeof window.go==='function')window.go('accessLogs'); renderAccessLogsOnline(); if(typeof window.closeTopMenu==='function')window.closeTopMenu(); };
+    const logout=$('logoutMenuButton');
+    if(b.parentNode!==menu) menu.insertBefore(b, logout||null);
+    else if(logout && b.nextSibling!==logout) menu.insertBefore(b, logout);
+  }
+  $('refreshAccessLogsBtn')?.addEventListener('click',renderAccessLogsOnline);
+  $('applyAccessFilterBtn')?.addEventListener('click',renderAccessLogsOnline);
+  $('accessLogSearch')?.addEventListener('input',()=>{clearTimeout(window.__accessLogFilterTimer);window.__accessLogFilterTimer=setTimeout(renderAccessLogsOnline,250)});
+  $('accessLogResult')?.addEventListener('change',renderAccessLogsOnline);
+}
+
+window.renderAccessLogs=renderAccessLogsOnline;
+window.renderAccessLogsOnline=renderAccessLogsOnline;
+async function renderAccessLogsOnline(){
+  installAccessLogsOnlineSection();
+  const tbody=$('accessLogsTable'); if(!tbody)return;
+  tbody.innerHTML='<tr><td colspan="5" class="hint">Caricamento accessi...</td></tr>';
+  try{
+    const snap=await getDocs(collection(firestore,'accessLogs'));
+    let rows=[]; snap.forEach(d=>rows.push({id:d.id,...d.data()}));
+    rows.sort((a,b)=>String(b.createdAtClient||'').localeCompare(String(a.createdAtClient||'')));
+    const q=($('accessLogSearch')?.value||'').trim().toLowerCase();
+    const res=$('accessLogResult')?.value||'';
+    if(res)rows=rows.filter(r=>String(r.result||'')===res);
+    if(q)rows=rows.filter(r=>(String(r.email||'')+' '+String(r.note||'')+' '+String(r.userAgent||'')).toLowerCase().includes(q));
+    $('logOkCount') && ($('logOkCount').textContent=rows.filter(r=>r.result==='success').length);
+    $('logFailCount') && ($('logFailCount').textContent=rows.filter(r=>r.result==='failed').length);
+    $('logLogoutCount') && ($('logLogoutCount').textContent=rows.filter(r=>r.result==='logout').length);
+    $('logTotalCount') && ($('logTotalCount').textContent=rows.length);
+    tbody.innerHTML=rows.slice(0,200).map(r=>{
+      const cls=r.result==='success'?'log-success':r.result==='failed'?'log-fail':'log-logout';
+      const label=r.result==='success'?'Login riuscito':r.result==='failed'?'Fallito':r.result==='logout'?'Logout':esc(r.result||'');
+      return `<tr><td>${esc(fmtDate(r.createdAt)||fmtDate(r.createdAtClient))}</td><td>${esc(r.email||'')}</td><td><span class="${cls}">${label}</span></td><td>${esc(r.note||'')}</td><td>${esc(String(r.userAgent||'').slice(0,90))}</td></tr>`;
+    }).join('') || '<tr><td colspan="5" class="hint">Nessun accesso trovato.</td></tr>';
+  }catch(e){
+    console.error('Errore lettura accessLogs:',e);
+    tbody.innerHTML='<tr><td colspan="5" class="hint">Errore durante la lettura del Registro Accessi. Controlla le regole Firestore.</td></tr>';
+  }
+}
+
+function bootStableFirebase(){installLoginForm();installPasswordToggle();installLogoutButton();installResetPasswordUI();installAccessLogsOnlineSection();loader(true);}
+document.addEventListener('DOMContentLoaded',bootStableFirebase);
+if(document.readyState!=='loading')bootStableFirebase();
+
+await persistenceReady;
+onAuthStateChanged(auth,async(user)=>{
+  if(!user){showLogin();return}
+  try{
+    const profile=await getUserProfile(user);
+    setLocalActiveUser(user,profile);
+    showApp();
+  }catch(error){
+    console.warn('Sessione Firebase non valida:',error);
+    await signOut(auth).catch(()=>{});
+    setStatus(firebaseErrorMessage(error));
+    showLogin();
+  }
+});
+</script>
+
+</body></html>';
     var win=window.open('','_blank','width=420,height=760'); if(!win){toastMsg('Popup bloccato: abilita i popup per stampare.');return;}
     win.document.open(); win.document.write(html); win.document.close(); setTimeout(function(){try{win.focus();win.print()}catch(e){}},350);
   };
@@ -2921,6 +4286,279 @@ function installResetPasswordUI(){const openBtn=$('openResetLoginBtn');if(openBt
 function bootFirebaseLogin(){installLoginForm();installPasswordToggle();installLogoutButton();installResetPasswordUI();showLogin()}
 document.addEventListener('DOMContentLoaded',bootFirebaseLogin);if(document.readyState!=='loading')bootFirebaseLogin();
 onAuthStateChanged(auth,async(user)=>{if(!user){showLogin();return}try{const profile=await getUserProfile(user);setLocalActiveUser(user,profile);showApp()}catch(error){console.warn('Sessione Firebase non valida:',error);await signOut(auth).catch(()=>{});setStatus(firebaseErrorMessage(error));showLogin()}});
+</script>
+
+
+
+<style id="firebase-stable-session-accesslogs-final">
+  .menu-dropdown .btn.secondary{display:flex!important;align-items:center!important;gap:8px!important}
+  #accessLogs .table-wrap table{min-width:760px}
+  #accessLogsMenuBtn{font-weight:950!important}
+  #firebaseAuthLoader{position:fixed;inset:0;z-index:49999;display:none;align-items:center;justify-content:center;background:rgba(255,250,253,.88);backdrop-filter:blur(10px);font-weight:950;color:var(--text)}
+  #firebaseAuthLoader.show{display:flex}
+</style>
+
+<script type="module" id="firebase-stable-session-accesslogs-final-script">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFirestore, doc, getDoc, collection, addDoc, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+  authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+  projectId:"gestionalenoor-2fa61",
+  storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+  messagingSenderId:"66670691093",
+  appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+  measurementId:"G-0HSQB7XLJG"
+};
+
+const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const firestore=getFirestore(app);
+const SESSION_KEY="noor_firebase_current_user_v1";
+const $=(id)=>document.getElementById(id);
+const persistenceReady=setPersistence(auth,browserLocalPersistence).catch(err=>{
+  console.warn('Persistenza Firebase non impostata:',err);
+});
+
+function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function fmtDate(v){
+  try{
+    let d=v?.toDate?v.toDate():new Date(v||Date.now());
+    return d.toLocaleString('it-IT',{dateStyle:'short',timeStyle:'medium'});
+  }catch(e){return ''}
+}
+function loader(show,msg='Controllo sessione...'){
+  let el=$('firebaseAuthLoader');
+  if(!el){el=document.createElement('div');el.id='firebaseAuthLoader';document.body.appendChild(el)}
+  el.textContent=msg;
+  el.classList.toggle('show',!!show);
+}
+function setStatus(msg,type='error'){
+  let el=$('firebaseLoginStatus');
+  if(!el){
+    el=document.createElement('div');el.id='firebaseLoginStatus';
+    const actions=document.querySelector('.login-actions')||$('loginForm');
+    if(actions)actions.insertAdjacentElement('afterend',el);
+  }
+  el.style.color=type==='success'?'#128a3a':type==='loading'?'#8a5700':'#b51545';
+  el.textContent=msg||'';
+}
+function toastCenter(msg,type){
+  if(typeof window.toastCenter==='function' && window.toastCenter!==toastCenter){try{return window.toastCenter(msg,type)}catch(e){}}
+  if(typeof window.toast==='function'){try{return window.toast(msg,type)}catch(e){}}
+  let t=$('firebaseToastCenter');
+  if(!t){t=document.createElement('div');t.id='firebaseToastCenter';t.className='toast';document.body.appendChild(t)}
+  t.className='toast show'+(type==='success'?' success':'');
+  t.textContent=msg;
+  clearTimeout(window.__firebaseToastTimer);
+  window.__firebaseToastTimer=setTimeout(()=>t.classList.remove('show'),2600);
+}
+function showLogin(){
+  loader(false);
+  $('loginScreen')?.classList.remove('hidden');
+  document.body.classList.add('login-active');
+}
+function showApp(){
+  loader(false);
+  $('loginScreen')?.classList.add('hidden');
+  document.body.classList.remove('login-active');
+  setStatus('');
+  try{ if(typeof window.renderAll==='function') window.renderAll(); }catch(e){}
+  try{ if(typeof window.applyEmployeePermissions==='function') window.applyEmployeePermissions(); }catch(e){}
+  try{ installAccessLogsOnlineSection(); renderAccessLogsOnline(); }catch(e){console.warn(e)}
+}
+function clearLoginPassword(){const p=$('loginPassword'); if(p)p.value='';}
+async function getUserProfile(user){
+  if(!user)throw new Error('NO_AUTH_USER');
+  const snap=await getDoc(doc(firestore,'users',user.uid));
+  if(!snap.exists())throw new Error('NO_USER_PROFILE');
+  const profile={id:user.uid,...snap.data()};
+  if(profile.active===false)throw new Error('USER_DISABLED');
+  return profile;
+}
+function setLocalActiveUser(user,profile){
+  const emp={id:user.uid,loginEmail:user.email,email:user.email,name:profile.name||user.email,role:profile.role||'seller',active:true,firebaseUid:user.uid};
+  try{sessionStorage.setItem(SESSION_KEY,user.uid)}catch(e){}
+  try{sessionStorage.setItem('noor_current_login_employee_v2',user.uid)}catch(e){}
+  try{
+    if(typeof window.settings!=='undefined'&&window.settings){window.settings.activeEmployeeId=user.uid; if(typeof window.saveSettings==='function')window.saveSettings();}
+  }catch(e){}
+  try{
+    if(typeof window.db!=='undefined'&&window.db){
+      if(!Array.isArray(window.db.employees))window.db.employees=[];
+      const i=window.db.employees.findIndex(x=>String(x.id)===String(user.uid));
+      if(i>=0)window.db.employees[i]={...window.db.employees[i],...emp}; else window.db.employees.unshift(emp);
+      if(typeof window.persistDb==='function')window.persistDb();
+    }
+  }catch(e){}
+  const badge=$('activeEmployeeBadge'); if(badge)badge.textContent=(profile.role==='owner'?'Super Admin':profile.name||user.email);
+}
+async function writeAccessLog(user,result,note){
+  try{
+    await addDoc(collection(firestore,'accessLogs'),{
+      uid:user?.uid||null,
+      email:user?.email||String(user?.email||$('loginEmail')?.value||'').trim(),
+      result,
+      note:note||'',
+      userAgent:navigator.userAgent,
+      createdAt:serverTimestamp(),
+      createdAtClient:new Date().toISOString()
+    });
+  }catch(e){console.warn('Access log non salvato:',e)}
+}
+function firebaseErrorMessage(error){
+  if(error?.message==='NO_USER_PROFILE')return 'Utente autenticato, ma manca il profilo Firestore in users/{UID}.';
+  if(error?.message==='USER_DISABLED')return 'Utente disattivato. Contatta il Super Admin.';
+  if(error?.code==='auth/invalid-credential'||error?.code==='auth/wrong-password'||error?.code==='auth/user-not-found')return 'Email o password Firebase non corretti.';
+  if(error?.code==='auth/too-many-requests')return 'Troppi tentativi. Attendi qualche minuto e riprova.';
+  if(error?.code==='auth/network-request-failed')return 'Errore di rete. Controlla la connessione.';
+  if(error?.code==='auth/unauthorized-domain')return 'Dominio Netlify non autorizzato in Firebase Authentication.';
+  return 'Accesso non riuscito: '+(error?.code||error?.message||'errore sconosciuto');
+}
+
+window.loginSubmit=async function(ev){
+  if(ev){ev.preventDefault();ev.stopPropagation();if(ev.stopImmediatePropagation)ev.stopImmediatePropagation()}
+  const email=($('loginEmail')?.value||'').trim();
+  const password=$('loginPassword')?.value||'';
+  if(!email||!password){setStatus('Inserisci email e password.');return false}
+  const submitBtn=document.querySelector('#loginForm button[type="submit"]');
+  if(submitBtn){submitBtn.disabled=true;submitBtn.textContent='Accesso...'}
+  try{
+    await persistenceReady;
+    setStatus('Accesso in corso...','loading');
+    const cred=await signInWithEmailAndPassword(auth,email,password);
+    const profile=await getUserProfile(cred.user);
+    setLocalActiveUser(cred.user,profile);
+    await writeAccessLog(cred.user,'success','Login Firebase riuscito');
+    setStatus('Accesso effettuato.','success');
+    showApp();
+    toastCenter('Accesso effettuato: '+(profile.name||cred.user.email),'success');
+  }catch(error){
+    console.error('Errore login Firebase:',error);
+    try{await writeAccessLog({email},'failed',error.code||error.message||'Login fallito')}catch(e){}
+    const msg=firebaseErrorMessage(error);
+    setStatus(msg);toastCenter(msg);showLogin();
+  }finally{
+    if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='Entra'}
+  }
+  return false;
+};
+
+window.logoutUser=async function(){
+  const user=auth.currentUser;
+  try{if(user)await writeAccessLog(user,'logout','Logout Firebase')}catch(e){}
+  try{await signOut(auth)}catch(e){console.warn('Logout Firebase:',e)}
+  try{sessionStorage.removeItem(SESSION_KEY);sessionStorage.removeItem('noor_current_login_employee_v2')}catch(e){}
+  try{if(typeof window.settings!=='undefined'&&window.settings){delete window.settings.activeEmployeeId;if(typeof window.saveSettings==='function')window.saveSettings()}}catch(e){}
+  const overlay=$('logoutConfirmOverlay');if(overlay)overlay.classList.remove('show');
+  clearLoginPassword();showLogin();toastCenter('Sei uscito dal gestionale.','success');
+  return false;
+};
+window.confirmLogoutUser=function(){
+  try{if(typeof window.closeTopMenu==='function')window.closeTopMenu()}catch(e){}
+  const overlay=$('logoutConfirmOverlay');
+  if(overlay){overlay.classList.add('show');overlay.setAttribute('aria-hidden','false');return false}
+  if(confirm('Vuoi uscire dal gestionale?'))return window.logoutUser();
+  return false;
+};
+function installPasswordToggle(){
+  const btn=$('loginShowPasswordBtn'); const input=$('loginPassword'); if(!btn||!input)return;
+  btn.type='button'; btn.onclick=function(ev){ev.preventDefault();ev.stopPropagation();input.type=input.type==='password'?'text':'password';btn.textContent=input.type==='password'?'Mostra':'Nascondi';input.focus();return false};
+}
+function installLoginForm(){
+  const form=$('loginForm'); if(form){form.setAttribute('novalidate','novalidate');form.onsubmit=window.loginSubmit;form.addEventListener('submit',window.loginSubmit,true)}
+  const enterBtn=document.querySelector('#loginForm button[type="submit"]'); if(enterBtn){enterBtn.onclick=function(ev){return window.loginSubmit(ev)}}
+  const hint=$('loginDemoHint'); if(hint)hint.textContent='';
+}
+function installLogoutButton(){
+  const menu=$('topMenu'); if(!menu)return;
+  let btn=$('logoutMenuButton'); if(!btn){btn=document.createElement('button');btn.id='logoutMenuButton';btn.className='btn secondary';btn.type='button'}
+  btn.textContent='⏻ Esci'; btn.onclick=function(ev){ev.preventDefault();ev.stopPropagation();return window.confirmLogoutUser()};
+  menu.appendChild(btn);
+}
+function installResetPasswordUI(){
+  const openBtn=$('openResetLoginBtn'); if(openBtn){openBtn.onclick=function(ev){ev.preventDefault();$('loginResetBox')?.classList.toggle('show');return false}}
+  const confirmBtn=$('confirmResetLoginBtn'); if(confirmBtn){confirmBtn.onclick=function(ev){ev.preventDefault();setStatus('Il reset password online sarà gestito dal Super Admin nella fase successiva.');return false}}
+}
+
+function installAccessLogsOnlineSection(){
+  let sec=$('accessLogs');
+  const main=document.querySelector('main.app');
+  if(!sec && main){
+    sec=document.createElement('section');
+    sec.id='accessLogs'; sec.className='section';
+    sec.innerHTML=`<div class="card panel"><div class="panel-title"><div><h2>Controllo Accessi</h2><p class="hint">Accessi registrati online da Firebase / Firestore.</p></div><button class="btn secondary" type="button" id="refreshAccessLogsBtn">Aggiorna</button></div><div class="access-log-kpis"><div class="access-log-kpi">Login riusciti<b id="logOkCount">0</b></div><div class="access-log-kpi">Login falliti<b id="logFailCount">0</b></div><div class="access-log-kpi">Logout<b id="logLogoutCount">0</b></div><div class="access-log-kpi">Totale eventi<b id="logTotalCount">0</b></div></div><div class="filter-bar"><div class="field"><label>Cerca</label><input id="accessLogSearch" placeholder="email, nota, dispositivo"></div><div class="field"><label>Esito</label><select id="accessLogResult"><option value="">Tutti</option><option value="success">Login riuscito</option><option value="failed">Fallito</option><option value="logout">Logout</option></select></div><div class="filter-actions"><button class="btn small gold" type="button" id="applyAccessFilterBtn">Filtra</button></div></div><div class="table-wrap"><table><thead><tr><th>Data / Ora</th><th>Email</th><th>Esito</th><th>Note</th><th>Dispositivo</th></tr></thead><tbody id="accessLogsTable"></tbody></table></div></div>`;
+    main.appendChild(sec);
+  }
+  try{
+    const h=sec?.querySelector('h2'); if(h)h.textContent='Controllo Accessi';
+    const hp=sec?.querySelector('.panel-title .hint'); if(hp)hp.textContent='Accessi registrati online da Firebase / Firestore.';
+  }catch(e){}
+  const menu=$('topMenu');
+  if(menu){
+    let b=$('accessLogsMenuBtn');
+    if(!b){b=document.createElement('button'); b.id='accessLogsMenuBtn'; b.className='btn secondary'; b.type='button';}
+    b.textContent='Controllo Accessi';
+    b.onclick=function(){ if(typeof window.go==='function')window.go('accessLogs'); renderAccessLogsOnline(); if(typeof window.closeTopMenu==='function')window.closeTopMenu(); };
+    const logout=$('logoutMenuButton');
+    if(b.parentNode!==menu) menu.insertBefore(b, logout||null);
+    else if(logout && b.nextSibling!==logout) menu.insertBefore(b, logout);
+  }
+  $('refreshAccessLogsBtn')?.addEventListener('click',renderAccessLogsOnline);
+  $('applyAccessFilterBtn')?.addEventListener('click',renderAccessLogsOnline);
+  $('accessLogSearch')?.addEventListener('input',()=>{clearTimeout(window.__accessLogFilterTimer);window.__accessLogFilterTimer=setTimeout(renderAccessLogsOnline,250)});
+  $('accessLogResult')?.addEventListener('change',renderAccessLogsOnline);
+}
+
+window.renderAccessLogs=renderAccessLogsOnline;
+window.renderAccessLogsOnline=renderAccessLogsOnline;
+async function renderAccessLogsOnline(){
+  installAccessLogsOnlineSection();
+  const tbody=$('accessLogsTable'); if(!tbody)return;
+  tbody.innerHTML='<tr><td colspan="5" class="hint">Caricamento accessi...</td></tr>';
+  try{
+    const snap=await getDocs(collection(firestore,'accessLogs'));
+    let rows=[]; snap.forEach(d=>rows.push({id:d.id,...d.data()}));
+    rows.sort((a,b)=>String(b.createdAtClient||'').localeCompare(String(a.createdAtClient||'')));
+    const q=($('accessLogSearch')?.value||'').trim().toLowerCase();
+    const res=$('accessLogResult')?.value||'';
+    if(res)rows=rows.filter(r=>String(r.result||'')===res);
+    if(q)rows=rows.filter(r=>(String(r.email||'')+' '+String(r.note||'')+' '+String(r.userAgent||'')).toLowerCase().includes(q));
+    $('logOkCount') && ($('logOkCount').textContent=rows.filter(r=>r.result==='success').length);
+    $('logFailCount') && ($('logFailCount').textContent=rows.filter(r=>r.result==='failed').length);
+    $('logLogoutCount') && ($('logLogoutCount').textContent=rows.filter(r=>r.result==='logout').length);
+    $('logTotalCount') && ($('logTotalCount').textContent=rows.length);
+    tbody.innerHTML=rows.slice(0,200).map(r=>{
+      const cls=r.result==='success'?'log-success':r.result==='failed'?'log-fail':'log-logout';
+      const label=r.result==='success'?'Login riuscito':r.result==='failed'?'Fallito':r.result==='logout'?'Logout':esc(r.result||'');
+      return `<tr><td>${esc(fmtDate(r.createdAt)||fmtDate(r.createdAtClient))}</td><td>${esc(r.email||'')}</td><td><span class="${cls}">${label}</span></td><td>${esc(r.note||'')}</td><td>${esc(String(r.userAgent||'').slice(0,90))}</td></tr>`;
+    }).join('') || '<tr><td colspan="5" class="hint">Nessun accesso trovato.</td></tr>';
+  }catch(e){
+    console.error('Errore lettura accessLogs:',e);
+    tbody.innerHTML='<tr><td colspan="5" class="hint">Errore durante la lettura del Registro Accessi. Controlla le regole Firestore.</td></tr>';
+  }
+}
+
+function bootStableFirebase(){installLoginForm();installPasswordToggle();installLogoutButton();installResetPasswordUI();installAccessLogsOnlineSection();loader(true);}
+document.addEventListener('DOMContentLoaded',bootStableFirebase);
+if(document.readyState!=='loading')bootStableFirebase();
+
+await persistenceReady;
+onAuthStateChanged(auth,async(user)=>{
+  if(!user){showLogin();return}
+  try{
+    const profile=await getUserProfile(user);
+    setLocalActiveUser(user,profile);
+    showApp();
+  }catch(error){
+    console.warn('Sessione Firebase non valida:',error);
+    await signOut(auth).catch(()=>{});
+    setStatus(firebaseErrorMessage(error));
+    showLogin();
+  }
+});
 </script>
 
 </body>
