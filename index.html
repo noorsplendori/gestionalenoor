@@ -2896,7 +2896,7 @@ load();
 
 <script type="module" id="noor-firebase-phase1">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { initializeAuth, getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence, indexedDBLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getFirestore, doc, getDoc, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig={
@@ -2910,35 +2910,45 @@ const firebaseConfig={
 };
 
 const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
-const auth=getAuth(app);
+let auth;
+try{
+  auth=initializeAuth(app,{persistence:[indexedDBLocalPersistence,browserLocalPersistence]});
+}catch(e){
+  auth=getAuth(app);
+}
 const firestore=getFirestore(app);
 const SESSION_KEY="noor_firebase_current_user_v1";
+const ACTIVE_SECTION_KEY="noor_active_section_v1";
 let persistenceReady=setPersistence(auth,browserLocalPersistence).catch((e)=>console.warn('Persistenza Firebase:',e));
-let lastLoginLogKey='';
+let allAccessLogs=[];
 
 function $(id){return document.getElementById(id)}
-function esc(v){return String(v??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function fmtDate(v){
-  try{
-    let d=null;
-    if(v?.toDate)d=v.toDate();
-    else if(v)d=new Date(v);
-    if(!d||isNaN(d))return '—';
-    return d.toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-  }catch(e){return '—'}
+  try{let d=null;if(v?.toDate)d=v.toDate();else if(v)d=new Date(v);if(!d||isNaN(d))return '—';return d.toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return '—'}
 }
+function dateValue(v){try{if(v?.toDate)return v.toDate();if(v)return new Date(v)}catch(e){}return null}
 function statusEl(){let el=$('firebaseLoginStatus');if(!el){el=document.createElement('div');el.id='firebaseLoginStatus';const actions=document.querySelector('.login-actions')||$('loginForm');if(actions)actions.insertAdjacentElement('afterend',el)}return el}
 function setStatus(msg,type='error'){const el=statusEl();if(el){el.style.color=type==='success'?'#128a3a':(type==='loading'?'#8a5700':'#b51545');el.textContent=msg||''}}
 function toastCenter(msg,type){let t=$('firebaseToastCenter');if(!t){t=document.createElement('div');t.id='firebaseToastCenter';t.className='toast';document.body.appendChild(t)}t.className='toast show'+(type==='success'?' success':'');t.textContent=msg;clearTimeout(window.__firebaseToastTimer);window.__firebaseToastTimer=setTimeout(()=>{t.classList.remove('show');t.style.display='none'},2600);t.style.display='block'}
+function shortDevice(ua){ua=String(ua||''); if(/iPhone|iPad|iPod/i.test(ua))return 'Mobile Apple'; if(/Android/i.test(ua))return 'Mobile Android'; if(/Windows/i.test(ua))return 'Desktop Windows'; if(/Macintosh|Mac OS/i.test(ua))return 'Desktop Mac'; return ua.slice(0,60)||'—'}
+function readCachedUser(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||sessionStorage.getItem(SESSION_KEY)||'null')}catch(e){return null}}
+function cacheUser(firebaseUser,profile){const data={uid:firebaseUser.uid,email:firebaseUser.email,name:profile.name||firebaseUser.email,role:profile.role||'seller',active:profile.active!==false,ts:Date.now()};try{localStorage.setItem(SESSION_KEY,JSON.stringify(data))}catch(e){}try{sessionStorage.setItem(SESSION_KEY,JSON.stringify(data))}catch(e){}return data}
+function clearCachedUser(){try{localStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(SESSION_KEY)}catch(e){}}
+function getCurrentProfile(){return window.currentFirebaseUserProfile||readCachedUser()||{};}
 
-async function writeAccessLog(user,result,note){
+async function writeAccessLog(user,result,note,profile){
   try{
+    const p=profile||getCurrentProfile()||{};
     await addDoc(collection(firestore,'accessLogs'),{
-      uid:user?.uid||null,
-      email:user?.email||String(user?.email||$('loginEmail')?.value||'').trim(),
+      uid:user?.uid||p.uid||null,
+      email:user?.email||p.email||String(user?.email||$('loginEmail')?.value||'').trim(),
+      name:p.name||user?.displayName||'',
+      role:p.role||'',
       result,
       note:note||'',
       userAgent:navigator.userAgent,
+      device:shortDevice(navigator.userAgent),
       createdAt:serverTimestamp(),
       createdAtClient:new Date().toISOString()
     });
@@ -2954,8 +2964,7 @@ async function getUserProfile(firebaseUser){
 function setLocalActiveUser(firebaseUser,profile){
   window.currentFirebaseUser=firebaseUser||null;
   window.currentFirebaseUserProfile=profile||null;
-  try{localStorage.setItem(SESSION_KEY,JSON.stringify({uid:firebaseUser.uid,email:firebaseUser.email,name:profile.name||firebaseUser.email,role:profile.role||'seller',active:profile.active!==false,ts:Date.now()}))}catch(e){}
-  try{sessionStorage.setItem(SESSION_KEY,JSON.stringify({uid:firebaseUser.uid,email:firebaseUser.email,name:profile.name||firebaseUser.email,role:profile.role||'seller',active:profile.active!==false}))}catch(e){}
+  cacheUser(firebaseUser,profile);
   try{
     if(typeof db!=='undefined'){
       db.employees=Array.isArray(db.employees)?db.employees:[];
@@ -2971,6 +2980,24 @@ function setLocalActiveUser(firebaseUser,profile){
     }
   }catch(e){console.warn('Sync utente locale non riuscita:',e)}
 }
+function currentSection(){return document.querySelector('.section.active')?.id||'home'}
+function saveCurrentSection(id){try{if(id&&document.getElementById(id))localStorage.setItem(ACTIVE_SECTION_KEY,id)}catch(e){}}
+function restoreSection(){
+  let id='home';
+  try{id=localStorage.getItem(ACTIVE_SECTION_KEY)||'home'}catch(e){}
+  if(!document.getElementById(id))id='home';
+  try{if(typeof window.go==='function')window.go(id);else document.getElementById(id)?.classList.add('active')}catch(e){}
+  if(id==='accessLogs')setTimeout(()=>renderFirebaseAccessLogs(),150);
+}
+function wrapGoForSectionMemory(){
+  if(window.__noorGoMemoryWrapped)return;
+  const oldGo=window.go;
+  if(typeof oldGo==='function'){
+    window.go=function(id){saveCurrentSection(id);const r=oldGo.apply(this,arguments);if(id==='accessLogs')setTimeout(()=>renderFirebaseAccessLogs(),120);return r;};
+    window.__noorGoMemoryWrapped=true;
+  }
+  document.querySelectorAll('.nav button[data-target]').forEach(btn=>btn.addEventListener('click',()=>saveCurrentSection(btn.dataset.target)));
+}
 function showApp(){
   const screen=$('loginScreen');
   if(screen){screen.classList.add('hidden');screen.style.display='none'}
@@ -2978,11 +3005,19 @@ function showApp(){
   try{if(typeof renderEmployees==='function')renderEmployees()}catch(e){}
   try{if(typeof applyEmployeePermissions==='function')applyEmployeePermissions()}catch(e){}
   try{if(typeof renderAll==='function')renderAll()}catch(e){}
+  setTimeout(restoreSection,80);
 }
 function showLogin(){
   const screen=$('loginScreen');
   if(screen){screen.classList.remove('hidden');screen.style.display='flex'}
   document.body.classList.add('login-active');
+}
+function showWaitingIfCached(){
+  if(readCachedUser()){
+    const screen=$('loginScreen');
+    if(screen){screen.classList.add('hidden');screen.style.display='none'}
+    document.body.classList.remove('login-active');
+  }else showLogin();
 }
 function clearLoginPassword(){const p=$('loginPassword');if(p){p.value='';p.type='password'}const b=$('loginShowPasswordBtn');if(b)b.textContent='Mostra'}
 function firebaseErrorMessage(error){
@@ -3008,13 +3043,13 @@ window.loginSubmit=async function(ev){
     const cred=await signInWithEmailAndPassword(auth,email,password);
     const profile=await getUserProfile(cred.user);
     setLocalActiveUser(cred.user,profile);
-    await writeAccessLog(cred.user,'success','Login Firebase riuscito');
+    await writeAccessLog(cred.user,'success','Login Firebase riuscito',profile);
     setStatus('Accesso effettuato.','success');
     showApp();
     toastCenter('Accesso effettuato: '+(profile.name||cred.user.email),'success');
   }catch(error){
     console.error('Errore login Firebase:',error);
-    try{await writeAccessLog({email},'failed',error.code||error.message||'Login fallito')}catch(e){}
+    try{await writeAccessLog({email},'failed',error.code||error.message||'Login fallito',{})}catch(e){}
     setStatus(firebaseErrorMessage(error));
     toastCenter(firebaseErrorMessage(error));
     showLogin();
@@ -3025,9 +3060,11 @@ window.loginSubmit=async function(ev){
 };
 window.logoutUser=async function(){
   const user=auth.currentUser;
-  try{if(user)await writeAccessLog(user,'logout','Logout Firebase')}catch(e){}
+  const profile=getCurrentProfile();
+  try{if(user||profile.email)await writeAccessLog(user||profile,'logout','Logout Firebase',profile)}catch(e){}
   try{await signOut(auth)}catch(e){console.warn('Logout Firebase:',e)}
-  try{sessionStorage.removeItem(SESSION_KEY);localStorage.removeItem(SESSION_KEY)}catch(e){}
+  clearCachedUser();
+  try{localStorage.removeItem(ACTIVE_SECTION_KEY)}catch(e){}
   try{if(typeof settings!=='undefined'&&settings){delete settings.activeEmployeeId;if(typeof saveSettings==='function')saveSettings()}}catch(e){}
   const overlay=$('logoutConfirmOverlay');if(overlay)overlay.classList.remove('show');
   clearLoginPassword();showLogin();toastCenter('Sei uscito dal gestionale.','success');return false;
@@ -3047,14 +3084,21 @@ function installResetPasswordUI(){const openBtn=$('openResetLoginBtn');if(openBt
 
 function installAccessLogsUI(){
   let section=$('accessLogs');
-  if(!section){
-    section=document.createElement('section');
-    section.id='accessLogs';
-    section.className='section';
-    section.innerHTML=`<div class="card panel"><div class="panel-title"><div><h2>Controllo Accessi</h2><p class="hint">Login, logout e tentativi registrati su Firebase.</p></div><button class="btn secondary" type="button" id="refreshAccessLogsBtn">Aggiorna</button></div><div class="table-wrap"><table><thead><tr><th>Data / Ora</th><th>Email</th><th>Esito</th><th>Note</th><th>Dispositivo</th></tr></thead><tbody id="accessLogsTable"><tr><td colspan="5">Caricamento...</td></tr></tbody></table></div></div>`;
-    const main=document.querySelector('main.app')||document.querySelector('main')||document.body;
-    main.appendChild(section);
-  }
+  const html=`<div class="card panel">
+    <div class="panel-title"><div><h2>Controllo Accessi</h2><p class="hint">Login, logout e tentativi registrati su Firebase.</p></div><button class="btn secondary" type="button" id="refreshAccessLogsBtn">Aggiorna</button></div>
+    <div class="access-log-kpis"><div class="access-log-kpi">Login riusciti<b id="logOkCount">0</b></div><div class="access-log-kpi">Accessi negati<b id="logFailCount">0</b></div><div class="access-log-kpi">Logout<b id="logOutCount">0</b></div><div class="access-log-kpi">Totale<b id="logTotalCount">0</b></div></div>
+    <div class="filter-bar" style="grid-template-columns:1.2fr 1fr 1fr 1fr 1fr auto">
+      <div class="field"><label>Cerca</label><input id="accessLogSearch" placeholder="Email, nome, ruolo, note" oninput="filterFirebaseAccessLogs()"></div>
+      <div class="field"><label>Esito</label><select id="accessLogResult" onchange="filterFirebaseAccessLogs()"><option value="">Tutti</option><option value="success">Accessi riusciti</option><option value="failed">Accessi negati</option><option value="logout">Logout</option></select></div>
+      <div class="field"><label>Da giorno/ora</label><input id="accessLogFrom" type="datetime-local" onchange="filterFirebaseAccessLogs()"></div>
+      <div class="field"><label>A giorno/ora</label><input id="accessLogTo" type="datetime-local" onchange="filterFirebaseAccessLogs()"></div>
+      <div class="field"><label>Ruolo</label><select id="accessLogRole" onchange="filterFirebaseAccessLogs()"><option value="">Tutti</option><option value="owner">Super Admin</option><option value="manager">Admin</option><option value="warehouse">Magazziniere</option><option value="seller">Venditore</option></select></div>
+      <div class="filter-actions"><button class="btn small secondary" type="button" id="clearAccessLogFiltersBtn">Pulisci</button></div>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Data / Ora</th><th>Nome</th><th>Email</th><th>Ruolo</th><th>Esito</th><th>Note</th><th>Dispositivo</th></tr></thead><tbody id="accessLogsTable"><tr><td colspan="7">Caricamento...</td></tr></tbody></table></div>
+  </div>`;
+  if(!section){section=document.createElement('section');section.id='accessLogs';section.className='section';const main=document.querySelector('main.app')||document.querySelector('main')||document.body;main.appendChild(section)}
+  section.innerHTML=html;
   let menu=$('topMenu');
   if(menu&&!$('accessLogsMenuButton')){
     const btn=document.createElement('button');
@@ -3066,48 +3110,67 @@ function installAccessLogsUI(){
     const logout=$('logoutMenuButton');
     menu.insertBefore(btn, logout||null);
   }
-  const refresh=$('refreshAccessLogsBtn');
-  if(refresh)refresh.onclick=renderFirebaseAccessLogs;
+  const refresh=$('refreshAccessLogsBtn'); if(refresh)refresh.onclick=renderFirebaseAccessLogs;
+  const clear=$('clearAccessLogFiltersBtn'); if(clear)clear.onclick=function(){['accessLogSearch','accessLogResult','accessLogFrom','accessLogTo','accessLogRole'].forEach(id=>{const el=$(id);if(el)el.value=''});filterFirebaseAccessLogs();};
+}
+function accessBadge(result){return result==='success'?'<span class="badge ok">Login</span>':(result==='logout'?'<span class="badge warn">Logout</span>':'<span class="badge danger">Negato</span>')}
+window.filterFirebaseAccessLogs=function(){
+  const tbody=$('accessLogsTable'); if(!tbody)return;
+  const q=($('accessLogSearch')?.value||'').trim().toLowerCase();
+  const res=$('accessLogResult')?.value||'';
+  const role=$('accessLogRole')?.value||'';
+  const fromVal=$('accessLogFrom')?.value; const toVal=$('accessLogTo')?.value;
+  const from=fromVal?new Date(fromVal):null; const to=toVal?new Date(toVal):null;
+  let rows=allAccessLogs.filter(x=>{
+    const d=dateValue(x.createdAt)||dateValue(x.createdAtClient);
+    const hay=[x.name,x.email,x.role,x.note,x.device,x.userAgent].join(' ').toLowerCase();
+    if(res&&x.result!==res)return false;
+    if(role&&x.role!==role)return false;
+    if(q&&!hay.includes(q))return false;
+    if(from&&d&&d<from)return false;
+    if(to&&d&&d>to)return false;
+    return true;
+  });
+  const count=(id,val)=>{const el=$(id);if(el)el.textContent=val};
+  count('logOkCount',allAccessLogs.filter(l=>l.result==='success').length);
+  count('logFailCount',allAccessLogs.filter(l=>l.result==='failed').length);
+  count('logOutCount',allAccessLogs.filter(l=>l.result==='logout').length);
+  count('logTotalCount',allAccessLogs.length);
+  tbody.innerHTML=rows.map(x=>`<tr><td>${esc(fmtDate(x.createdAt)||fmtDate(x.createdAtClient))}</td><td><b>${esc(x.name||'—')}</b></td><td>${esc(x.email||'—')}</td><td><span class="badge">${esc(x.role||'—')}</span></td><td>${accessBadge(x.result)}</td><td>${esc(x.note||'—')}</td><td>${esc(x.device||shortDevice(x.userAgent)||'—')}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">Nessun accesso trovato con questi filtri.</td></tr>';
 }
 window.renderFirebaseAccessLogs=async function(){
   const tbody=$('accessLogsTable');
   if(!tbody)return;
-  tbody.innerHTML='<tr><td colspan="5">Caricamento accessi...</td></tr>';
+  tbody.innerHTML='<tr><td colspan="7">Caricamento accessi...</td></tr>';
   try{
     await persistenceReady;
-    const q=query(collection(firestore,'accessLogs'),orderBy('createdAtClient','desc'),limit(80));
+    const q=query(collection(firestore,'accessLogs'),orderBy('createdAtClient','desc'),limit(500));
     const snap=await getDocs(q);
-    if(snap.empty){tbody.innerHTML='<tr><td colspan="5">Nessun accesso registrato.</td></tr>';return}
-    tbody.innerHTML=snap.docs.map(d=>{
-      const x=d.data()||{};
-      const badge=x.result==='success'?'<span class="badge ok">Login</span>':(x.result==='logout'?'<span class="badge warn">Logout</span>':'<span class="badge danger">Fallito</span>');
-      return `<tr><td>${esc(fmtDate(x.createdAt)||fmtDate(x.createdAtClient))}</td><td>${esc(x.email||'—')}</td><td>${badge}</td><td>${esc(x.note||'—')}</td><td>${esc((x.userAgent||'').slice(0,80))}</td></tr>`;
-    }).join('');
+    allAccessLogs=snap.docs.map(d=>({id:d.id,...(d.data()||{})}));
+    filterFirebaseAccessLogs();
   }catch(e){
     console.error('Errore accessLogs:',e);
-    tbody.innerHTML='<tr><td colspan="5">Errore caricamento accessi. Controlla regole Firestore e connessione.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="7">Errore caricamento accessi. Controlla regole Firestore e connessione.</td></tr>';
   }
 };
 
 function bootFirebaseLogin(){
-  installLoginForm();installPasswordToggle();installLogoutButton();installResetPasswordUI();installAccessLogsUI();
-  const screen=$('loginScreen');
-  if(screen&&!screen.classList.contains('hidden')){document.body.classList.add('login-active')}
+  installLoginForm();installPasswordToggle();installLogoutButton();installResetPasswordUI();installAccessLogsUI();wrapGoForSectionMemory();
+  showWaitingIfCached();
 }
 document.addEventListener('DOMContentLoaded',bootFirebaseLogin);if(document.readyState!=='loading')bootFirebaseLogin();
 
 await persistenceReady;
 onAuthStateChanged(auth,async(user)=>{
-  if(!user){showLogin();return}
+  if(!user){clearCachedUser();showLogin();return}
   try{
     const profile=await getUserProfile(user);
     setLocalActiveUser(user,profile);
     showApp();
-    const key=user.uid+':'+new Date().toISOString().slice(0,13);
-    if(lastLoginLogKey!==key){lastLoginLogKey=key;}
   }catch(error){
     console.warn('Sessione Firebase non valida:',error);
     await signOut(auth).catch(()=>{});
+    clearCachedUser();
     setStatus(firebaseErrorMessage(error));
     showLogin();
   }
