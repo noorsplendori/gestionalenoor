@@ -76,6 +76,42 @@ exports.handler = async (event) => {
 
     const body = JSON.parse(event.body || '{}');
     const action = body.action || 'create';
+    if(action === 'delete'){
+  const uid = String(body.uid || '').trim();
+
+  if(!uid){
+    return json(400,{error:'UID dipendente mancante'});
+  }
+
+  if(uid === decoded.uid){
+    return json(400,{error:'Non puoi eliminare il tuo account'});
+  }
+
+  const targetDoc = await db.collection('users').doc(uid).get();
+
+  if(targetDoc.exists){
+    await db.collection('users').doc(uid).delete();
+  }
+
+  try{
+    await admin.auth().deleteUser(uid);
+  }catch(err){
+    console.error('Delete auth user:', err);
+  }
+
+  await db.collection('activityLogs').add({
+    type:'employee_deleted',
+    actorUid:decoded.uid,
+    actorEmail:decoded.email || caller.email || '',
+    targetUid:uid,
+    createdAt:admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  return json(200,{
+    ok:true,
+    deleted:true
+  });
+}
     const name = String(body.name || '').trim();
     const email = String(body.email || '').trim().toLowerCase();
     const password = String(body.password || '').trim();
