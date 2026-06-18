@@ -81,7 +81,8 @@ exports.handler = async (event) => {
     const password = String(body.password || '').trim();
     const role = cleanRole(body.role);
     const active = body.active !== false;
-    const extraPermissions = cleanExtraPermissions(body.extraPermissions || {});
+    const hasExtraPermissions = Object.prototype.hasOwnProperty.call(body, 'extraPermissions');
+    const incomingExtraPermissions = cleanExtraPermissions(body.extraPermissions || {});
 
     if(!name) return json(400, {error:'Nome dipendente mancante'});
     if(!email) return json(400, {error:'Email dipendente mancante'});
@@ -112,6 +113,10 @@ exports.handler = async (event) => {
     }
 
     await admin.auth().setCustomUserClaims(userRecord.uid, {role, active});
+
+    const existingSnap = await db.collection('users').doc(userRecord.uid).get();
+    const existingData = existingSnap.exists ? (existingSnap.data() || {}) : {};
+    const extraPermissions = hasExtraPermissions ? incomingExtraPermissions : (existingData.extraPermissions || {});
 
     const userDoc = {
       uid: userRecord.uid,
