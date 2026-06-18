@@ -1372,26 +1372,6 @@ function printDocument(title,bodyHtml){
 
 </style></head><body><div class="sheet"><div class="no-print"><button onclick="window.print()" style="padding:10px 16px;border:0;border-radius:12px;background:#e86aa7;color:white;font-weight:900;cursor:pointer">Stampa / Salva PDF</button></div><div class="head"><div><div class="brand">Noor Profumi Pro</div><div class="sub">${escapePrint(title)} · ${now}</div></div><div class="badge">Documento PDF</div></div>${bodyHtml}<div class="footer">Documento generato dal gestionale Noor Profumi Pro.</div></div><script>setTimeout(()=>window.print(),350)<\/script>
 
-<script id="firebase-login-visibility-guard">
-(function(){
-  function ensureLoginVisibility(){
-    try{
-      var screen=document.getElementById('loginScreen');
-      if(!screen) return;
-      var body=document.body;
-      var shouldShow=body.classList.contains('login-active');
-      if(shouldShow){
-        screen.classList.remove('hidden');
-        screen.style.display='flex';
-      }
-    }catch(e){}
-  }
-  document.addEventListener('DOMContentLoaded', ensureLoginVisibility);
-  setTimeout(ensureLoginVisibility, 300);
-  setTimeout(ensureLoginVisibility, 1000);
-  setTimeout(ensureLoginVisibility, 2500);
-})();
-</script>
 
 </body></html>`);
   w.document.close();
@@ -2916,10 +2896,10 @@ load();
 
 <script type="module" id="noor-firebase-phase1">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 const firebaseConfig={apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",authDomain:"gestionalenoor-2fa61.firebaseapp.com",projectId:"gestionalenoor-2fa61",storageBucket:"gestionalenoor-2fa61.firebasestorage.app",messagingSenderId:"66670691093",appId:"1:66670691093:web:82d0b2122e600bf5885f1c",measurementId:"G-0HSQB7XLJG"};
-const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);const auth=getAuth(app);const firestore=getFirestore(app);const SESSION_KEY="noor_firebase_current_user_v1";
+const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);const auth=getAuth(app);setPersistence(auth,browserLocalPersistence).catch(console.warn);const firestore=getFirestore(app);const SESSION_KEY="noor_firebase_current_user_v1";
 function $(id){return document.getElementById(id)}
 function statusEl(){let el=$('firebaseLoginStatus');if(!el){el=document.createElement('div');el.id='firebaseLoginStatus';const actions=document.querySelector('.login-actions')||$('loginForm');if(actions)actions.insertAdjacentElement('afterend',el)}return el}
 function setStatus(msg,type='error'){const el=statusEl();if(el){el.style.color=type==='success'?'#128a3a':(type==='loading'?'#8a5700':'#b51545');el.textContent=msg||''}}
