@@ -589,7 +589,7 @@ body.login-active .nav{
         <input id="employeeId" type="hidden">
         <div class="field two"><label>Nome dipendente</label><input id="empName" placeholder="Nome e cognome" required></div>
         <div class="field two"><label>Email</label><input id="empEmail" placeholder="email"></div>
-        <div class="field two"><label>Ruolo</label><select id="empRole"><option value="owner">Super Admin</option><option value="manager">Admin</option><option value="warehouse">Magazziniere</option><option value="seller">Venditore</option></select></div>
+        <div class="field two"><label>Ruolo</label><select id="empRole"><option value="owner">Super Admin</option><option value="manager">Admin</option><option value="warehouse">Magazziniere</option><option value="seller">Venditore</option><option value="supervisor">Supervisore</option></select></div>
         <div class="field two"><label>Stato</label><select id="empActive"><option value="true">Attivo</option><option value="false">Disattivato</option></select></div>
         <div class="field full"><button class="btn gold" type="submit">Salva dipendente</button></div>
       </form>
@@ -601,7 +601,7 @@ body.login-active .nav{
           <div><h2>Permessi personalizzati Super Admin</h2><p class="hint">Scegli un ruolo e flegga cosa può fare. Il Super Admin resta sempre completo.</p></div>
         </div>
         <div class="form" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-          <div class="field"><label>Ruolo da personalizzare</label><select id="permRoleSelect" onchange="renderPermissionEditor()"><option value="manager">Admin</option><option value="warehouse">Magazziniere</option><option value="seller">Venditore</option></select></div>
+          <div class="field"><label>Ruolo da personalizzare</label><select id="permRoleSelect" onchange="renderPermissionEditor()"><option value="manager">Admin</option><option value="warehouse">Magazziniere</option><option value="seller">Venditore</option><option value="supervisor">Supervisore</option></select></div>
           <div class="field"><label>Azioni</label><button class="btn secondary" type="button" onclick="resetRolePermissions()">Ripristina default ruolo</button></div>
         </div>
         <div id="permissionEditor" class="permission-grid"></div>
@@ -1392,6 +1392,202 @@ function printDocument(title,bodyHtml){
 
 </style></head><body><div class="sheet"><div class="no-print"><button onclick="window.print()" style="padding:10px 16px;border:0;border-radius:12px;background:#e86aa7;color:white;font-weight:900;cursor:pointer">Stampa / Salva PDF</button></div><div class="head"><div><div class="brand">Noor Profumi Pro</div><div class="sub">${escapePrint(title)} · ${now}</div></div><div class="badge">Documento PDF</div></div>${bodyHtml}<div class="footer">Documento generato dal gestionale Noor Profumi Pro.</div></div><script>setTimeout(()=>window.print(),350)<\/script>
 
+
+
+
+<style id="role-extra-permissions-final-style">
+.employee-extra-row{display:none;background:rgba(255,240,247,.55)}
+.employee-extra-row.open{display:table-row}
+.employee-extra-box{border:1px solid var(--line);border-radius:20px;background:var(--panel2);padding:14px;display:grid;gap:12px}
+.employee-extra-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.employee-extra-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.employee-extra-check{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:11px;cursor:pointer}
+.employee-extra-check input{width:auto;margin-top:3px}.employee-extra-check small{display:block;color:var(--muted);margin-top:3px;line-height:1.35}
+.role-mini-note{font-size:12px;color:var(--muted);margin-top:4px}.read-only-note{display:inline-flex;padding:6px 9px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);font-size:12px;font-weight:900;color:var(--muted)}
+body.dark .employee-extra-row{background:rgba(255,255,255,.035)}
+</style>
+<script id="role-extra-permissions-final-script">
+(function(){
+  const ROLE_LABELS={owner:'Owner',manager:'Admin',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
+  const PERMISSIONS={
+    sell:{label:'Vendere',desc:'Può usare la sezione Vendi, carrello e scanner.'},
+    viewProducts:{label:'Vedere prodotti',desc:'Può consultare la lista prodotti.'},
+    manageProducts:{label:'Modificare prodotti',desc:'Può creare/modificare prodotti, barcode, foto e quantità.'},
+    viewStock:{label:'Vedere stock',desc:'Può consultare le giacenze di magazzino.'},
+    manageStock:{label:'Modificare stock',desc:'Può correggere quantità e magazzino.'},
+    viewDiscounts:{label:'Vedere sconti',desc:'Può consultare gli sconti in sola lettura.'},
+    manageDiscounts:{label:'Modificare sconti',desc:'Può creare/modificare/eliminare codici sconto.'},
+    viewOrders:{label:'Vedere storico',desc:'Può vedere ordini e storico vendite.'},
+    cancelOrders:{label:'Correggere ordini',desc:'Può annullare ordini o articoli.'},
+    editPayment:{label:'Modificare pagamento',desc:'Può correggere il metodo di pagamento.'},
+    createClosure:{label:'Fare chiusura',desc:'Può eseguire la chiusura giornaliera.'},
+    editClosure:{label:'Modificare chiusura',desc:'Può aggiornare una chiusura già fatta.'},
+    viewRevenue:{label:'Vedere incassi',desc:'Può vedere incassi, totali e riepiloghi.'},
+    viewCosts:{label:'Vedere costi e margini',desc:'Può vedere costo reale e valore costo magazzino.'},
+    backup:{label:'Backup/import',desc:'Può importare o scaricare backup.'},
+    settings:{label:'Impostazioni',desc:'Può modificare impostazioni gestionali.'},
+    manageEmployees:{label:'Dipendenti',desc:'Può creare/modificare dipendenti e permessi.'},
+    viewAccessLogs:{label:'Controllo accessi',desc:'Può vedere il registro degli accessi.'}
+  };
+  const DEFAULTS={
+    owner:{sell:1,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,backup:1,settings:1,manageEmployees:1,viewAccessLogs:1},
+    manager:{sell:1,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,backup:1,settings:0,manageEmployees:0,viewAccessLogs:1},
+    warehouse:{sell:0,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:0,viewOrders:0,cancelOrders:0,editPayment:0,createClosure:0,editClosure:0,viewRevenue:0,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0},
+    seller:{sell:1,viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,cancelOrders:0,editPayment:0,createClosure:1,editClosure:0,viewRevenue:1,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0},
+    supervisor:{sell:1,viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0}
+  };
+  const EXTRA_KEYS=['sell','viewProducts','manageProducts','viewStock','manageStock','viewDiscounts','manageDiscounts','viewOrders','cancelOrders','editPayment','createClosure','editClosure','viewRevenue','viewCosts','viewAccessLogs'];
+  function $(id){return document.getElementById(id)}
+  function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function toastMsg(msg,type){try{ if(typeof toast==='function') toast(msg,type||''); else alert(msg); }catch(e){alert(msg)}}
+  function roleLabel(r){return ROLE_LABELS[r]||'Venditore'}
+  function ensureRoles(){try{document.querySelectorAll('#empRole,#permRoleSelect').forEach(sel=>{if(sel&&!sel.querySelector('option[value="supervisor"]')) sel.insertAdjacentHTML('beforeend','<option value="supervisor">Supervisore</option>')})}catch(e){}}
+  function currentProfile(){return window.currentFirebaseUserProfile||{};}
+  function activeEmployee(){
+    try{
+      const uid=window.currentFirebaseUser?.uid||currentProfile().uid||'';
+      let e=(db.employees||[]).find(x=>String(x.firebaseUid||x.uid||x.id)===String(uid));
+      if(!e && settings?.activeEmployeeId) e=(db.employees||[]).find(x=>String(x.id)===String(settings.activeEmployeeId));
+      if(!e && currentProfile().email) e=(db.employees||[]).find(x=>String(x.email||'').toLowerCase()===String(currentProfile().email||'').toLowerCase());
+      if(!e && currentProfile().uid){
+        e={id:currentProfile().uid,firebaseUid:currentProfile().uid,uid:currentProfile().uid,name:currentProfile().name||currentProfile().email,email:currentProfile().email,role:currentProfile().role||'seller',active:currentProfile().active!==false,extraPermissions:currentProfile().extraPermissions||{}};
+      }
+      return e||{};
+    }catch(err){return {role:'seller',active:true}}
+  }
+  function basePerms(role){return {...(DEFAULTS[role]||DEFAULTS.seller)};}
+  function permsFor(emp){
+    const e=emp||activeEmployee();
+    if(!e || e.active===false) return {};
+    const p=e.role==='owner'?basePerms('owner'):basePerms(e.role||'seller');
+    const extra=e.extraPermissions||currentProfile().extraPermissions||{};
+    Object.keys(extra||{}).forEach(k=>{ if(extra[k]===true || extra[k]===1) p[k]=1; });
+    if(p.manageProducts){p.viewProducts=1;p.viewStock=1;p.manageStock=1;}
+    if(p.manageStock){p.viewStock=1;}
+    if(p.manageDiscounts){p.viewDiscounts=1;}
+    if(p.editClosure){p.createClosure=1;}
+    return p;
+  }
+  window.__noorRolePerms={ROLE_LABELS,PERMISSIONS,DEFAULTS,permsFor};
+  window.canAccess=function(perm){
+    const p=permsFor();
+    const alias={editProducts:'manageProducts',deleteProducts:'manageProducts',viewCosts:'viewCosts',settings:'settings',backup:'backup',manageEmployees:'manageEmployees',viewRevenue:'viewRevenue',manageDiscounts:'manageDiscounts'};
+    const key=alias[perm]||perm;
+    return !!p[key];
+  };
+  function permSummary(emp){
+    const p=permsFor(emp); const keys=['sell','viewProducts','viewStock','viewDiscounts','createClosure','editClosure','viewOrders','viewRevenue'];
+    return keys.filter(k=>p[k]).map(k=>PERMISSIONS[k].label).join(', ')||'solo accesso base';
+  }
+  function employeeKey(e){return e.firebaseUid||e.uid||e.id||''}
+  window.toggleEmployeeExtra=function(id){const row=$('extraRow_'+id); if(row)row.classList.toggle('open')};
+  async function saveExtraToFirebase(e){
+    if(!e || !(e.firebaseUid||e.uid)) return;
+    try{
+      const u=window.currentFirebaseUser; if(!u||!u.getIdToken)return;
+      const token=await u.getIdToken(true);
+      await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'update',uid:e.firebaseUid||e.uid,name:e.name,email:e.email,password:'',role:e.role,active:e.active!==false,extraPermissions:e.extraPermissions||{}})});
+    }catch(err){console.warn('Extra permessi non sincronizzati:',err)}
+  }
+  window.toggleEmployeeExtraPermission=function(id,perm,checked){
+    if(!window.canAccess('manageEmployees')){toastMsg('Solo Owner/Admin può modificare i permessi personali.');return;}
+    const e=(db.employees||[]).find(x=>String(employeeKey(x))===String(id)||String(x.id)===String(id)); if(!e)return;
+    e.extraPermissions=e.extraPermissions||{};
+    if(checked) e.extraPermissions[perm]=true; else delete e.extraPermissions[perm];
+    try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db))}catch(er){}
+    saveExtraToFirebase(e);
+    if(typeof window.renderEmployees==='function') window.renderEmployees();
+    if(typeof window.applyEmployeePermissions==='function') window.applyEmployeePermissions();
+    toastMsg('Permesso personale aggiornato.','success');
+  };
+  function extraBox(e){
+    const id=employeeKey(e); const base=basePerms(e.role||'seller'); const extra=e.extraPermissions||{};
+    const checks=EXTRA_KEYS.map(k=>{
+      const disabled=(e.role==='owner')?'disabled':''; const baseHas=!!base[k]; const checked=!!extra[k];
+      return `<label class="employee-extra-check"><input type="checkbox" ${disabled} ${checked?'checked':''} onchange="toggleEmployeeExtraPermission('${esc(id)}','${k}',this.checked)"><span><b>${esc(PERMISSIONS[k].label)}</b><small>${baseHas?'Già incluso nel ruolo base. ':''}${esc(PERMISSIONS[k].desc)}</small></span></label>`;
+    }).join('');
+    return `<tr id="extraRow_${esc(id)}" class="employee-extra-row"><td colspan="5"><div class="employee-extra-box"><div class="employee-extra-head"><div><b>Permessi personali di ${esc(e.name||e.email||'dipendente')}</b><div class="hint">Qui puoi aggiungere permessi solo a questo dipendente, senza cambiare tutti gli utenti con lo stesso ruolo.</div></div><span class="read-only-note">Ruolo base: ${esc(roleLabel(e.role))}</span></div><div class="employee-extra-grid">${checks}</div></div></td></tr>`;
+  }
+  window.renderRoleLegend=function(){
+    ensureRoles(); const box=$('roleLegend'); if(!box)return;
+    const desc={
+      owner:'Accesso completo a tutto il gestionale.',
+      manager:'Quasi completo: gestisce operatività, ma non le impostazioni critiche.',
+      warehouse:'Prodotti e stock. Vede sconti in sola lettura. Non vede incassi, costi o chiusure.',
+      seller:'Vende, vede prodotti/stock/sconti in sola lettura e può fare chiusura. Non modifica chiusure.',
+      supervisor:'Come venditore, ma può correggere ordini/pagamenti e modificare chiusure.'
+    };
+    box.innerHTML=Object.keys(desc).map(r=>{const p=basePerms(r);return `<div class="role-perm"><b>${esc(roleLabel(r))}</b><div class="hint">${esc(desc[r])}</div><div style="margin-top:8px;font-size:12px;line-height:1.7">Vendi ${p.sell?'✓':'×'} · Prodotti ${p.viewProducts?'✓':'×'} · Stock ${p.viewStock?'✓':'×'} · Sconti ${p.viewDiscounts?(p.manageDiscounts?'modifica':'lettura'):'×'} · Chiusura ${p.createClosure?(p.editClosure?'modifica':'solo crea'):'×'} · Costi ${p.viewCosts?'✓':'×'}</div></div>`}).join('');
+  };
+  window.renderEmployees=function(){
+    ensureRoles(); if(typeof window.renderRoleLegend==='function')window.renderRoleLegend();
+    const ae=activeEmployee();
+    const sel=$('activeEmployeeSelect'); if(sel){sel.innerHTML=(db.employees||[]).filter(e=>e.active!==false).map(e=>`<option value="${esc(e.id)}" ${String(e.id)===String(settings.activeEmployeeId)?'selected':''}>${esc(e.name)} · ${esc(roleLabel(e.role))}</option>`).join('')}
+    const roleInput=$('activeEmployeeRole'); if(roleInput)roleInput.value=ae?roleLabel(ae.role):'';
+    const badge=$('activeEmployeeBadge'); if(badge&&ae)badge.textContent=(ae.name||ae.email||'Utente')+' · '+roleLabel(ae.role);
+    const canManage=window.canAccess('manageEmployees');
+    const panel=$('superAdminPermissionPanel'); if(panel) panel.style.display=canManage?'block':'none';
+    const form=$('employeeForm'); if(form) form.style.display=canManage?'grid':'none';
+    const tbWrap=$('employeesTable')?.closest('.table-wrap'); if(tbWrap) tbWrap.style.display=canManage?'block':'none';
+    const tb=$('employeesTable'); if(tb){
+      const rows=(db.employees||[]).map(e=>{const id=employeeKey(e);return `<tr><td><button class="btn small secondary" type="button" onclick="toggleEmployeeExtra('${esc(id)}')">▾</button> <b>${esc(e.name)}</b><br><span class="hint">${esc(e.email||'—')}</span></td><td><span class="badge">${esc(roleLabel(e.role))}</span></td><td>${e.active!==false?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Disattivato</span>'}</td><td>${esc(permSummary(e))}<div class="role-mini-note">Permessi extra: ${Object.keys(e.extraPermissions||{}).length||0}</div></td><td><div class="action-row"><button class="btn small secondary" onclick="editEmployee('${esc(e.id)}')">Modifica</button><button class="btn small red" onclick="deleteEmployee('${esc(e.id)}')">Elimina</button></div></td></tr>${extraBox(e)}`}).join('');
+      tb.innerHTML=rows||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';
+    }
+  };
+  const oldEdit=window.editEmployee;
+  window.editEmployee=function(id){ if(typeof oldEdit==='function')oldEdit(id); setTimeout(()=>{const e=(db.employees||[]).find(x=>String(x.id)===String(id)); if(e&&$('empRole'))$('empRole').value=e.role||'seller';},80); };
+  function showHide(sel,show){document.querySelectorAll(sel).forEach(el=>{el.style.display=show?'':'none'; el.classList.toggle('permission-lock',!show);});}
+  window.applyEmployeePermissions=function(){
+    ensureRoles(); const p=permsFor();
+    // navigazione bassa e menu
+    document.querySelectorAll('.nav button[data-target="products"]').forEach(b=>b.style.display=p.viewProducts?'':'none');
+    document.querySelectorAll('.nav button[data-target="stock"]').forEach(b=>b.style.display=p.viewStock?'':'none');
+    document.querySelectorAll('.nav button[data-target="sell"]').forEach(b=>b.style.display=p.sell?'':'none');
+    document.querySelectorAll('.nav button[data-target="history"]').forEach(b=>b.style.display=p.viewOrders?'':'none');
+    showHide('[onclick*="go(\'discounts\')"],[onclick*="go(&quot;discounts&quot;)"]',p.viewDiscounts||p.manageDiscounts);
+    showHide('#menuClosuresBtn,[onclick*="go(\'closures\')"],[onclick*="go(&quot;closures&quot;)"]',p.createClosure||p.editClosure);
+    showHide('[onclick*="go(\'settings\')"],[onclick*="go(&quot;settings&quot;)"]',p.settings);
+    showHide('[onclick*="go(\'employees\')"],[onclick*="go(&quot;employees&quot;)"]',p.manageEmployees);
+    showHide('#accessLogsMenuButton',p.viewAccessLogs||p.manageEmployees);
+    // dati economici
+    if(!p.viewRevenue){const el=$('todayRevenue'); if(el)el.innerHTML='<span class="hidden-money">••••</span>';}
+    if(!p.viewCosts){['stockValue','stockCostValue'].forEach(id=>{const el=$(id); if(el)el.innerHTML='<span class="hidden-money">••••</span>'});}
+    document.querySelectorAll('[data-cost-card="1"] .money-actions button,#moneyBtn').forEach(b=>{if(!p.viewCosts){b.textContent='Bloccato';b.title='Questo ruolo non può vedere questi valori';}});
+    // prodotti / stock
+    document.querySelectorAll('#productForm input,#productForm select,#productForm textarea,#productForm button').forEach(el=>{ if(!p.manageProducts){el.disabled=true;} });
+    document.querySelectorAll('[onclick*="openAddProduct"],#products .panel-title .btn.gold').forEach(b=>b.style.display=p.manageProducts?'':'none');
+    // sconti sola lettura
+    const roDisc=!p.manageDiscounts;
+    document.querySelectorAll('#discounts form input,#discounts form select,#discounts form button').forEach(el=>{el.disabled=roDisc;});
+    document.querySelectorAll('#discountsTable button').forEach(b=>{b.style.display=roDisc?'none':'';});
+    // chiusure
+    document.querySelectorAll('[onclick*="openDailyClosureConfirm"]').forEach(b=>b.style.display=p.createClosure?'':'none');
+    if(typeof window.renderEmployees==='function'){};
+  };
+  const rawGo=window.go;
+  window.go=function(id){
+    const p=permsFor();
+    const allowed={home:1,products:p.viewProducts,stock:p.viewStock,sell:p.sell,history:p.viewOrders,drafts:p.viewOrders,discounts:(p.viewDiscounts||p.manageDiscounts),closures:(p.createClosure||p.editClosure),employees:p.manageEmployees,settings:p.settings,accessLogs:(p.viewAccessLogs||p.manageEmployees)};
+    if(!allowed[id]){toastMsg('Non hai il permesso per aprire questa sezione.');return false;}
+    if(typeof rawGo==='function') rawGo(id); else {document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));$(id)?.classList.add('active');}
+    try{localStorage.setItem('noor_active_section_v1',id)}catch(e){}
+    setTimeout(()=>{try{window.applyEmployeePermissions()}catch(e){}},80);
+    return true;
+  };
+  function wrap(name,fn){const old=window[name]; if(typeof old==='function'&&!old.__extraWrapped){const nw=function(){return fn.call(this,old,arguments)}; nw.__extraWrapped=true; window[name]=nw;}}
+  wrap('saveProduct',(old,args)=>{if(!window.canAccess('manageProducts'))return toastMsg('Questo ruolo può vedere i prodotti, ma non modificarli.');return old.apply(null,args)});
+  wrap('deleteProduct',(old,args)=>{if(!window.canAccess('manageProducts'))return toastMsg('Questo ruolo non può eliminare prodotti.');return old.apply(null,args)});
+  wrap('saveDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo può solo visualizzare gli sconti.');return old.apply(null,args)});
+  wrap('editDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo può solo visualizzare gli sconti.');return old.apply(null,args)});
+  wrap('deleteDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo non può eliminare sconti.');return old.apply(null,args)});
+  wrap('openDailyClosureConfirm',(old,args)=>{if(!window.canAccess('createClosure'))return toastMsg('Questo ruolo non può eseguire chiusure.');return old.apply(null,args)});
+  wrap('confirmDailyClosure',(old,args)=>{try{const today=new Date().toISOString().slice(0,10);const exists=(db.closures||[]).some(c=>c.date===today);if(exists&&!window.canAccess('editClosure'))return toastMsg('Questo ruolo può fare la chiusura, ma non modificare una chiusura già fatta.');if(!exists&&!window.canAccess('createClosure'))return toastMsg('Questo ruolo non può eseguire chiusure.')}catch(e){}return old.apply(null,args)});
+  // aggiorna payload salvataggio dipendenti: se il form vecchio chiama la Function, extraPermissions viene già mantenuto localmente. Qui assicuriamo il ruolo Supervisore.
+  function boot(){ensureRoles();try{window.renderRoleLegend()}catch(e){}try{window.renderEmployees()}catch(e){}try{window.applyEmployeePermissions()}catch(e){}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot); else boot();
+  setTimeout(boot,500);setTimeout(boot,1500);setTimeout(boot,3000);
+})();
+</script>
 
 </body></html>`);
   w.document.close();
@@ -2202,7 +2398,203 @@ load();
   function printHtml(title, body){
     const w=window.open('','_blank'); if(!w){toast('Popup bloccato dal browser.');return;}
     const name=esc(settings?.appName||'Noor Profumi Pro');
-    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font-family:Arial,sans-serif;color:#3b1027;padding:28px}h1{margin:0 0 6px}.muted{color:#8f5a72}.box{border:1px solid #f2c6da;border-radius:18px;padding:14px;margin:12px 0}.row{display:flex;justify-content:space-between;border-bottom:1px solid #f7dcea;padding:8px 0}.total{font-size:26px;font-weight:900}.chip{display:inline-block;background:#fff0f7;border:1px solid #f2c6da;border-radius:999px;padding:7px 10px;margin:4px}</style></head><body><h1>${name}</h1><div class="muted">${esc(title)}</div>${body}<script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font-family:Arial,sans-serif;color:#3b1027;padding:28px}h1{margin:0 0 6px}.muted{color:#8f5a72}.box{border:1px solid #f2c6da;border-radius:18px;padding:14px;margin:12px 0}.row{display:flex;justify-content:space-between;border-bottom:1px solid #f7dcea;padding:8px 0}.total{font-size:26px;font-weight:900}.chip{display:inline-block;background:#fff0f7;border:1px solid #f2c6da;border-radius:999px;padding:7px 10px;margin:4px}</style></head><body><h1>${name}</h1><div class="muted">${esc(title)}</div>${body}<script>setTimeout(()=>window.print(),300)<\/script>
+
+<style id="role-extra-permissions-final-style">
+.employee-extra-row{display:none;background:rgba(255,240,247,.55)}
+.employee-extra-row.open{display:table-row}
+.employee-extra-box{border:1px solid var(--line);border-radius:20px;background:var(--panel2);padding:14px;display:grid;gap:12px}
+.employee-extra-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.employee-extra-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.employee-extra-check{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:11px;cursor:pointer}
+.employee-extra-check input{width:auto;margin-top:3px}.employee-extra-check small{display:block;color:var(--muted);margin-top:3px;line-height:1.35}
+.role-mini-note{font-size:12px;color:var(--muted);margin-top:4px}.read-only-note{display:inline-flex;padding:6px 9px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);font-size:12px;font-weight:900;color:var(--muted)}
+body.dark .employee-extra-row{background:rgba(255,255,255,.035)}
+</style>
+<script id="role-extra-permissions-final-script">
+(function(){
+  const ROLE_LABELS={owner:'Owner',manager:'Admin',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
+  const PERMISSIONS={
+    sell:{label:'Vendere',desc:'Può usare la sezione Vendi, carrello e scanner.'},
+    viewProducts:{label:'Vedere prodotti',desc:'Può consultare la lista prodotti.'},
+    manageProducts:{label:'Modificare prodotti',desc:'Può creare/modificare prodotti, barcode, foto e quantità.'},
+    viewStock:{label:'Vedere stock',desc:'Può consultare le giacenze di magazzino.'},
+    manageStock:{label:'Modificare stock',desc:'Può correggere quantità e magazzino.'},
+    viewDiscounts:{label:'Vedere sconti',desc:'Può consultare gli sconti in sola lettura.'},
+    manageDiscounts:{label:'Modificare sconti',desc:'Può creare/modificare/eliminare codici sconto.'},
+    viewOrders:{label:'Vedere storico',desc:'Può vedere ordini e storico vendite.'},
+    cancelOrders:{label:'Correggere ordini',desc:'Può annullare ordini o articoli.'},
+    editPayment:{label:'Modificare pagamento',desc:'Può correggere il metodo di pagamento.'},
+    createClosure:{label:'Fare chiusura',desc:'Può eseguire la chiusura giornaliera.'},
+    editClosure:{label:'Modificare chiusura',desc:'Può aggiornare una chiusura già fatta.'},
+    viewRevenue:{label:'Vedere incassi',desc:'Può vedere incassi, totali e riepiloghi.'},
+    viewCosts:{label:'Vedere costi e margini',desc:'Può vedere costo reale e valore costo magazzino.'},
+    backup:{label:'Backup/import',desc:'Può importare o scaricare backup.'},
+    settings:{label:'Impostazioni',desc:'Può modificare impostazioni gestionali.'},
+    manageEmployees:{label:'Dipendenti',desc:'Può creare/modificare dipendenti e permessi.'},
+    viewAccessLogs:{label:'Controllo accessi',desc:'Può vedere il registro degli accessi.'}
+  };
+  const DEFAULTS={
+    owner:{sell:1,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,backup:1,settings:1,manageEmployees:1,viewAccessLogs:1},
+    manager:{sell:1,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,backup:1,settings:0,manageEmployees:0,viewAccessLogs:1},
+    warehouse:{sell:0,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:0,viewOrders:0,cancelOrders:0,editPayment:0,createClosure:0,editClosure:0,viewRevenue:0,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0},
+    seller:{sell:1,viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,cancelOrders:0,editPayment:0,createClosure:1,editClosure:0,viewRevenue:1,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0},
+    supervisor:{sell:1,viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0}
+  };
+  const EXTRA_KEYS=['sell','viewProducts','manageProducts','viewStock','manageStock','viewDiscounts','manageDiscounts','viewOrders','cancelOrders','editPayment','createClosure','editClosure','viewRevenue','viewCosts','viewAccessLogs'];
+  function $(id){return document.getElementById(id)}
+  function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function toastMsg(msg,type){try{ if(typeof toast==='function') toast(msg,type||''); else alert(msg); }catch(e){alert(msg)}}
+  function roleLabel(r){return ROLE_LABELS[r]||'Venditore'}
+  function ensureRoles(){try{document.querySelectorAll('#empRole,#permRoleSelect').forEach(sel=>{if(sel&&!sel.querySelector('option[value="supervisor"]')) sel.insertAdjacentHTML('beforeend','<option value="supervisor">Supervisore</option>')})}catch(e){}}
+  function currentProfile(){return window.currentFirebaseUserProfile||{};}
+  function activeEmployee(){
+    try{
+      const uid=window.currentFirebaseUser?.uid||currentProfile().uid||'';
+      let e=(db.employees||[]).find(x=>String(x.firebaseUid||x.uid||x.id)===String(uid));
+      if(!e && settings?.activeEmployeeId) e=(db.employees||[]).find(x=>String(x.id)===String(settings.activeEmployeeId));
+      if(!e && currentProfile().email) e=(db.employees||[]).find(x=>String(x.email||'').toLowerCase()===String(currentProfile().email||'').toLowerCase());
+      if(!e && currentProfile().uid){
+        e={id:currentProfile().uid,firebaseUid:currentProfile().uid,uid:currentProfile().uid,name:currentProfile().name||currentProfile().email,email:currentProfile().email,role:currentProfile().role||'seller',active:currentProfile().active!==false,extraPermissions:currentProfile().extraPermissions||{}};
+      }
+      return e||{};
+    }catch(err){return {role:'seller',active:true}}
+  }
+  function basePerms(role){return {...(DEFAULTS[role]||DEFAULTS.seller)};}
+  function permsFor(emp){
+    const e=emp||activeEmployee();
+    if(!e || e.active===false) return {};
+    const p=e.role==='owner'?basePerms('owner'):basePerms(e.role||'seller');
+    const extra=e.extraPermissions||currentProfile().extraPermissions||{};
+    Object.keys(extra||{}).forEach(k=>{ if(extra[k]===true || extra[k]===1) p[k]=1; });
+    if(p.manageProducts){p.viewProducts=1;p.viewStock=1;p.manageStock=1;}
+    if(p.manageStock){p.viewStock=1;}
+    if(p.manageDiscounts){p.viewDiscounts=1;}
+    if(p.editClosure){p.createClosure=1;}
+    return p;
+  }
+  window.__noorRolePerms={ROLE_LABELS,PERMISSIONS,DEFAULTS,permsFor};
+  window.canAccess=function(perm){
+    const p=permsFor();
+    const alias={editProducts:'manageProducts',deleteProducts:'manageProducts',viewCosts:'viewCosts',settings:'settings',backup:'backup',manageEmployees:'manageEmployees',viewRevenue:'viewRevenue',manageDiscounts:'manageDiscounts'};
+    const key=alias[perm]||perm;
+    return !!p[key];
+  };
+  function permSummary(emp){
+    const p=permsFor(emp); const keys=['sell','viewProducts','viewStock','viewDiscounts','createClosure','editClosure','viewOrders','viewRevenue'];
+    return keys.filter(k=>p[k]).map(k=>PERMISSIONS[k].label).join(', ')||'solo accesso base';
+  }
+  function employeeKey(e){return e.firebaseUid||e.uid||e.id||''}
+  window.toggleEmployeeExtra=function(id){const row=$('extraRow_'+id); if(row)row.classList.toggle('open')};
+  async function saveExtraToFirebase(e){
+    if(!e || !(e.firebaseUid||e.uid)) return;
+    try{
+      const u=window.currentFirebaseUser; if(!u||!u.getIdToken)return;
+      const token=await u.getIdToken(true);
+      await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'update',uid:e.firebaseUid||e.uid,name:e.name,email:e.email,password:'',role:e.role,active:e.active!==false,extraPermissions:e.extraPermissions||{}})});
+    }catch(err){console.warn('Extra permessi non sincronizzati:',err)}
+  }
+  window.toggleEmployeeExtraPermission=function(id,perm,checked){
+    if(!window.canAccess('manageEmployees')){toastMsg('Solo Owner/Admin può modificare i permessi personali.');return;}
+    const e=(db.employees||[]).find(x=>String(employeeKey(x))===String(id)||String(x.id)===String(id)); if(!e)return;
+    e.extraPermissions=e.extraPermissions||{};
+    if(checked) e.extraPermissions[perm]=true; else delete e.extraPermissions[perm];
+    try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db))}catch(er){}
+    saveExtraToFirebase(e);
+    if(typeof window.renderEmployees==='function') window.renderEmployees();
+    if(typeof window.applyEmployeePermissions==='function') window.applyEmployeePermissions();
+    toastMsg('Permesso personale aggiornato.','success');
+  };
+  function extraBox(e){
+    const id=employeeKey(e); const base=basePerms(e.role||'seller'); const extra=e.extraPermissions||{};
+    const checks=EXTRA_KEYS.map(k=>{
+      const disabled=(e.role==='owner')?'disabled':''; const baseHas=!!base[k]; const checked=!!extra[k];
+      return `<label class="employee-extra-check"><input type="checkbox" ${disabled} ${checked?'checked':''} onchange="toggleEmployeeExtraPermission('${esc(id)}','${k}',this.checked)"><span><b>${esc(PERMISSIONS[k].label)}</b><small>${baseHas?'Già incluso nel ruolo base. ':''}${esc(PERMISSIONS[k].desc)}</small></span></label>`;
+    }).join('');
+    return `<tr id="extraRow_${esc(id)}" class="employee-extra-row"><td colspan="5"><div class="employee-extra-box"><div class="employee-extra-head"><div><b>Permessi personali di ${esc(e.name||e.email||'dipendente')}</b><div class="hint">Qui puoi aggiungere permessi solo a questo dipendente, senza cambiare tutti gli utenti con lo stesso ruolo.</div></div><span class="read-only-note">Ruolo base: ${esc(roleLabel(e.role))}</span></div><div class="employee-extra-grid">${checks}</div></div></td></tr>`;
+  }
+  window.renderRoleLegend=function(){
+    ensureRoles(); const box=$('roleLegend'); if(!box)return;
+    const desc={
+      owner:'Accesso completo a tutto il gestionale.',
+      manager:'Quasi completo: gestisce operatività, ma non le impostazioni critiche.',
+      warehouse:'Prodotti e stock. Vede sconti in sola lettura. Non vede incassi, costi o chiusure.',
+      seller:'Vende, vede prodotti/stock/sconti in sola lettura e può fare chiusura. Non modifica chiusure.',
+      supervisor:'Come venditore, ma può correggere ordini/pagamenti e modificare chiusure.'
+    };
+    box.innerHTML=Object.keys(desc).map(r=>{const p=basePerms(r);return `<div class="role-perm"><b>${esc(roleLabel(r))}</b><div class="hint">${esc(desc[r])}</div><div style="margin-top:8px;font-size:12px;line-height:1.7">Vendi ${p.sell?'✓':'×'} · Prodotti ${p.viewProducts?'✓':'×'} · Stock ${p.viewStock?'✓':'×'} · Sconti ${p.viewDiscounts?(p.manageDiscounts?'modifica':'lettura'):'×'} · Chiusura ${p.createClosure?(p.editClosure?'modifica':'solo crea'):'×'} · Costi ${p.viewCosts?'✓':'×'}</div></div>`}).join('');
+  };
+  window.renderEmployees=function(){
+    ensureRoles(); if(typeof window.renderRoleLegend==='function')window.renderRoleLegend();
+    const ae=activeEmployee();
+    const sel=$('activeEmployeeSelect'); if(sel){sel.innerHTML=(db.employees||[]).filter(e=>e.active!==false).map(e=>`<option value="${esc(e.id)}" ${String(e.id)===String(settings.activeEmployeeId)?'selected':''}>${esc(e.name)} · ${esc(roleLabel(e.role))}</option>`).join('')}
+    const roleInput=$('activeEmployeeRole'); if(roleInput)roleInput.value=ae?roleLabel(ae.role):'';
+    const badge=$('activeEmployeeBadge'); if(badge&&ae)badge.textContent=(ae.name||ae.email||'Utente')+' · '+roleLabel(ae.role);
+    const canManage=window.canAccess('manageEmployees');
+    const panel=$('superAdminPermissionPanel'); if(panel) panel.style.display=canManage?'block':'none';
+    const form=$('employeeForm'); if(form) form.style.display=canManage?'grid':'none';
+    const tbWrap=$('employeesTable')?.closest('.table-wrap'); if(tbWrap) tbWrap.style.display=canManage?'block':'none';
+    const tb=$('employeesTable'); if(tb){
+      const rows=(db.employees||[]).map(e=>{const id=employeeKey(e);return `<tr><td><button class="btn small secondary" type="button" onclick="toggleEmployeeExtra('${esc(id)}')">▾</button> <b>${esc(e.name)}</b><br><span class="hint">${esc(e.email||'—')}</span></td><td><span class="badge">${esc(roleLabel(e.role))}</span></td><td>${e.active!==false?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Disattivato</span>'}</td><td>${esc(permSummary(e))}<div class="role-mini-note">Permessi extra: ${Object.keys(e.extraPermissions||{}).length||0}</div></td><td><div class="action-row"><button class="btn small secondary" onclick="editEmployee('${esc(e.id)}')">Modifica</button><button class="btn small red" onclick="deleteEmployee('${esc(e.id)}')">Elimina</button></div></td></tr>${extraBox(e)}`}).join('');
+      tb.innerHTML=rows||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';
+    }
+  };
+  const oldEdit=window.editEmployee;
+  window.editEmployee=function(id){ if(typeof oldEdit==='function')oldEdit(id); setTimeout(()=>{const e=(db.employees||[]).find(x=>String(x.id)===String(id)); if(e&&$('empRole'))$('empRole').value=e.role||'seller';},80); };
+  function showHide(sel,show){document.querySelectorAll(sel).forEach(el=>{el.style.display=show?'':'none'; el.classList.toggle('permission-lock',!show);});}
+  window.applyEmployeePermissions=function(){
+    ensureRoles(); const p=permsFor();
+    // navigazione bassa e menu
+    document.querySelectorAll('.nav button[data-target="products"]').forEach(b=>b.style.display=p.viewProducts?'':'none');
+    document.querySelectorAll('.nav button[data-target="stock"]').forEach(b=>b.style.display=p.viewStock?'':'none');
+    document.querySelectorAll('.nav button[data-target="sell"]').forEach(b=>b.style.display=p.sell?'':'none');
+    document.querySelectorAll('.nav button[data-target="history"]').forEach(b=>b.style.display=p.viewOrders?'':'none');
+    showHide('[onclick*="go(\'discounts\')"],[onclick*="go(&quot;discounts&quot;)"]',p.viewDiscounts||p.manageDiscounts);
+    showHide('#menuClosuresBtn,[onclick*="go(\'closures\')"],[onclick*="go(&quot;closures&quot;)"]',p.createClosure||p.editClosure);
+    showHide('[onclick*="go(\'settings\')"],[onclick*="go(&quot;settings&quot;)"]',p.settings);
+    showHide('[onclick*="go(\'employees\')"],[onclick*="go(&quot;employees&quot;)"]',p.manageEmployees);
+    showHide('#accessLogsMenuButton',p.viewAccessLogs||p.manageEmployees);
+    // dati economici
+    if(!p.viewRevenue){const el=$('todayRevenue'); if(el)el.innerHTML='<span class="hidden-money">••••</span>';}
+    if(!p.viewCosts){['stockValue','stockCostValue'].forEach(id=>{const el=$(id); if(el)el.innerHTML='<span class="hidden-money">••••</span>'});}
+    document.querySelectorAll('[data-cost-card="1"] .money-actions button,#moneyBtn').forEach(b=>{if(!p.viewCosts){b.textContent='Bloccato';b.title='Questo ruolo non può vedere questi valori';}});
+    // prodotti / stock
+    document.querySelectorAll('#productForm input,#productForm select,#productForm textarea,#productForm button').forEach(el=>{ if(!p.manageProducts){el.disabled=true;} });
+    document.querySelectorAll('[onclick*="openAddProduct"],#products .panel-title .btn.gold').forEach(b=>b.style.display=p.manageProducts?'':'none');
+    // sconti sola lettura
+    const roDisc=!p.manageDiscounts;
+    document.querySelectorAll('#discounts form input,#discounts form select,#discounts form button').forEach(el=>{el.disabled=roDisc;});
+    document.querySelectorAll('#discountsTable button').forEach(b=>{b.style.display=roDisc?'none':'';});
+    // chiusure
+    document.querySelectorAll('[onclick*="openDailyClosureConfirm"]').forEach(b=>b.style.display=p.createClosure?'':'none');
+    if(typeof window.renderEmployees==='function'){};
+  };
+  const rawGo=window.go;
+  window.go=function(id){
+    const p=permsFor();
+    const allowed={home:1,products:p.viewProducts,stock:p.viewStock,sell:p.sell,history:p.viewOrders,drafts:p.viewOrders,discounts:(p.viewDiscounts||p.manageDiscounts),closures:(p.createClosure||p.editClosure),employees:p.manageEmployees,settings:p.settings,accessLogs:(p.viewAccessLogs||p.manageEmployees)};
+    if(!allowed[id]){toastMsg('Non hai il permesso per aprire questa sezione.');return false;}
+    if(typeof rawGo==='function') rawGo(id); else {document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));$(id)?.classList.add('active');}
+    try{localStorage.setItem('noor_active_section_v1',id)}catch(e){}
+    setTimeout(()=>{try{window.applyEmployeePermissions()}catch(e){}},80);
+    return true;
+  };
+  function wrap(name,fn){const old=window[name]; if(typeof old==='function'&&!old.__extraWrapped){const nw=function(){return fn.call(this,old,arguments)}; nw.__extraWrapped=true; window[name]=nw;}}
+  wrap('saveProduct',(old,args)=>{if(!window.canAccess('manageProducts'))return toastMsg('Questo ruolo può vedere i prodotti, ma non modificarli.');return old.apply(null,args)});
+  wrap('deleteProduct',(old,args)=>{if(!window.canAccess('manageProducts'))return toastMsg('Questo ruolo non può eliminare prodotti.');return old.apply(null,args)});
+  wrap('saveDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo può solo visualizzare gli sconti.');return old.apply(null,args)});
+  wrap('editDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo può solo visualizzare gli sconti.');return old.apply(null,args)});
+  wrap('deleteDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo non può eliminare sconti.');return old.apply(null,args)});
+  wrap('openDailyClosureConfirm',(old,args)=>{if(!window.canAccess('createClosure'))return toastMsg('Questo ruolo non può eseguire chiusure.');return old.apply(null,args)});
+  wrap('confirmDailyClosure',(old,args)=>{try{const today=new Date().toISOString().slice(0,10);const exists=(db.closures||[]).some(c=>c.date===today);if(exists&&!window.canAccess('editClosure'))return toastMsg('Questo ruolo può fare la chiusura, ma non modificare una chiusura già fatta.');if(!exists&&!window.canAccess('createClosure'))return toastMsg('Questo ruolo non può eseguire chiusure.')}catch(e){}return old.apply(null,args)});
+  // aggiorna payload salvataggio dipendenti: se il form vecchio chiama la Function, extraPermissions viene già mantenuto localmente. Qui assicuriamo il ruolo Supervisore.
+  function boot(){ensureRoles();try{window.renderRoleLegend()}catch(e){}try{window.renderEmployees()}catch(e){}try{window.applyEmployeePermissions()}catch(e){}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot); else boot();
+  setTimeout(boot,500);setTimeout(boot,1500);setTimeout(boot,3000);
+})();
+</script>
+
+</body></html>`);
     w.document.close();
   }
   window.printClosure=function(id){
@@ -2317,7 +2709,203 @@ load();
     const company=[s.companyName,s.companyPhone,s.companyEmail,s.companyVat].filter(Boolean).map(esc).join(' · ');
     const footer=esc(s.pdfFooterMessage||'Documento generato dal gestionale Noor Profumi Pro.');
     const printButton='<div class="no-print"><button onclick="window.print()" style="padding:10px 16px;border:0;border-radius:12px;background:#e86aa7;color:white;font-weight:900;cursor:pointer">Stampa / Salva PDF</button></div>';
-    const html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>'+esc(title)+'</title><style>@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;margin:0;color:#351126;background:#fff}.sheet{padding:8px}.head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:3px solid #f5bfd7;padding-bottom:14px;margin-bottom:18px}.brand{font-size:25px;font-weight:950;color:#b01361}.sub{color:#8f5a72;font-size:12px;margin-top:4px}.badge{display:inline-block;padding:7px 11px;border-radius:999px;background:#fff0f7;color:#9a1554;font-weight:900;font-size:12px;border:1px solid #f4c2d8}.box{border:1px solid #f4c2d8;border-radius:18px;padding:14px;margin:12px 0;background:#fff8fb}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:10px;border-bottom:1px solid #f4c2d8;text-align:left;font-size:12px;vertical-align:middle}th{background:#fff0f7;color:#7b254c;text-transform:uppercase;font-size:11px}.total{text-align:right;font-size:24px;font-weight:950;margin-top:16px;color:#3b1027}.muted{color:#8f5a72}.right{text-align:right}.footer{margin-top:22px;padding-top:12px;border-top:1px solid #f4c2d8;font-size:11px;color:#8f5a72}.no-print{margin:0 0 16px;text-align:right}.prod{display:flex;align-items:center;gap:10px}@media print{.no-print{display:none}}</style></head><body><div class="sheet">'+printButton+'<div class="head"><div>'+logo+'<div class="brand">'+appName+'</div><div class="sub">'+esc(title)+' · '+esc(now)+'</div>'+(company?'<div class="sub">'+company+'</div>':'')+'</div><div class="badge">Documento PDF</div></div>'+bodyHtml+'<div class="footer">'+footer+'</div></div></body></html>';
+    const html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>'+esc(title)+'</title><style>@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;margin:0;color:#351126;background:#fff}.sheet{padding:8px}.head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:3px solid #f5bfd7;padding-bottom:14px;margin-bottom:18px}.brand{font-size:25px;font-weight:950;color:#b01361}.sub{color:#8f5a72;font-size:12px;margin-top:4px}.badge{display:inline-block;padding:7px 11px;border-radius:999px;background:#fff0f7;color:#9a1554;font-weight:900;font-size:12px;border:1px solid #f4c2d8}.box{border:1px solid #f4c2d8;border-radius:18px;padding:14px;margin:12px 0;background:#fff8fb}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:10px;border-bottom:1px solid #f4c2d8;text-align:left;font-size:12px;vertical-align:middle}th{background:#fff0f7;color:#7b254c;text-transform:uppercase;font-size:11px}.total{text-align:right;font-size:24px;font-weight:950;margin-top:16px;color:#3b1027}.muted{color:#8f5a72}.right{text-align:right}.footer{margin-top:22px;padding-top:12px;border-top:1px solid #f4c2d8;font-size:11px;color:#8f5a72}.no-print{margin:0 0 16px;text-align:right}.prod{display:flex;align-items:center;gap:10px}@media print{.no-print{display:none}}</style></head><body><div class="sheet">'+printButton+'<div class="head"><div>'+logo+'<div class="brand">'+appName+'</div><div class="sub">'+esc(title)+' · '+esc(now)+'</div>'+(company?'<div class="sub">'+company+'</div>':'')+'</div><div class="badge">Documento PDF</div></div>'+bodyHtml+'<div class="footer">'+footer+'</div></div>
+
+<style id="role-extra-permissions-final-style">
+.employee-extra-row{display:none;background:rgba(255,240,247,.55)}
+.employee-extra-row.open{display:table-row}
+.employee-extra-box{border:1px solid var(--line);border-radius:20px;background:var(--panel2);padding:14px;display:grid;gap:12px}
+.employee-extra-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.employee-extra-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.employee-extra-check{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:11px;cursor:pointer}
+.employee-extra-check input{width:auto;margin-top:3px}.employee-extra-check small{display:block;color:var(--muted);margin-top:3px;line-height:1.35}
+.role-mini-note{font-size:12px;color:var(--muted);margin-top:4px}.read-only-note{display:inline-flex;padding:6px 9px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);font-size:12px;font-weight:900;color:var(--muted)}
+body.dark .employee-extra-row{background:rgba(255,255,255,.035)}
+</style>
+<script id="role-extra-permissions-final-script">
+(function(){
+  const ROLE_LABELS={owner:'Owner',manager:'Admin',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
+  const PERMISSIONS={
+    sell:{label:'Vendere',desc:'Può usare la sezione Vendi, carrello e scanner.'},
+    viewProducts:{label:'Vedere prodotti',desc:'Può consultare la lista prodotti.'},
+    manageProducts:{label:'Modificare prodotti',desc:'Può creare/modificare prodotti, barcode, foto e quantità.'},
+    viewStock:{label:'Vedere stock',desc:'Può consultare le giacenze di magazzino.'},
+    manageStock:{label:'Modificare stock',desc:'Può correggere quantità e magazzino.'},
+    viewDiscounts:{label:'Vedere sconti',desc:'Può consultare gli sconti in sola lettura.'},
+    manageDiscounts:{label:'Modificare sconti',desc:'Può creare/modificare/eliminare codici sconto.'},
+    viewOrders:{label:'Vedere storico',desc:'Può vedere ordini e storico vendite.'},
+    cancelOrders:{label:'Correggere ordini',desc:'Può annullare ordini o articoli.'},
+    editPayment:{label:'Modificare pagamento',desc:'Può correggere il metodo di pagamento.'},
+    createClosure:{label:'Fare chiusura',desc:'Può eseguire la chiusura giornaliera.'},
+    editClosure:{label:'Modificare chiusura',desc:'Può aggiornare una chiusura già fatta.'},
+    viewRevenue:{label:'Vedere incassi',desc:'Può vedere incassi, totali e riepiloghi.'},
+    viewCosts:{label:'Vedere costi e margini',desc:'Può vedere costo reale e valore costo magazzino.'},
+    backup:{label:'Backup/import',desc:'Può importare o scaricare backup.'},
+    settings:{label:'Impostazioni',desc:'Può modificare impostazioni gestionali.'},
+    manageEmployees:{label:'Dipendenti',desc:'Può creare/modificare dipendenti e permessi.'},
+    viewAccessLogs:{label:'Controllo accessi',desc:'Può vedere il registro degli accessi.'}
+  };
+  const DEFAULTS={
+    owner:{sell:1,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,backup:1,settings:1,manageEmployees:1,viewAccessLogs:1},
+    manager:{sell:1,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,backup:1,settings:0,manageEmployees:0,viewAccessLogs:1},
+    warehouse:{sell:0,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:0,viewOrders:0,cancelOrders:0,editPayment:0,createClosure:0,editClosure:0,viewRevenue:0,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0},
+    seller:{sell:1,viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,cancelOrders:0,editPayment:0,createClosure:1,editClosure:0,viewRevenue:1,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0},
+    supervisor:{sell:1,viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0}
+  };
+  const EXTRA_KEYS=['sell','viewProducts','manageProducts','viewStock','manageStock','viewDiscounts','manageDiscounts','viewOrders','cancelOrders','editPayment','createClosure','editClosure','viewRevenue','viewCosts','viewAccessLogs'];
+  function $(id){return document.getElementById(id)}
+  function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function toastMsg(msg,type){try{ if(typeof toast==='function') toast(msg,type||''); else alert(msg); }catch(e){alert(msg)}}
+  function roleLabel(r){return ROLE_LABELS[r]||'Venditore'}
+  function ensureRoles(){try{document.querySelectorAll('#empRole,#permRoleSelect').forEach(sel=>{if(sel&&!sel.querySelector('option[value="supervisor"]')) sel.insertAdjacentHTML('beforeend','<option value="supervisor">Supervisore</option>')})}catch(e){}}
+  function currentProfile(){return window.currentFirebaseUserProfile||{};}
+  function activeEmployee(){
+    try{
+      const uid=window.currentFirebaseUser?.uid||currentProfile().uid||'';
+      let e=(db.employees||[]).find(x=>String(x.firebaseUid||x.uid||x.id)===String(uid));
+      if(!e && settings?.activeEmployeeId) e=(db.employees||[]).find(x=>String(x.id)===String(settings.activeEmployeeId));
+      if(!e && currentProfile().email) e=(db.employees||[]).find(x=>String(x.email||'').toLowerCase()===String(currentProfile().email||'').toLowerCase());
+      if(!e && currentProfile().uid){
+        e={id:currentProfile().uid,firebaseUid:currentProfile().uid,uid:currentProfile().uid,name:currentProfile().name||currentProfile().email,email:currentProfile().email,role:currentProfile().role||'seller',active:currentProfile().active!==false,extraPermissions:currentProfile().extraPermissions||{}};
+      }
+      return e||{};
+    }catch(err){return {role:'seller',active:true}}
+  }
+  function basePerms(role){return {...(DEFAULTS[role]||DEFAULTS.seller)};}
+  function permsFor(emp){
+    const e=emp||activeEmployee();
+    if(!e || e.active===false) return {};
+    const p=e.role==='owner'?basePerms('owner'):basePerms(e.role||'seller');
+    const extra=e.extraPermissions||currentProfile().extraPermissions||{};
+    Object.keys(extra||{}).forEach(k=>{ if(extra[k]===true || extra[k]===1) p[k]=1; });
+    if(p.manageProducts){p.viewProducts=1;p.viewStock=1;p.manageStock=1;}
+    if(p.manageStock){p.viewStock=1;}
+    if(p.manageDiscounts){p.viewDiscounts=1;}
+    if(p.editClosure){p.createClosure=1;}
+    return p;
+  }
+  window.__noorRolePerms={ROLE_LABELS,PERMISSIONS,DEFAULTS,permsFor};
+  window.canAccess=function(perm){
+    const p=permsFor();
+    const alias={editProducts:'manageProducts',deleteProducts:'manageProducts',viewCosts:'viewCosts',settings:'settings',backup:'backup',manageEmployees:'manageEmployees',viewRevenue:'viewRevenue',manageDiscounts:'manageDiscounts'};
+    const key=alias[perm]||perm;
+    return !!p[key];
+  };
+  function permSummary(emp){
+    const p=permsFor(emp); const keys=['sell','viewProducts','viewStock','viewDiscounts','createClosure','editClosure','viewOrders','viewRevenue'];
+    return keys.filter(k=>p[k]).map(k=>PERMISSIONS[k].label).join(', ')||'solo accesso base';
+  }
+  function employeeKey(e){return e.firebaseUid||e.uid||e.id||''}
+  window.toggleEmployeeExtra=function(id){const row=$('extraRow_'+id); if(row)row.classList.toggle('open')};
+  async function saveExtraToFirebase(e){
+    if(!e || !(e.firebaseUid||e.uid)) return;
+    try{
+      const u=window.currentFirebaseUser; if(!u||!u.getIdToken)return;
+      const token=await u.getIdToken(true);
+      await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'update',uid:e.firebaseUid||e.uid,name:e.name,email:e.email,password:'',role:e.role,active:e.active!==false,extraPermissions:e.extraPermissions||{}})});
+    }catch(err){console.warn('Extra permessi non sincronizzati:',err)}
+  }
+  window.toggleEmployeeExtraPermission=function(id,perm,checked){
+    if(!window.canAccess('manageEmployees')){toastMsg('Solo Owner/Admin può modificare i permessi personali.');return;}
+    const e=(db.employees||[]).find(x=>String(employeeKey(x))===String(id)||String(x.id)===String(id)); if(!e)return;
+    e.extraPermissions=e.extraPermissions||{};
+    if(checked) e.extraPermissions[perm]=true; else delete e.extraPermissions[perm];
+    try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db))}catch(er){}
+    saveExtraToFirebase(e);
+    if(typeof window.renderEmployees==='function') window.renderEmployees();
+    if(typeof window.applyEmployeePermissions==='function') window.applyEmployeePermissions();
+    toastMsg('Permesso personale aggiornato.','success');
+  };
+  function extraBox(e){
+    const id=employeeKey(e); const base=basePerms(e.role||'seller'); const extra=e.extraPermissions||{};
+    const checks=EXTRA_KEYS.map(k=>{
+      const disabled=(e.role==='owner')?'disabled':''; const baseHas=!!base[k]; const checked=!!extra[k];
+      return `<label class="employee-extra-check"><input type="checkbox" ${disabled} ${checked?'checked':''} onchange="toggleEmployeeExtraPermission('${esc(id)}','${k}',this.checked)"><span><b>${esc(PERMISSIONS[k].label)}</b><small>${baseHas?'Già incluso nel ruolo base. ':''}${esc(PERMISSIONS[k].desc)}</small></span></label>`;
+    }).join('');
+    return `<tr id="extraRow_${esc(id)}" class="employee-extra-row"><td colspan="5"><div class="employee-extra-box"><div class="employee-extra-head"><div><b>Permessi personali di ${esc(e.name||e.email||'dipendente')}</b><div class="hint">Qui puoi aggiungere permessi solo a questo dipendente, senza cambiare tutti gli utenti con lo stesso ruolo.</div></div><span class="read-only-note">Ruolo base: ${esc(roleLabel(e.role))}</span></div><div class="employee-extra-grid">${checks}</div></div></td></tr>`;
+  }
+  window.renderRoleLegend=function(){
+    ensureRoles(); const box=$('roleLegend'); if(!box)return;
+    const desc={
+      owner:'Accesso completo a tutto il gestionale.',
+      manager:'Quasi completo: gestisce operatività, ma non le impostazioni critiche.',
+      warehouse:'Prodotti e stock. Vede sconti in sola lettura. Non vede incassi, costi o chiusure.',
+      seller:'Vende, vede prodotti/stock/sconti in sola lettura e può fare chiusura. Non modifica chiusure.',
+      supervisor:'Come venditore, ma può correggere ordini/pagamenti e modificare chiusure.'
+    };
+    box.innerHTML=Object.keys(desc).map(r=>{const p=basePerms(r);return `<div class="role-perm"><b>${esc(roleLabel(r))}</b><div class="hint">${esc(desc[r])}</div><div style="margin-top:8px;font-size:12px;line-height:1.7">Vendi ${p.sell?'✓':'×'} · Prodotti ${p.viewProducts?'✓':'×'} · Stock ${p.viewStock?'✓':'×'} · Sconti ${p.viewDiscounts?(p.manageDiscounts?'modifica':'lettura'):'×'} · Chiusura ${p.createClosure?(p.editClosure?'modifica':'solo crea'):'×'} · Costi ${p.viewCosts?'✓':'×'}</div></div>`}).join('');
+  };
+  window.renderEmployees=function(){
+    ensureRoles(); if(typeof window.renderRoleLegend==='function')window.renderRoleLegend();
+    const ae=activeEmployee();
+    const sel=$('activeEmployeeSelect'); if(sel){sel.innerHTML=(db.employees||[]).filter(e=>e.active!==false).map(e=>`<option value="${esc(e.id)}" ${String(e.id)===String(settings.activeEmployeeId)?'selected':''}>${esc(e.name)} · ${esc(roleLabel(e.role))}</option>`).join('')}
+    const roleInput=$('activeEmployeeRole'); if(roleInput)roleInput.value=ae?roleLabel(ae.role):'';
+    const badge=$('activeEmployeeBadge'); if(badge&&ae)badge.textContent=(ae.name||ae.email||'Utente')+' · '+roleLabel(ae.role);
+    const canManage=window.canAccess('manageEmployees');
+    const panel=$('superAdminPermissionPanel'); if(panel) panel.style.display=canManage?'block':'none';
+    const form=$('employeeForm'); if(form) form.style.display=canManage?'grid':'none';
+    const tbWrap=$('employeesTable')?.closest('.table-wrap'); if(tbWrap) tbWrap.style.display=canManage?'block':'none';
+    const tb=$('employeesTable'); if(tb){
+      const rows=(db.employees||[]).map(e=>{const id=employeeKey(e);return `<tr><td><button class="btn small secondary" type="button" onclick="toggleEmployeeExtra('${esc(id)}')">▾</button> <b>${esc(e.name)}</b><br><span class="hint">${esc(e.email||'—')}</span></td><td><span class="badge">${esc(roleLabel(e.role))}</span></td><td>${e.active!==false?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Disattivato</span>'}</td><td>${esc(permSummary(e))}<div class="role-mini-note">Permessi extra: ${Object.keys(e.extraPermissions||{}).length||0}</div></td><td><div class="action-row"><button class="btn small secondary" onclick="editEmployee('${esc(e.id)}')">Modifica</button><button class="btn small red" onclick="deleteEmployee('${esc(e.id)}')">Elimina</button></div></td></tr>${extraBox(e)}`}).join('');
+      tb.innerHTML=rows||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';
+    }
+  };
+  const oldEdit=window.editEmployee;
+  window.editEmployee=function(id){ if(typeof oldEdit==='function')oldEdit(id); setTimeout(()=>{const e=(db.employees||[]).find(x=>String(x.id)===String(id)); if(e&&$('empRole'))$('empRole').value=e.role||'seller';},80); };
+  function showHide(sel,show){document.querySelectorAll(sel).forEach(el=>{el.style.display=show?'':'none'; el.classList.toggle('permission-lock',!show);});}
+  window.applyEmployeePermissions=function(){
+    ensureRoles(); const p=permsFor();
+    // navigazione bassa e menu
+    document.querySelectorAll('.nav button[data-target="products"]').forEach(b=>b.style.display=p.viewProducts?'':'none');
+    document.querySelectorAll('.nav button[data-target="stock"]').forEach(b=>b.style.display=p.viewStock?'':'none');
+    document.querySelectorAll('.nav button[data-target="sell"]').forEach(b=>b.style.display=p.sell?'':'none');
+    document.querySelectorAll('.nav button[data-target="history"]').forEach(b=>b.style.display=p.viewOrders?'':'none');
+    showHide('[onclick*="go(\'discounts\')"],[onclick*="go(&quot;discounts&quot;)"]',p.viewDiscounts||p.manageDiscounts);
+    showHide('#menuClosuresBtn,[onclick*="go(\'closures\')"],[onclick*="go(&quot;closures&quot;)"]',p.createClosure||p.editClosure);
+    showHide('[onclick*="go(\'settings\')"],[onclick*="go(&quot;settings&quot;)"]',p.settings);
+    showHide('[onclick*="go(\'employees\')"],[onclick*="go(&quot;employees&quot;)"]',p.manageEmployees);
+    showHide('#accessLogsMenuButton',p.viewAccessLogs||p.manageEmployees);
+    // dati economici
+    if(!p.viewRevenue){const el=$('todayRevenue'); if(el)el.innerHTML='<span class="hidden-money">••••</span>';}
+    if(!p.viewCosts){['stockValue','stockCostValue'].forEach(id=>{const el=$(id); if(el)el.innerHTML='<span class="hidden-money">••••</span>'});}
+    document.querySelectorAll('[data-cost-card="1"] .money-actions button,#moneyBtn').forEach(b=>{if(!p.viewCosts){b.textContent='Bloccato';b.title='Questo ruolo non può vedere questi valori';}});
+    // prodotti / stock
+    document.querySelectorAll('#productForm input,#productForm select,#productForm textarea,#productForm button').forEach(el=>{ if(!p.manageProducts){el.disabled=true;} });
+    document.querySelectorAll('[onclick*="openAddProduct"],#products .panel-title .btn.gold').forEach(b=>b.style.display=p.manageProducts?'':'none');
+    // sconti sola lettura
+    const roDisc=!p.manageDiscounts;
+    document.querySelectorAll('#discounts form input,#discounts form select,#discounts form button').forEach(el=>{el.disabled=roDisc;});
+    document.querySelectorAll('#discountsTable button').forEach(b=>{b.style.display=roDisc?'none':'';});
+    // chiusure
+    document.querySelectorAll('[onclick*="openDailyClosureConfirm"]').forEach(b=>b.style.display=p.createClosure?'':'none');
+    if(typeof window.renderEmployees==='function'){};
+  };
+  const rawGo=window.go;
+  window.go=function(id){
+    const p=permsFor();
+    const allowed={home:1,products:p.viewProducts,stock:p.viewStock,sell:p.sell,history:p.viewOrders,drafts:p.viewOrders,discounts:(p.viewDiscounts||p.manageDiscounts),closures:(p.createClosure||p.editClosure),employees:p.manageEmployees,settings:p.settings,accessLogs:(p.viewAccessLogs||p.manageEmployees)};
+    if(!allowed[id]){toastMsg('Non hai il permesso per aprire questa sezione.');return false;}
+    if(typeof rawGo==='function') rawGo(id); else {document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));$(id)?.classList.add('active');}
+    try{localStorage.setItem('noor_active_section_v1',id)}catch(e){}
+    setTimeout(()=>{try{window.applyEmployeePermissions()}catch(e){}},80);
+    return true;
+  };
+  function wrap(name,fn){const old=window[name]; if(typeof old==='function'&&!old.__extraWrapped){const nw=function(){return fn.call(this,old,arguments)}; nw.__extraWrapped=true; window[name]=nw;}}
+  wrap('saveProduct',(old,args)=>{if(!window.canAccess('manageProducts'))return toastMsg('Questo ruolo può vedere i prodotti, ma non modificarli.');return old.apply(null,args)});
+  wrap('deleteProduct',(old,args)=>{if(!window.canAccess('manageProducts'))return toastMsg('Questo ruolo non può eliminare prodotti.');return old.apply(null,args)});
+  wrap('saveDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo può solo visualizzare gli sconti.');return old.apply(null,args)});
+  wrap('editDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo può solo visualizzare gli sconti.');return old.apply(null,args)});
+  wrap('deleteDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo non può eliminare sconti.');return old.apply(null,args)});
+  wrap('openDailyClosureConfirm',(old,args)=>{if(!window.canAccess('createClosure'))return toastMsg('Questo ruolo non può eseguire chiusure.');return old.apply(null,args)});
+  wrap('confirmDailyClosure',(old,args)=>{try{const today=new Date().toISOString().slice(0,10);const exists=(db.closures||[]).some(c=>c.date===today);if(exists&&!window.canAccess('editClosure'))return toastMsg('Questo ruolo può fare la chiusura, ma non modificare una chiusura già fatta.');if(!exists&&!window.canAccess('createClosure'))return toastMsg('Questo ruolo non può eseguire chiusure.')}catch(e){}return old.apply(null,args)});
+  // aggiorna payload salvataggio dipendenti: se il form vecchio chiama la Function, extraPermissions viene già mantenuto localmente. Qui assicuriamo il ruolo Supervisore.
+  function boot(){ensureRoles();try{window.renderRoleLegend()}catch(e){}try{window.renderEmployees()}catch(e){}try{window.applyEmployeePermissions()}catch(e){}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot); else boot();
+  setTimeout(boot,500);setTimeout(boot,1500);setTimeout(boot,3000);
+})();
+</script>
+
+</body></html>';
     w.document.open(); w.document.write(html); w.document.close();
   };
   setTimeout(function(){ if(typeof renderSettingsPanel==='function') renderSettingsPanel(); },300);
@@ -2445,7 +3033,203 @@ load();
       return '<div class="r-row"><div><b>'+esc(l.productName||'Prodotto')+'</b><br><small>x '+esc(l.qty||1)+' · '+money(l.price||0)+(l.discountCode||l.manualDiscountCode?' · sconto '+esc(l.discountCode||l.manualDiscountCode):'')+'</small></div><b>'+money(lineTotal)+'</b></div>';
     }).join('');
     var total=Number(o.total||0)||((o.lines||[]).reduce(function(a,l){return a+Number(l.total||0)},0));
-    var html='<!doctype html><html><head><meta charset="utf-8"><title>Ricevuta '+esc(o.orderNumber||o.id)+'</title><style>body{font-family:Arial,sans-serif;margin:0;background:#fff;color:#111}.receipt{width:80mm;max-width:100%;padding:14px;margin:0 auto}.head{text-align:center;border-bottom:1px dashed #999;padding-bottom:10px;margin-bottom:10px}.brand{font-size:20px;font-weight:900}.muted{font-size:12px;color:#555}.r-row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed #ddd;padding:9px 0}.total{display:flex;justify-content:space-between;font-size:20px;font-weight:900;margin-top:12px;padding-top:12px;border-top:2px solid #111}.footer{text-align:center;margin-top:18px;font-size:12px}.pay{margin-top:10px;font-size:13px}@media print{.receipt{width:80mm}.no-print{display:none}}</style></head><body><div class="receipt"><div class="head"><div class="brand">'+esc(company)+'</div><div class="muted">'+esc(phone)+' '+esc(email)+'</div><div class="muted">'+esc(vat)+'</div></div><div class="muted">Data: '+esc(new Date(o.date||Date.now()).toLocaleString('it-IT'))+'</div><div class="muted">Ordine: '+esc(o.orderNumber||o.id)+'</div><div class="pay">Pagamento: <b>'+esc(o.payment||'—')+'</b></div>'+rows+'<div class="total"><span>Totale</span><span>'+money(total)+'</span></div><div class="footer">Grazie per il tuo acquisto</div><div class="no-print" style="text-align:center;margin-top:14px"><button onclick="window.print()">Stampa</button></div></div></body></html>';
+    var html='<!doctype html><html><head><meta charset="utf-8"><title>Ricevuta '+esc(o.orderNumber||o.id)+'</title><style>body{font-family:Arial,sans-serif;margin:0;background:#fff;color:#111}.receipt{width:80mm;max-width:100%;padding:14px;margin:0 auto}.head{text-align:center;border-bottom:1px dashed #999;padding-bottom:10px;margin-bottom:10px}.brand{font-size:20px;font-weight:900}.muted{font-size:12px;color:#555}.r-row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed #ddd;padding:9px 0}.total{display:flex;justify-content:space-between;font-size:20px;font-weight:900;margin-top:12px;padding-top:12px;border-top:2px solid #111}.footer{text-align:center;margin-top:18px;font-size:12px}.pay{margin-top:10px;font-size:13px}@media print{.receipt{width:80mm}.no-print{display:none}}</style></head><body><div class="receipt"><div class="head"><div class="brand">'+esc(company)+'</div><div class="muted">'+esc(phone)+' '+esc(email)+'</div><div class="muted">'+esc(vat)+'</div></div><div class="muted">Data: '+esc(new Date(o.date||Date.now()).toLocaleString('it-IT'))+'</div><div class="muted">Ordine: '+esc(o.orderNumber||o.id)+'</div><div class="pay">Pagamento: <b>'+esc(o.payment||'—')+'</b></div>'+rows+'<div class="total"><span>Totale</span><span>'+money(total)+'</span></div><div class="footer">Grazie per il tuo acquisto</div><div class="no-print" style="text-align:center;margin-top:14px"><button onclick="window.print()">Stampa</button></div></div>
+
+<style id="role-extra-permissions-final-style">
+.employee-extra-row{display:none;background:rgba(255,240,247,.55)}
+.employee-extra-row.open{display:table-row}
+.employee-extra-box{border:1px solid var(--line);border-radius:20px;background:var(--panel2);padding:14px;display:grid;gap:12px}
+.employee-extra-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.employee-extra-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.employee-extra-check{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:11px;cursor:pointer}
+.employee-extra-check input{width:auto;margin-top:3px}.employee-extra-check small{display:block;color:var(--muted);margin-top:3px;line-height:1.35}
+.role-mini-note{font-size:12px;color:var(--muted);margin-top:4px}.read-only-note{display:inline-flex;padding:6px 9px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);font-size:12px;font-weight:900;color:var(--muted)}
+body.dark .employee-extra-row{background:rgba(255,255,255,.035)}
+</style>
+<script id="role-extra-permissions-final-script">
+(function(){
+  const ROLE_LABELS={owner:'Owner',manager:'Admin',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
+  const PERMISSIONS={
+    sell:{label:'Vendere',desc:'Può usare la sezione Vendi, carrello e scanner.'},
+    viewProducts:{label:'Vedere prodotti',desc:'Può consultare la lista prodotti.'},
+    manageProducts:{label:'Modificare prodotti',desc:'Può creare/modificare prodotti, barcode, foto e quantità.'},
+    viewStock:{label:'Vedere stock',desc:'Può consultare le giacenze di magazzino.'},
+    manageStock:{label:'Modificare stock',desc:'Può correggere quantità e magazzino.'},
+    viewDiscounts:{label:'Vedere sconti',desc:'Può consultare gli sconti in sola lettura.'},
+    manageDiscounts:{label:'Modificare sconti',desc:'Può creare/modificare/eliminare codici sconto.'},
+    viewOrders:{label:'Vedere storico',desc:'Può vedere ordini e storico vendite.'},
+    cancelOrders:{label:'Correggere ordini',desc:'Può annullare ordini o articoli.'},
+    editPayment:{label:'Modificare pagamento',desc:'Può correggere il metodo di pagamento.'},
+    createClosure:{label:'Fare chiusura',desc:'Può eseguire la chiusura giornaliera.'},
+    editClosure:{label:'Modificare chiusura',desc:'Può aggiornare una chiusura già fatta.'},
+    viewRevenue:{label:'Vedere incassi',desc:'Può vedere incassi, totali e riepiloghi.'},
+    viewCosts:{label:'Vedere costi e margini',desc:'Può vedere costo reale e valore costo magazzino.'},
+    backup:{label:'Backup/import',desc:'Può importare o scaricare backup.'},
+    settings:{label:'Impostazioni',desc:'Può modificare impostazioni gestionali.'},
+    manageEmployees:{label:'Dipendenti',desc:'Può creare/modificare dipendenti e permessi.'},
+    viewAccessLogs:{label:'Controllo accessi',desc:'Può vedere il registro degli accessi.'}
+  };
+  const DEFAULTS={
+    owner:{sell:1,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,backup:1,settings:1,manageEmployees:1,viewAccessLogs:1},
+    manager:{sell:1,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,backup:1,settings:0,manageEmployees:0,viewAccessLogs:1},
+    warehouse:{sell:0,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:0,viewOrders:0,cancelOrders:0,editPayment:0,createClosure:0,editClosure:0,viewRevenue:0,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0},
+    seller:{sell:1,viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,cancelOrders:0,editPayment:0,createClosure:1,editClosure:0,viewRevenue:1,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0},
+    supervisor:{sell:1,viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0}
+  };
+  const EXTRA_KEYS=['sell','viewProducts','manageProducts','viewStock','manageStock','viewDiscounts','manageDiscounts','viewOrders','cancelOrders','editPayment','createClosure','editClosure','viewRevenue','viewCosts','viewAccessLogs'];
+  function $(id){return document.getElementById(id)}
+  function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function toastMsg(msg,type){try{ if(typeof toast==='function') toast(msg,type||''); else alert(msg); }catch(e){alert(msg)}}
+  function roleLabel(r){return ROLE_LABELS[r]||'Venditore'}
+  function ensureRoles(){try{document.querySelectorAll('#empRole,#permRoleSelect').forEach(sel=>{if(sel&&!sel.querySelector('option[value="supervisor"]')) sel.insertAdjacentHTML('beforeend','<option value="supervisor">Supervisore</option>')})}catch(e){}}
+  function currentProfile(){return window.currentFirebaseUserProfile||{};}
+  function activeEmployee(){
+    try{
+      const uid=window.currentFirebaseUser?.uid||currentProfile().uid||'';
+      let e=(db.employees||[]).find(x=>String(x.firebaseUid||x.uid||x.id)===String(uid));
+      if(!e && settings?.activeEmployeeId) e=(db.employees||[]).find(x=>String(x.id)===String(settings.activeEmployeeId));
+      if(!e && currentProfile().email) e=(db.employees||[]).find(x=>String(x.email||'').toLowerCase()===String(currentProfile().email||'').toLowerCase());
+      if(!e && currentProfile().uid){
+        e={id:currentProfile().uid,firebaseUid:currentProfile().uid,uid:currentProfile().uid,name:currentProfile().name||currentProfile().email,email:currentProfile().email,role:currentProfile().role||'seller',active:currentProfile().active!==false,extraPermissions:currentProfile().extraPermissions||{}};
+      }
+      return e||{};
+    }catch(err){return {role:'seller',active:true}}
+  }
+  function basePerms(role){return {...(DEFAULTS[role]||DEFAULTS.seller)};}
+  function permsFor(emp){
+    const e=emp||activeEmployee();
+    if(!e || e.active===false) return {};
+    const p=e.role==='owner'?basePerms('owner'):basePerms(e.role||'seller');
+    const extra=e.extraPermissions||currentProfile().extraPermissions||{};
+    Object.keys(extra||{}).forEach(k=>{ if(extra[k]===true || extra[k]===1) p[k]=1; });
+    if(p.manageProducts){p.viewProducts=1;p.viewStock=1;p.manageStock=1;}
+    if(p.manageStock){p.viewStock=1;}
+    if(p.manageDiscounts){p.viewDiscounts=1;}
+    if(p.editClosure){p.createClosure=1;}
+    return p;
+  }
+  window.__noorRolePerms={ROLE_LABELS,PERMISSIONS,DEFAULTS,permsFor};
+  window.canAccess=function(perm){
+    const p=permsFor();
+    const alias={editProducts:'manageProducts',deleteProducts:'manageProducts',viewCosts:'viewCosts',settings:'settings',backup:'backup',manageEmployees:'manageEmployees',viewRevenue:'viewRevenue',manageDiscounts:'manageDiscounts'};
+    const key=alias[perm]||perm;
+    return !!p[key];
+  };
+  function permSummary(emp){
+    const p=permsFor(emp); const keys=['sell','viewProducts','viewStock','viewDiscounts','createClosure','editClosure','viewOrders','viewRevenue'];
+    return keys.filter(k=>p[k]).map(k=>PERMISSIONS[k].label).join(', ')||'solo accesso base';
+  }
+  function employeeKey(e){return e.firebaseUid||e.uid||e.id||''}
+  window.toggleEmployeeExtra=function(id){const row=$('extraRow_'+id); if(row)row.classList.toggle('open')};
+  async function saveExtraToFirebase(e){
+    if(!e || !(e.firebaseUid||e.uid)) return;
+    try{
+      const u=window.currentFirebaseUser; if(!u||!u.getIdToken)return;
+      const token=await u.getIdToken(true);
+      await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'update',uid:e.firebaseUid||e.uid,name:e.name,email:e.email,password:'',role:e.role,active:e.active!==false,extraPermissions:e.extraPermissions||{}})});
+    }catch(err){console.warn('Extra permessi non sincronizzati:',err)}
+  }
+  window.toggleEmployeeExtraPermission=function(id,perm,checked){
+    if(!window.canAccess('manageEmployees')){toastMsg('Solo Owner/Admin può modificare i permessi personali.');return;}
+    const e=(db.employees||[]).find(x=>String(employeeKey(x))===String(id)||String(x.id)===String(id)); if(!e)return;
+    e.extraPermissions=e.extraPermissions||{};
+    if(checked) e.extraPermissions[perm]=true; else delete e.extraPermissions[perm];
+    try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db))}catch(er){}
+    saveExtraToFirebase(e);
+    if(typeof window.renderEmployees==='function') window.renderEmployees();
+    if(typeof window.applyEmployeePermissions==='function') window.applyEmployeePermissions();
+    toastMsg('Permesso personale aggiornato.','success');
+  };
+  function extraBox(e){
+    const id=employeeKey(e); const base=basePerms(e.role||'seller'); const extra=e.extraPermissions||{};
+    const checks=EXTRA_KEYS.map(k=>{
+      const disabled=(e.role==='owner')?'disabled':''; const baseHas=!!base[k]; const checked=!!extra[k];
+      return `<label class="employee-extra-check"><input type="checkbox" ${disabled} ${checked?'checked':''} onchange="toggleEmployeeExtraPermission('${esc(id)}','${k}',this.checked)"><span><b>${esc(PERMISSIONS[k].label)}</b><small>${baseHas?'Già incluso nel ruolo base. ':''}${esc(PERMISSIONS[k].desc)}</small></span></label>`;
+    }).join('');
+    return `<tr id="extraRow_${esc(id)}" class="employee-extra-row"><td colspan="5"><div class="employee-extra-box"><div class="employee-extra-head"><div><b>Permessi personali di ${esc(e.name||e.email||'dipendente')}</b><div class="hint">Qui puoi aggiungere permessi solo a questo dipendente, senza cambiare tutti gli utenti con lo stesso ruolo.</div></div><span class="read-only-note">Ruolo base: ${esc(roleLabel(e.role))}</span></div><div class="employee-extra-grid">${checks}</div></div></td></tr>`;
+  }
+  window.renderRoleLegend=function(){
+    ensureRoles(); const box=$('roleLegend'); if(!box)return;
+    const desc={
+      owner:'Accesso completo a tutto il gestionale.',
+      manager:'Quasi completo: gestisce operatività, ma non le impostazioni critiche.',
+      warehouse:'Prodotti e stock. Vede sconti in sola lettura. Non vede incassi, costi o chiusure.',
+      seller:'Vende, vede prodotti/stock/sconti in sola lettura e può fare chiusura. Non modifica chiusure.',
+      supervisor:'Come venditore, ma può correggere ordini/pagamenti e modificare chiusure.'
+    };
+    box.innerHTML=Object.keys(desc).map(r=>{const p=basePerms(r);return `<div class="role-perm"><b>${esc(roleLabel(r))}</b><div class="hint">${esc(desc[r])}</div><div style="margin-top:8px;font-size:12px;line-height:1.7">Vendi ${p.sell?'✓':'×'} · Prodotti ${p.viewProducts?'✓':'×'} · Stock ${p.viewStock?'✓':'×'} · Sconti ${p.viewDiscounts?(p.manageDiscounts?'modifica':'lettura'):'×'} · Chiusura ${p.createClosure?(p.editClosure?'modifica':'solo crea'):'×'} · Costi ${p.viewCosts?'✓':'×'}</div></div>`}).join('');
+  };
+  window.renderEmployees=function(){
+    ensureRoles(); if(typeof window.renderRoleLegend==='function')window.renderRoleLegend();
+    const ae=activeEmployee();
+    const sel=$('activeEmployeeSelect'); if(sel){sel.innerHTML=(db.employees||[]).filter(e=>e.active!==false).map(e=>`<option value="${esc(e.id)}" ${String(e.id)===String(settings.activeEmployeeId)?'selected':''}>${esc(e.name)} · ${esc(roleLabel(e.role))}</option>`).join('')}
+    const roleInput=$('activeEmployeeRole'); if(roleInput)roleInput.value=ae?roleLabel(ae.role):'';
+    const badge=$('activeEmployeeBadge'); if(badge&&ae)badge.textContent=(ae.name||ae.email||'Utente')+' · '+roleLabel(ae.role);
+    const canManage=window.canAccess('manageEmployees');
+    const panel=$('superAdminPermissionPanel'); if(panel) panel.style.display=canManage?'block':'none';
+    const form=$('employeeForm'); if(form) form.style.display=canManage?'grid':'none';
+    const tbWrap=$('employeesTable')?.closest('.table-wrap'); if(tbWrap) tbWrap.style.display=canManage?'block':'none';
+    const tb=$('employeesTable'); if(tb){
+      const rows=(db.employees||[]).map(e=>{const id=employeeKey(e);return `<tr><td><button class="btn small secondary" type="button" onclick="toggleEmployeeExtra('${esc(id)}')">▾</button> <b>${esc(e.name)}</b><br><span class="hint">${esc(e.email||'—')}</span></td><td><span class="badge">${esc(roleLabel(e.role))}</span></td><td>${e.active!==false?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Disattivato</span>'}</td><td>${esc(permSummary(e))}<div class="role-mini-note">Permessi extra: ${Object.keys(e.extraPermissions||{}).length||0}</div></td><td><div class="action-row"><button class="btn small secondary" onclick="editEmployee('${esc(e.id)}')">Modifica</button><button class="btn small red" onclick="deleteEmployee('${esc(e.id)}')">Elimina</button></div></td></tr>${extraBox(e)}`}).join('');
+      tb.innerHTML=rows||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';
+    }
+  };
+  const oldEdit=window.editEmployee;
+  window.editEmployee=function(id){ if(typeof oldEdit==='function')oldEdit(id); setTimeout(()=>{const e=(db.employees||[]).find(x=>String(x.id)===String(id)); if(e&&$('empRole'))$('empRole').value=e.role||'seller';},80); };
+  function showHide(sel,show){document.querySelectorAll(sel).forEach(el=>{el.style.display=show?'':'none'; el.classList.toggle('permission-lock',!show);});}
+  window.applyEmployeePermissions=function(){
+    ensureRoles(); const p=permsFor();
+    // navigazione bassa e menu
+    document.querySelectorAll('.nav button[data-target="products"]').forEach(b=>b.style.display=p.viewProducts?'':'none');
+    document.querySelectorAll('.nav button[data-target="stock"]').forEach(b=>b.style.display=p.viewStock?'':'none');
+    document.querySelectorAll('.nav button[data-target="sell"]').forEach(b=>b.style.display=p.sell?'':'none');
+    document.querySelectorAll('.nav button[data-target="history"]').forEach(b=>b.style.display=p.viewOrders?'':'none');
+    showHide('[onclick*="go(\'discounts\')"],[onclick*="go(&quot;discounts&quot;)"]',p.viewDiscounts||p.manageDiscounts);
+    showHide('#menuClosuresBtn,[onclick*="go(\'closures\')"],[onclick*="go(&quot;closures&quot;)"]',p.createClosure||p.editClosure);
+    showHide('[onclick*="go(\'settings\')"],[onclick*="go(&quot;settings&quot;)"]',p.settings);
+    showHide('[onclick*="go(\'employees\')"],[onclick*="go(&quot;employees&quot;)"]',p.manageEmployees);
+    showHide('#accessLogsMenuButton',p.viewAccessLogs||p.manageEmployees);
+    // dati economici
+    if(!p.viewRevenue){const el=$('todayRevenue'); if(el)el.innerHTML='<span class="hidden-money">••••</span>';}
+    if(!p.viewCosts){['stockValue','stockCostValue'].forEach(id=>{const el=$(id); if(el)el.innerHTML='<span class="hidden-money">••••</span>'});}
+    document.querySelectorAll('[data-cost-card="1"] .money-actions button,#moneyBtn').forEach(b=>{if(!p.viewCosts){b.textContent='Bloccato';b.title='Questo ruolo non può vedere questi valori';}});
+    // prodotti / stock
+    document.querySelectorAll('#productForm input,#productForm select,#productForm textarea,#productForm button').forEach(el=>{ if(!p.manageProducts){el.disabled=true;} });
+    document.querySelectorAll('[onclick*="openAddProduct"],#products .panel-title .btn.gold').forEach(b=>b.style.display=p.manageProducts?'':'none');
+    // sconti sola lettura
+    const roDisc=!p.manageDiscounts;
+    document.querySelectorAll('#discounts form input,#discounts form select,#discounts form button').forEach(el=>{el.disabled=roDisc;});
+    document.querySelectorAll('#discountsTable button').forEach(b=>{b.style.display=roDisc?'none':'';});
+    // chiusure
+    document.querySelectorAll('[onclick*="openDailyClosureConfirm"]').forEach(b=>b.style.display=p.createClosure?'':'none');
+    if(typeof window.renderEmployees==='function'){};
+  };
+  const rawGo=window.go;
+  window.go=function(id){
+    const p=permsFor();
+    const allowed={home:1,products:p.viewProducts,stock:p.viewStock,sell:p.sell,history:p.viewOrders,drafts:p.viewOrders,discounts:(p.viewDiscounts||p.manageDiscounts),closures:(p.createClosure||p.editClosure),employees:p.manageEmployees,settings:p.settings,accessLogs:(p.viewAccessLogs||p.manageEmployees)};
+    if(!allowed[id]){toastMsg('Non hai il permesso per aprire questa sezione.');return false;}
+    if(typeof rawGo==='function') rawGo(id); else {document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));$(id)?.classList.add('active');}
+    try{localStorage.setItem('noor_active_section_v1',id)}catch(e){}
+    setTimeout(()=>{try{window.applyEmployeePermissions()}catch(e){}},80);
+    return true;
+  };
+  function wrap(name,fn){const old=window[name]; if(typeof old==='function'&&!old.__extraWrapped){const nw=function(){return fn.call(this,old,arguments)}; nw.__extraWrapped=true; window[name]=nw;}}
+  wrap('saveProduct',(old,args)=>{if(!window.canAccess('manageProducts'))return toastMsg('Questo ruolo può vedere i prodotti, ma non modificarli.');return old.apply(null,args)});
+  wrap('deleteProduct',(old,args)=>{if(!window.canAccess('manageProducts'))return toastMsg('Questo ruolo non può eliminare prodotti.');return old.apply(null,args)});
+  wrap('saveDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo può solo visualizzare gli sconti.');return old.apply(null,args)});
+  wrap('editDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo può solo visualizzare gli sconti.');return old.apply(null,args)});
+  wrap('deleteDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo non può eliminare sconti.');return old.apply(null,args)});
+  wrap('openDailyClosureConfirm',(old,args)=>{if(!window.canAccess('createClosure'))return toastMsg('Questo ruolo non può eseguire chiusure.');return old.apply(null,args)});
+  wrap('confirmDailyClosure',(old,args)=>{try{const today=new Date().toISOString().slice(0,10);const exists=(db.closures||[]).some(c=>c.date===today);if(exists&&!window.canAccess('editClosure'))return toastMsg('Questo ruolo può fare la chiusura, ma non modificare una chiusura già fatta.');if(!exists&&!window.canAccess('createClosure'))return toastMsg('Questo ruolo non può eseguire chiusure.')}catch(e){}return old.apply(null,args)});
+  // aggiorna payload salvataggio dipendenti: se il form vecchio chiama la Function, extraPermissions viene già mantenuto localmente. Qui assicuriamo il ruolo Supervisore.
+  function boot(){ensureRoles();try{window.renderRoleLegend()}catch(e){}try{window.renderEmployees()}catch(e){}try{window.applyEmployeePermissions()}catch(e){}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot); else boot();
+  setTimeout(boot,500);setTimeout(boot,1500);setTimeout(boot,3000);
+})();
+</script>
+
+</body></html>';
     var w=window.open('','_blank','width=420,height=760');
     if(!w){ if(typeof toast==='function') toast('Popup bloccato: abilita le finestre popup per stampare.'); return; }
     w.document.open(); w.document.write(html); w.document.close();
@@ -2607,7 +3391,203 @@ load();
   window.printCustomerReceipt=function(orderId){
     var o=getOrder(orderId); if(!o){toastMsg('Ordine non trovato per lo scontrino.');return;}
     var text=buildReceiptText(o);
-    var html='<!doctype html><html><head><meta charset="utf-8"><title>Scontrino '+receiptNo(o)+'</title><style>body{margin:0;background:#f5f5f5}.paper{width:80mm;max-width:100%;margin:0 auto;background:white;padding:10px 8px;color:#000}pre{font:12px/1.35 "Courier New",monospace;white-space:pre-wrap;margin:0}.actions{display:flex;gap:8px;justify-content:center;padding:12px}.actions button{padding:9px 13px;border:1px solid #bbb;border-radius:8px;background:#fff;cursor:pointer}@media print{body{background:white}.paper{width:80mm;margin:0;padding:0}.actions{display:none}}</style></head><body><div class="paper"><pre>'+text.replace(/[&<>]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]})+'</pre></div><div class="actions"><button onclick="window.print()">Stampa</button><button onclick="window.close()">Chiudi</button></div></body></html>';
+    var html='<!doctype html><html><head><meta charset="utf-8"><title>Scontrino '+receiptNo(o)+'</title><style>body{margin:0;background:#f5f5f5}.paper{width:80mm;max-width:100%;margin:0 auto;background:white;padding:10px 8px;color:#000}pre{font:12px/1.35 "Courier New",monospace;white-space:pre-wrap;margin:0}.actions{display:flex;gap:8px;justify-content:center;padding:12px}.actions button{padding:9px 13px;border:1px solid #bbb;border-radius:8px;background:#fff;cursor:pointer}@media print{body{background:white}.paper{width:80mm;margin:0;padding:0}.actions{display:none}}</style></head><body><div class="paper"><pre>'+text.replace(/[&<>]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]})+'</pre></div><div class="actions"><button onclick="window.print()">Stampa</button><button onclick="window.close()">Chiudi</button></div>
+
+<style id="role-extra-permissions-final-style">
+.employee-extra-row{display:none;background:rgba(255,240,247,.55)}
+.employee-extra-row.open{display:table-row}
+.employee-extra-box{border:1px solid var(--line);border-radius:20px;background:var(--panel2);padding:14px;display:grid;gap:12px}
+.employee-extra-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.employee-extra-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.employee-extra-check{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:11px;cursor:pointer}
+.employee-extra-check input{width:auto;margin-top:3px}.employee-extra-check small{display:block;color:var(--muted);margin-top:3px;line-height:1.35}
+.role-mini-note{font-size:12px;color:var(--muted);margin-top:4px}.read-only-note{display:inline-flex;padding:6px 9px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);font-size:12px;font-weight:900;color:var(--muted)}
+body.dark .employee-extra-row{background:rgba(255,255,255,.035)}
+</style>
+<script id="role-extra-permissions-final-script">
+(function(){
+  const ROLE_LABELS={owner:'Owner',manager:'Admin',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
+  const PERMISSIONS={
+    sell:{label:'Vendere',desc:'Può usare la sezione Vendi, carrello e scanner.'},
+    viewProducts:{label:'Vedere prodotti',desc:'Può consultare la lista prodotti.'},
+    manageProducts:{label:'Modificare prodotti',desc:'Può creare/modificare prodotti, barcode, foto e quantità.'},
+    viewStock:{label:'Vedere stock',desc:'Può consultare le giacenze di magazzino.'},
+    manageStock:{label:'Modificare stock',desc:'Può correggere quantità e magazzino.'},
+    viewDiscounts:{label:'Vedere sconti',desc:'Può consultare gli sconti in sola lettura.'},
+    manageDiscounts:{label:'Modificare sconti',desc:'Può creare/modificare/eliminare codici sconto.'},
+    viewOrders:{label:'Vedere storico',desc:'Può vedere ordini e storico vendite.'},
+    cancelOrders:{label:'Correggere ordini',desc:'Può annullare ordini o articoli.'},
+    editPayment:{label:'Modificare pagamento',desc:'Può correggere il metodo di pagamento.'},
+    createClosure:{label:'Fare chiusura',desc:'Può eseguire la chiusura giornaliera.'},
+    editClosure:{label:'Modificare chiusura',desc:'Può aggiornare una chiusura già fatta.'},
+    viewRevenue:{label:'Vedere incassi',desc:'Può vedere incassi, totali e riepiloghi.'},
+    viewCosts:{label:'Vedere costi e margini',desc:'Può vedere costo reale e valore costo magazzino.'},
+    backup:{label:'Backup/import',desc:'Può importare o scaricare backup.'},
+    settings:{label:'Impostazioni',desc:'Può modificare impostazioni gestionali.'},
+    manageEmployees:{label:'Dipendenti',desc:'Può creare/modificare dipendenti e permessi.'},
+    viewAccessLogs:{label:'Controllo accessi',desc:'Può vedere il registro degli accessi.'}
+  };
+  const DEFAULTS={
+    owner:{sell:1,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,backup:1,settings:1,manageEmployees:1,viewAccessLogs:1},
+    manager:{sell:1,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,backup:1,settings:0,manageEmployees:0,viewAccessLogs:1},
+    warehouse:{sell:0,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:0,viewOrders:0,cancelOrders:0,editPayment:0,createClosure:0,editClosure:0,viewRevenue:0,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0},
+    seller:{sell:1,viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,cancelOrders:0,editPayment:0,createClosure:1,editClosure:0,viewRevenue:1,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0},
+    supervisor:{sell:1,viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0}
+  };
+  const EXTRA_KEYS=['sell','viewProducts','manageProducts','viewStock','manageStock','viewDiscounts','manageDiscounts','viewOrders','cancelOrders','editPayment','createClosure','editClosure','viewRevenue','viewCosts','viewAccessLogs'];
+  function $(id){return document.getElementById(id)}
+  function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function toastMsg(msg,type){try{ if(typeof toast==='function') toast(msg,type||''); else alert(msg); }catch(e){alert(msg)}}
+  function roleLabel(r){return ROLE_LABELS[r]||'Venditore'}
+  function ensureRoles(){try{document.querySelectorAll('#empRole,#permRoleSelect').forEach(sel=>{if(sel&&!sel.querySelector('option[value="supervisor"]')) sel.insertAdjacentHTML('beforeend','<option value="supervisor">Supervisore</option>')})}catch(e){}}
+  function currentProfile(){return window.currentFirebaseUserProfile||{};}
+  function activeEmployee(){
+    try{
+      const uid=window.currentFirebaseUser?.uid||currentProfile().uid||'';
+      let e=(db.employees||[]).find(x=>String(x.firebaseUid||x.uid||x.id)===String(uid));
+      if(!e && settings?.activeEmployeeId) e=(db.employees||[]).find(x=>String(x.id)===String(settings.activeEmployeeId));
+      if(!e && currentProfile().email) e=(db.employees||[]).find(x=>String(x.email||'').toLowerCase()===String(currentProfile().email||'').toLowerCase());
+      if(!e && currentProfile().uid){
+        e={id:currentProfile().uid,firebaseUid:currentProfile().uid,uid:currentProfile().uid,name:currentProfile().name||currentProfile().email,email:currentProfile().email,role:currentProfile().role||'seller',active:currentProfile().active!==false,extraPermissions:currentProfile().extraPermissions||{}};
+      }
+      return e||{};
+    }catch(err){return {role:'seller',active:true}}
+  }
+  function basePerms(role){return {...(DEFAULTS[role]||DEFAULTS.seller)};}
+  function permsFor(emp){
+    const e=emp||activeEmployee();
+    if(!e || e.active===false) return {};
+    const p=e.role==='owner'?basePerms('owner'):basePerms(e.role||'seller');
+    const extra=e.extraPermissions||currentProfile().extraPermissions||{};
+    Object.keys(extra||{}).forEach(k=>{ if(extra[k]===true || extra[k]===1) p[k]=1; });
+    if(p.manageProducts){p.viewProducts=1;p.viewStock=1;p.manageStock=1;}
+    if(p.manageStock){p.viewStock=1;}
+    if(p.manageDiscounts){p.viewDiscounts=1;}
+    if(p.editClosure){p.createClosure=1;}
+    return p;
+  }
+  window.__noorRolePerms={ROLE_LABELS,PERMISSIONS,DEFAULTS,permsFor};
+  window.canAccess=function(perm){
+    const p=permsFor();
+    const alias={editProducts:'manageProducts',deleteProducts:'manageProducts',viewCosts:'viewCosts',settings:'settings',backup:'backup',manageEmployees:'manageEmployees',viewRevenue:'viewRevenue',manageDiscounts:'manageDiscounts'};
+    const key=alias[perm]||perm;
+    return !!p[key];
+  };
+  function permSummary(emp){
+    const p=permsFor(emp); const keys=['sell','viewProducts','viewStock','viewDiscounts','createClosure','editClosure','viewOrders','viewRevenue'];
+    return keys.filter(k=>p[k]).map(k=>PERMISSIONS[k].label).join(', ')||'solo accesso base';
+  }
+  function employeeKey(e){return e.firebaseUid||e.uid||e.id||''}
+  window.toggleEmployeeExtra=function(id){const row=$('extraRow_'+id); if(row)row.classList.toggle('open')};
+  async function saveExtraToFirebase(e){
+    if(!e || !(e.firebaseUid||e.uid)) return;
+    try{
+      const u=window.currentFirebaseUser; if(!u||!u.getIdToken)return;
+      const token=await u.getIdToken(true);
+      await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'update',uid:e.firebaseUid||e.uid,name:e.name,email:e.email,password:'',role:e.role,active:e.active!==false,extraPermissions:e.extraPermissions||{}})});
+    }catch(err){console.warn('Extra permessi non sincronizzati:',err)}
+  }
+  window.toggleEmployeeExtraPermission=function(id,perm,checked){
+    if(!window.canAccess('manageEmployees')){toastMsg('Solo Owner/Admin può modificare i permessi personali.');return;}
+    const e=(db.employees||[]).find(x=>String(employeeKey(x))===String(id)||String(x.id)===String(id)); if(!e)return;
+    e.extraPermissions=e.extraPermissions||{};
+    if(checked) e.extraPermissions[perm]=true; else delete e.extraPermissions[perm];
+    try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db))}catch(er){}
+    saveExtraToFirebase(e);
+    if(typeof window.renderEmployees==='function') window.renderEmployees();
+    if(typeof window.applyEmployeePermissions==='function') window.applyEmployeePermissions();
+    toastMsg('Permesso personale aggiornato.','success');
+  };
+  function extraBox(e){
+    const id=employeeKey(e); const base=basePerms(e.role||'seller'); const extra=e.extraPermissions||{};
+    const checks=EXTRA_KEYS.map(k=>{
+      const disabled=(e.role==='owner')?'disabled':''; const baseHas=!!base[k]; const checked=!!extra[k];
+      return `<label class="employee-extra-check"><input type="checkbox" ${disabled} ${checked?'checked':''} onchange="toggleEmployeeExtraPermission('${esc(id)}','${k}',this.checked)"><span><b>${esc(PERMISSIONS[k].label)}</b><small>${baseHas?'Già incluso nel ruolo base. ':''}${esc(PERMISSIONS[k].desc)}</small></span></label>`;
+    }).join('');
+    return `<tr id="extraRow_${esc(id)}" class="employee-extra-row"><td colspan="5"><div class="employee-extra-box"><div class="employee-extra-head"><div><b>Permessi personali di ${esc(e.name||e.email||'dipendente')}</b><div class="hint">Qui puoi aggiungere permessi solo a questo dipendente, senza cambiare tutti gli utenti con lo stesso ruolo.</div></div><span class="read-only-note">Ruolo base: ${esc(roleLabel(e.role))}</span></div><div class="employee-extra-grid">${checks}</div></div></td></tr>`;
+  }
+  window.renderRoleLegend=function(){
+    ensureRoles(); const box=$('roleLegend'); if(!box)return;
+    const desc={
+      owner:'Accesso completo a tutto il gestionale.',
+      manager:'Quasi completo: gestisce operatività, ma non le impostazioni critiche.',
+      warehouse:'Prodotti e stock. Vede sconti in sola lettura. Non vede incassi, costi o chiusure.',
+      seller:'Vende, vede prodotti/stock/sconti in sola lettura e può fare chiusura. Non modifica chiusure.',
+      supervisor:'Come venditore, ma può correggere ordini/pagamenti e modificare chiusure.'
+    };
+    box.innerHTML=Object.keys(desc).map(r=>{const p=basePerms(r);return `<div class="role-perm"><b>${esc(roleLabel(r))}</b><div class="hint">${esc(desc[r])}</div><div style="margin-top:8px;font-size:12px;line-height:1.7">Vendi ${p.sell?'✓':'×'} · Prodotti ${p.viewProducts?'✓':'×'} · Stock ${p.viewStock?'✓':'×'} · Sconti ${p.viewDiscounts?(p.manageDiscounts?'modifica':'lettura'):'×'} · Chiusura ${p.createClosure?(p.editClosure?'modifica':'solo crea'):'×'} · Costi ${p.viewCosts?'✓':'×'}</div></div>`}).join('');
+  };
+  window.renderEmployees=function(){
+    ensureRoles(); if(typeof window.renderRoleLegend==='function')window.renderRoleLegend();
+    const ae=activeEmployee();
+    const sel=$('activeEmployeeSelect'); if(sel){sel.innerHTML=(db.employees||[]).filter(e=>e.active!==false).map(e=>`<option value="${esc(e.id)}" ${String(e.id)===String(settings.activeEmployeeId)?'selected':''}>${esc(e.name)} · ${esc(roleLabel(e.role))}</option>`).join('')}
+    const roleInput=$('activeEmployeeRole'); if(roleInput)roleInput.value=ae?roleLabel(ae.role):'';
+    const badge=$('activeEmployeeBadge'); if(badge&&ae)badge.textContent=(ae.name||ae.email||'Utente')+' · '+roleLabel(ae.role);
+    const canManage=window.canAccess('manageEmployees');
+    const panel=$('superAdminPermissionPanel'); if(panel) panel.style.display=canManage?'block':'none';
+    const form=$('employeeForm'); if(form) form.style.display=canManage?'grid':'none';
+    const tbWrap=$('employeesTable')?.closest('.table-wrap'); if(tbWrap) tbWrap.style.display=canManage?'block':'none';
+    const tb=$('employeesTable'); if(tb){
+      const rows=(db.employees||[]).map(e=>{const id=employeeKey(e);return `<tr><td><button class="btn small secondary" type="button" onclick="toggleEmployeeExtra('${esc(id)}')">▾</button> <b>${esc(e.name)}</b><br><span class="hint">${esc(e.email||'—')}</span></td><td><span class="badge">${esc(roleLabel(e.role))}</span></td><td>${e.active!==false?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Disattivato</span>'}</td><td>${esc(permSummary(e))}<div class="role-mini-note">Permessi extra: ${Object.keys(e.extraPermissions||{}).length||0}</div></td><td><div class="action-row"><button class="btn small secondary" onclick="editEmployee('${esc(e.id)}')">Modifica</button><button class="btn small red" onclick="deleteEmployee('${esc(e.id)}')">Elimina</button></div></td></tr>${extraBox(e)}`}).join('');
+      tb.innerHTML=rows||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';
+    }
+  };
+  const oldEdit=window.editEmployee;
+  window.editEmployee=function(id){ if(typeof oldEdit==='function')oldEdit(id); setTimeout(()=>{const e=(db.employees||[]).find(x=>String(x.id)===String(id)); if(e&&$('empRole'))$('empRole').value=e.role||'seller';},80); };
+  function showHide(sel,show){document.querySelectorAll(sel).forEach(el=>{el.style.display=show?'':'none'; el.classList.toggle('permission-lock',!show);});}
+  window.applyEmployeePermissions=function(){
+    ensureRoles(); const p=permsFor();
+    // navigazione bassa e menu
+    document.querySelectorAll('.nav button[data-target="products"]').forEach(b=>b.style.display=p.viewProducts?'':'none');
+    document.querySelectorAll('.nav button[data-target="stock"]').forEach(b=>b.style.display=p.viewStock?'':'none');
+    document.querySelectorAll('.nav button[data-target="sell"]').forEach(b=>b.style.display=p.sell?'':'none');
+    document.querySelectorAll('.nav button[data-target="history"]').forEach(b=>b.style.display=p.viewOrders?'':'none');
+    showHide('[onclick*="go(\'discounts\')"],[onclick*="go(&quot;discounts&quot;)"]',p.viewDiscounts||p.manageDiscounts);
+    showHide('#menuClosuresBtn,[onclick*="go(\'closures\')"],[onclick*="go(&quot;closures&quot;)"]',p.createClosure||p.editClosure);
+    showHide('[onclick*="go(\'settings\')"],[onclick*="go(&quot;settings&quot;)"]',p.settings);
+    showHide('[onclick*="go(\'employees\')"],[onclick*="go(&quot;employees&quot;)"]',p.manageEmployees);
+    showHide('#accessLogsMenuButton',p.viewAccessLogs||p.manageEmployees);
+    // dati economici
+    if(!p.viewRevenue){const el=$('todayRevenue'); if(el)el.innerHTML='<span class="hidden-money">••••</span>';}
+    if(!p.viewCosts){['stockValue','stockCostValue'].forEach(id=>{const el=$(id); if(el)el.innerHTML='<span class="hidden-money">••••</span>'});}
+    document.querySelectorAll('[data-cost-card="1"] .money-actions button,#moneyBtn').forEach(b=>{if(!p.viewCosts){b.textContent='Bloccato';b.title='Questo ruolo non può vedere questi valori';}});
+    // prodotti / stock
+    document.querySelectorAll('#productForm input,#productForm select,#productForm textarea,#productForm button').forEach(el=>{ if(!p.manageProducts){el.disabled=true;} });
+    document.querySelectorAll('[onclick*="openAddProduct"],#products .panel-title .btn.gold').forEach(b=>b.style.display=p.manageProducts?'':'none');
+    // sconti sola lettura
+    const roDisc=!p.manageDiscounts;
+    document.querySelectorAll('#discounts form input,#discounts form select,#discounts form button').forEach(el=>{el.disabled=roDisc;});
+    document.querySelectorAll('#discountsTable button').forEach(b=>{b.style.display=roDisc?'none':'';});
+    // chiusure
+    document.querySelectorAll('[onclick*="openDailyClosureConfirm"]').forEach(b=>b.style.display=p.createClosure?'':'none');
+    if(typeof window.renderEmployees==='function'){};
+  };
+  const rawGo=window.go;
+  window.go=function(id){
+    const p=permsFor();
+    const allowed={home:1,products:p.viewProducts,stock:p.viewStock,sell:p.sell,history:p.viewOrders,drafts:p.viewOrders,discounts:(p.viewDiscounts||p.manageDiscounts),closures:(p.createClosure||p.editClosure),employees:p.manageEmployees,settings:p.settings,accessLogs:(p.viewAccessLogs||p.manageEmployees)};
+    if(!allowed[id]){toastMsg('Non hai il permesso per aprire questa sezione.');return false;}
+    if(typeof rawGo==='function') rawGo(id); else {document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));$(id)?.classList.add('active');}
+    try{localStorage.setItem('noor_active_section_v1',id)}catch(e){}
+    setTimeout(()=>{try{window.applyEmployeePermissions()}catch(e){}},80);
+    return true;
+  };
+  function wrap(name,fn){const old=window[name]; if(typeof old==='function'&&!old.__extraWrapped){const nw=function(){return fn.call(this,old,arguments)}; nw.__extraWrapped=true; window[name]=nw;}}
+  wrap('saveProduct',(old,args)=>{if(!window.canAccess('manageProducts'))return toastMsg('Questo ruolo può vedere i prodotti, ma non modificarli.');return old.apply(null,args)});
+  wrap('deleteProduct',(old,args)=>{if(!window.canAccess('manageProducts'))return toastMsg('Questo ruolo non può eliminare prodotti.');return old.apply(null,args)});
+  wrap('saveDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo può solo visualizzare gli sconti.');return old.apply(null,args)});
+  wrap('editDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo può solo visualizzare gli sconti.');return old.apply(null,args)});
+  wrap('deleteDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo non può eliminare sconti.');return old.apply(null,args)});
+  wrap('openDailyClosureConfirm',(old,args)=>{if(!window.canAccess('createClosure'))return toastMsg('Questo ruolo non può eseguire chiusure.');return old.apply(null,args)});
+  wrap('confirmDailyClosure',(old,args)=>{try{const today=new Date().toISOString().slice(0,10);const exists=(db.closures||[]).some(c=>c.date===today);if(exists&&!window.canAccess('editClosure'))return toastMsg('Questo ruolo può fare la chiusura, ma non modificare una chiusura già fatta.');if(!exists&&!window.canAccess('createClosure'))return toastMsg('Questo ruolo non può eseguire chiusure.')}catch(e){}return old.apply(null,args)});
+  // aggiorna payload salvataggio dipendenti: se il form vecchio chiama la Function, extraPermissions viene già mantenuto localmente. Qui assicuriamo il ruolo Supervisore.
+  function boot(){ensureRoles();try{window.renderRoleLegend()}catch(e){}try{window.renderEmployees()}catch(e){}try{window.applyEmployeePermissions()}catch(e){}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot); else boot();
+  setTimeout(boot,500);setTimeout(boot,1500);setTimeout(boot,3000);
+})();
+</script>
+
+</body></html>';
     var win=window.open('','_blank','width=420,height=760'); if(!win){toastMsg('Popup bloccato: abilita i popup per stampare.');return;}
     win.document.open(); win.document.write(html); win.document.close(); setTimeout(function(){try{win.focus();win.print()}catch(e){}},350);
   };
@@ -2718,7 +3698,7 @@ function setStatus(msg,type='error'){const el=statusEl();if(el){el.style.color=t
 function toastCenter(msg,type){let t=$('firebaseToastCenter');if(!t){t=document.createElement('div');t.id='firebaseToastCenter';t.className='toast';document.body.appendChild(t)}t.className='toast show'+(type==='success'?' success':'');t.textContent=msg;clearTimeout(window.__firebaseToastTimer);window.__firebaseToastTimer=setTimeout(()=>{t.classList.remove('show');t.style.display='none'},2600);t.style.display='block'}
 function shortDevice(ua){ua=String(ua||''); if(/iPhone|iPad|iPod/i.test(ua))return 'Mobile Apple'; if(/Android/i.test(ua))return 'Mobile Android'; if(/Windows/i.test(ua))return 'Desktop Windows'; if(/Macintosh|Mac OS/i.test(ua))return 'Desktop Mac'; return ua.slice(0,60)||'—'}
 function readCachedUser(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||sessionStorage.getItem(SESSION_KEY)||'null')}catch(e){return null}}
-function cacheUser(firebaseUser,profile){const data={uid:firebaseUser.uid,email:firebaseUser.email,name:profile.name||firebaseUser.email,role:profile.role||'seller',active:profile.active!==false,ts:Date.now()};try{localStorage.setItem(SESSION_KEY,JSON.stringify(data))}catch(e){}try{sessionStorage.setItem(SESSION_KEY,JSON.stringify(data))}catch(e){}return data}
+function cacheUser(firebaseUser,profile){const data={uid:firebaseUser.uid,email:firebaseUser.email,name:profile.name||firebaseUser.email,role:profile.role||'seller',extraPermissions:profile.extraPermissions||{},active:profile.active!==false,ts:Date.now()};try{localStorage.setItem(SESSION_KEY,JSON.stringify(data))}catch(e){}try{sessionStorage.setItem(SESSION_KEY,JSON.stringify(data))}catch(e){}return data}
 function clearCachedUser(){try{localStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(SESSION_KEY)}catch(e){}}
 function getCurrentProfile(){return window.currentFirebaseUserProfile||readCachedUser()||{};}
 
@@ -2770,6 +3750,7 @@ function setLocalActiveUser(firebaseUser,profile){
       local.email=profile.email||firebaseUser.email;
       local.loginEmail=profile.email||firebaseUser.email;
       local.role=profile.role||'seller';
+      local.extraPermissions=profile.extraPermissions||{};
       local.active=profile.active!==false;
       if(typeof settings!=='undefined'&&settings){settings.activeEmployeeId=local.id;try{if(typeof saveSettings==='function')saveSettings()}catch(e){}}
       try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db))}catch(e){}
@@ -2898,7 +3879,7 @@ function installAccessLogsUI(){
       <div class="field"><label>Esito</label><select id="accessLogResult" onchange="filterFirebaseAccessLogs()"><option value="">Tutti</option><option value="success">Accessi riusciti</option><option value="failed">Accessi negati</option><option value="logout">Logout</option></select></div>
       <div class="field"><label>Da giorno/ora</label><input id="accessLogFrom" type="datetime-local" onchange="filterFirebaseAccessLogs()"></div>
       <div class="field"><label>A giorno/ora</label><input id="accessLogTo" type="datetime-local" onchange="filterFirebaseAccessLogs()"></div>
-      <div class="field"><label>Ruolo</label><select id="accessLogRole" onchange="filterFirebaseAccessLogs()"><option value="">Tutti</option><option value="owner">Super Admin</option><option value="manager">Admin</option><option value="warehouse">Magazziniere</option><option value="seller">Venditore</option></select></div>
+      <div class="field"><label>Ruolo</label><select id="accessLogRole" onchange="filterFirebaseAccessLogs()"><option value="">Tutti</option><option value="owner">Super Admin</option><option value="manager">Admin</option><option value="warehouse">Magazziniere</option><option value="seller">Venditore</option><option value="supervisor">Supervisore</option></select></div>
       <div class="filter-actions"><button class="btn small secondary" type="button" id="clearAccessLogFiltersBtn">Pulisci</button></div>
     </div>
     <div class="table-wrap"><table><thead><tr><th>Data / Ora</th><th>Nome</th><th>Email</th><th>Ruolo</th><th>Esito</th><th>Note</th><th>Dispositivo</th></tr></thead><tbody id="accessLogsTable"><tr><td colspan="7">Caricamento...</td></tr></tbody></table></div>
@@ -3332,6 +4313,7 @@ setTimeout(()=>{
         name:item.name||$('empName')?.value.trim()||'',
         email:item.email||$('empEmail')?.value.trim()||'',
         role:item.role||$('empRole')?.value||'seller',
+        extraPermissions:item.extraPermissions||existing?.extraPermissions||{},
         active:item.active!==false,
         createdAt: existing?.createdAt || new Date().toISOString(),
         updatedAt:new Date().toISOString()
@@ -3339,6 +4321,13 @@ setTimeout(()=>{
       if(existing){Object.assign(existing,data);} else db.employees.push(data);
       try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db));}catch(e){}
     }catch(e){console.warn('Salvataggio locale dipendente:',e)}
+  }
+  function collectEmployeeExtraPermissions(uid){
+    try{
+      var id=uid||$('employeeId')?.value||'';
+      var e=(db.employees||[]).find(function(x){return String(x.firebaseUid||x.uid||x.id)===String(id)||String(x.id)===String(id)});
+      return e && e.extraPermissions && typeof e.extraPermissions==='object' ? e.extraPermissions : {};
+    }catch(err){return {}}
   }
   async function saveEmployeeFirebase(ev){
     if(ev){ev.preventDefault();ev.stopPropagation();}
@@ -3362,7 +4351,7 @@ setTimeout(()=>{
       var res=await fetch('/.netlify/functions/createEmployee',{
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-        body:JSON.stringify({action:action,uid:firebaseUid,name:name,email:email,password:password,role:role,active:active})
+        body:JSON.stringify({action:action,uid:firebaseUid,name:name,email:email,password:password,role:role,active:active,extraPermissions:collectEmployeeExtraPermissions(firebaseUid||id)})
       });
       var data=await res.json().catch(function(){return {error:'Risposta non valida dalla Function'}});
       if(!res.ok||!data.ok) throw new Error(data.error||'Errore salvataggio dipendente');
@@ -3402,6 +4391,202 @@ setTimeout(()=>{
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install); else install();
   setTimeout(install,500);setTimeout(install,1500);setTimeout(install,3000);
+})();
+</script>
+
+
+
+<style id="role-extra-permissions-final-style">
+.employee-extra-row{display:none;background:rgba(255,240,247,.55)}
+.employee-extra-row.open{display:table-row}
+.employee-extra-box{border:1px solid var(--line);border-radius:20px;background:var(--panel2);padding:14px;display:grid;gap:12px}
+.employee-extra-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.employee-extra-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.employee-extra-check{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:11px;cursor:pointer}
+.employee-extra-check input{width:auto;margin-top:3px}.employee-extra-check small{display:block;color:var(--muted);margin-top:3px;line-height:1.35}
+.role-mini-note{font-size:12px;color:var(--muted);margin-top:4px}.read-only-note{display:inline-flex;padding:6px 9px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);font-size:12px;font-weight:900;color:var(--muted)}
+body.dark .employee-extra-row{background:rgba(255,255,255,.035)}
+</style>
+<script id="role-extra-permissions-final-script">
+(function(){
+  const ROLE_LABELS={owner:'Owner',manager:'Admin',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
+  const PERMISSIONS={
+    sell:{label:'Vendere',desc:'Può usare la sezione Vendi, carrello e scanner.'},
+    viewProducts:{label:'Vedere prodotti',desc:'Può consultare la lista prodotti.'},
+    manageProducts:{label:'Modificare prodotti',desc:'Può creare/modificare prodotti, barcode, foto e quantità.'},
+    viewStock:{label:'Vedere stock',desc:'Può consultare le giacenze di magazzino.'},
+    manageStock:{label:'Modificare stock',desc:'Può correggere quantità e magazzino.'},
+    viewDiscounts:{label:'Vedere sconti',desc:'Può consultare gli sconti in sola lettura.'},
+    manageDiscounts:{label:'Modificare sconti',desc:'Può creare/modificare/eliminare codici sconto.'},
+    viewOrders:{label:'Vedere storico',desc:'Può vedere ordini e storico vendite.'},
+    cancelOrders:{label:'Correggere ordini',desc:'Può annullare ordini o articoli.'},
+    editPayment:{label:'Modificare pagamento',desc:'Può correggere il metodo di pagamento.'},
+    createClosure:{label:'Fare chiusura',desc:'Può eseguire la chiusura giornaliera.'},
+    editClosure:{label:'Modificare chiusura',desc:'Può aggiornare una chiusura già fatta.'},
+    viewRevenue:{label:'Vedere incassi',desc:'Può vedere incassi, totali e riepiloghi.'},
+    viewCosts:{label:'Vedere costi e margini',desc:'Può vedere costo reale e valore costo magazzino.'},
+    backup:{label:'Backup/import',desc:'Può importare o scaricare backup.'},
+    settings:{label:'Impostazioni',desc:'Può modificare impostazioni gestionali.'},
+    manageEmployees:{label:'Dipendenti',desc:'Può creare/modificare dipendenti e permessi.'},
+    viewAccessLogs:{label:'Controllo accessi',desc:'Può vedere il registro degli accessi.'}
+  };
+  const DEFAULTS={
+    owner:{sell:1,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,backup:1,settings:1,manageEmployees:1,viewAccessLogs:1},
+    manager:{sell:1,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,backup:1,settings:0,manageEmployees:0,viewAccessLogs:1},
+    warehouse:{sell:0,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:0,viewOrders:0,cancelOrders:0,editPayment:0,createClosure:0,editClosure:0,viewRevenue:0,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0},
+    seller:{sell:1,viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,cancelOrders:0,editPayment:0,createClosure:1,editClosure:0,viewRevenue:1,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0},
+    supervisor:{sell:1,viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:0,backup:0,settings:0,manageEmployees:0,viewAccessLogs:0}
+  };
+  const EXTRA_KEYS=['sell','viewProducts','manageProducts','viewStock','manageStock','viewDiscounts','manageDiscounts','viewOrders','cancelOrders','editPayment','createClosure','editClosure','viewRevenue','viewCosts','viewAccessLogs'];
+  function $(id){return document.getElementById(id)}
+  function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function toastMsg(msg,type){try{ if(typeof toast==='function') toast(msg,type||''); else alert(msg); }catch(e){alert(msg)}}
+  function roleLabel(r){return ROLE_LABELS[r]||'Venditore'}
+  function ensureRoles(){try{document.querySelectorAll('#empRole,#permRoleSelect').forEach(sel=>{if(sel&&!sel.querySelector('option[value="supervisor"]')) sel.insertAdjacentHTML('beforeend','<option value="supervisor">Supervisore</option>')})}catch(e){}}
+  function currentProfile(){return window.currentFirebaseUserProfile||{};}
+  function activeEmployee(){
+    try{
+      const uid=window.currentFirebaseUser?.uid||currentProfile().uid||'';
+      let e=(db.employees||[]).find(x=>String(x.firebaseUid||x.uid||x.id)===String(uid));
+      if(!e && settings?.activeEmployeeId) e=(db.employees||[]).find(x=>String(x.id)===String(settings.activeEmployeeId));
+      if(!e && currentProfile().email) e=(db.employees||[]).find(x=>String(x.email||'').toLowerCase()===String(currentProfile().email||'').toLowerCase());
+      if(!e && currentProfile().uid){
+        e={id:currentProfile().uid,firebaseUid:currentProfile().uid,uid:currentProfile().uid,name:currentProfile().name||currentProfile().email,email:currentProfile().email,role:currentProfile().role||'seller',active:currentProfile().active!==false,extraPermissions:currentProfile().extraPermissions||{}};
+      }
+      return e||{};
+    }catch(err){return {role:'seller',active:true}}
+  }
+  function basePerms(role){return {...(DEFAULTS[role]||DEFAULTS.seller)};}
+  function permsFor(emp){
+    const e=emp||activeEmployee();
+    if(!e || e.active===false) return {};
+    const p=e.role==='owner'?basePerms('owner'):basePerms(e.role||'seller');
+    const extra=e.extraPermissions||currentProfile().extraPermissions||{};
+    Object.keys(extra||{}).forEach(k=>{ if(extra[k]===true || extra[k]===1) p[k]=1; });
+    if(p.manageProducts){p.viewProducts=1;p.viewStock=1;p.manageStock=1;}
+    if(p.manageStock){p.viewStock=1;}
+    if(p.manageDiscounts){p.viewDiscounts=1;}
+    if(p.editClosure){p.createClosure=1;}
+    return p;
+  }
+  window.__noorRolePerms={ROLE_LABELS,PERMISSIONS,DEFAULTS,permsFor};
+  window.canAccess=function(perm){
+    const p=permsFor();
+    const alias={editProducts:'manageProducts',deleteProducts:'manageProducts',viewCosts:'viewCosts',settings:'settings',backup:'backup',manageEmployees:'manageEmployees',viewRevenue:'viewRevenue',manageDiscounts:'manageDiscounts'};
+    const key=alias[perm]||perm;
+    return !!p[key];
+  };
+  function permSummary(emp){
+    const p=permsFor(emp); const keys=['sell','viewProducts','viewStock','viewDiscounts','createClosure','editClosure','viewOrders','viewRevenue'];
+    return keys.filter(k=>p[k]).map(k=>PERMISSIONS[k].label).join(', ')||'solo accesso base';
+  }
+  function employeeKey(e){return e.firebaseUid||e.uid||e.id||''}
+  window.toggleEmployeeExtra=function(id){const row=$('extraRow_'+id); if(row)row.classList.toggle('open')};
+  async function saveExtraToFirebase(e){
+    if(!e || !(e.firebaseUid||e.uid)) return;
+    try{
+      const u=window.currentFirebaseUser; if(!u||!u.getIdToken)return;
+      const token=await u.getIdToken(true);
+      await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'update',uid:e.firebaseUid||e.uid,name:e.name,email:e.email,password:'',role:e.role,active:e.active!==false,extraPermissions:e.extraPermissions||{}})});
+    }catch(err){console.warn('Extra permessi non sincronizzati:',err)}
+  }
+  window.toggleEmployeeExtraPermission=function(id,perm,checked){
+    if(!window.canAccess('manageEmployees')){toastMsg('Solo Owner/Admin può modificare i permessi personali.');return;}
+    const e=(db.employees||[]).find(x=>String(employeeKey(x))===String(id)||String(x.id)===String(id)); if(!e)return;
+    e.extraPermissions=e.extraPermissions||{};
+    if(checked) e.extraPermissions[perm]=true; else delete e.extraPermissions[perm];
+    try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db))}catch(er){}
+    saveExtraToFirebase(e);
+    if(typeof window.renderEmployees==='function') window.renderEmployees();
+    if(typeof window.applyEmployeePermissions==='function') window.applyEmployeePermissions();
+    toastMsg('Permesso personale aggiornato.','success');
+  };
+  function extraBox(e){
+    const id=employeeKey(e); const base=basePerms(e.role||'seller'); const extra=e.extraPermissions||{};
+    const checks=EXTRA_KEYS.map(k=>{
+      const disabled=(e.role==='owner')?'disabled':''; const baseHas=!!base[k]; const checked=!!extra[k];
+      return `<label class="employee-extra-check"><input type="checkbox" ${disabled} ${checked?'checked':''} onchange="toggleEmployeeExtraPermission('${esc(id)}','${k}',this.checked)"><span><b>${esc(PERMISSIONS[k].label)}</b><small>${baseHas?'Già incluso nel ruolo base. ':''}${esc(PERMISSIONS[k].desc)}</small></span></label>`;
+    }).join('');
+    return `<tr id="extraRow_${esc(id)}" class="employee-extra-row"><td colspan="5"><div class="employee-extra-box"><div class="employee-extra-head"><div><b>Permessi personali di ${esc(e.name||e.email||'dipendente')}</b><div class="hint">Qui puoi aggiungere permessi solo a questo dipendente, senza cambiare tutti gli utenti con lo stesso ruolo.</div></div><span class="read-only-note">Ruolo base: ${esc(roleLabel(e.role))}</span></div><div class="employee-extra-grid">${checks}</div></div></td></tr>`;
+  }
+  window.renderRoleLegend=function(){
+    ensureRoles(); const box=$('roleLegend'); if(!box)return;
+    const desc={
+      owner:'Accesso completo a tutto il gestionale.',
+      manager:'Quasi completo: gestisce operatività, ma non le impostazioni critiche.',
+      warehouse:'Prodotti e stock. Vede sconti in sola lettura. Non vede incassi, costi o chiusure.',
+      seller:'Vende, vede prodotti/stock/sconti in sola lettura e può fare chiusura. Non modifica chiusure.',
+      supervisor:'Come venditore, ma può correggere ordini/pagamenti e modificare chiusure.'
+    };
+    box.innerHTML=Object.keys(desc).map(r=>{const p=basePerms(r);return `<div class="role-perm"><b>${esc(roleLabel(r))}</b><div class="hint">${esc(desc[r])}</div><div style="margin-top:8px;font-size:12px;line-height:1.7">Vendi ${p.sell?'✓':'×'} · Prodotti ${p.viewProducts?'✓':'×'} · Stock ${p.viewStock?'✓':'×'} · Sconti ${p.viewDiscounts?(p.manageDiscounts?'modifica':'lettura'):'×'} · Chiusura ${p.createClosure?(p.editClosure?'modifica':'solo crea'):'×'} · Costi ${p.viewCosts?'✓':'×'}</div></div>`}).join('');
+  };
+  window.renderEmployees=function(){
+    ensureRoles(); if(typeof window.renderRoleLegend==='function')window.renderRoleLegend();
+    const ae=activeEmployee();
+    const sel=$('activeEmployeeSelect'); if(sel){sel.innerHTML=(db.employees||[]).filter(e=>e.active!==false).map(e=>`<option value="${esc(e.id)}" ${String(e.id)===String(settings.activeEmployeeId)?'selected':''}>${esc(e.name)} · ${esc(roleLabel(e.role))}</option>`).join('')}
+    const roleInput=$('activeEmployeeRole'); if(roleInput)roleInput.value=ae?roleLabel(ae.role):'';
+    const badge=$('activeEmployeeBadge'); if(badge&&ae)badge.textContent=(ae.name||ae.email||'Utente')+' · '+roleLabel(ae.role);
+    const canManage=window.canAccess('manageEmployees');
+    const panel=$('superAdminPermissionPanel'); if(panel) panel.style.display=canManage?'block':'none';
+    const form=$('employeeForm'); if(form) form.style.display=canManage?'grid':'none';
+    const tbWrap=$('employeesTable')?.closest('.table-wrap'); if(tbWrap) tbWrap.style.display=canManage?'block':'none';
+    const tb=$('employeesTable'); if(tb){
+      const rows=(db.employees||[]).map(e=>{const id=employeeKey(e);return `<tr><td><button class="btn small secondary" type="button" onclick="toggleEmployeeExtra('${esc(id)}')">▾</button> <b>${esc(e.name)}</b><br><span class="hint">${esc(e.email||'—')}</span></td><td><span class="badge">${esc(roleLabel(e.role))}</span></td><td>${e.active!==false?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Disattivato</span>'}</td><td>${esc(permSummary(e))}<div class="role-mini-note">Permessi extra: ${Object.keys(e.extraPermissions||{}).length||0}</div></td><td><div class="action-row"><button class="btn small secondary" onclick="editEmployee('${esc(e.id)}')">Modifica</button><button class="btn small red" onclick="deleteEmployee('${esc(e.id)}')">Elimina</button></div></td></tr>${extraBox(e)}`}).join('');
+      tb.innerHTML=rows||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';
+    }
+  };
+  const oldEdit=window.editEmployee;
+  window.editEmployee=function(id){ if(typeof oldEdit==='function')oldEdit(id); setTimeout(()=>{const e=(db.employees||[]).find(x=>String(x.id)===String(id)); if(e&&$('empRole'))$('empRole').value=e.role||'seller';},80); };
+  function showHide(sel,show){document.querySelectorAll(sel).forEach(el=>{el.style.display=show?'':'none'; el.classList.toggle('permission-lock',!show);});}
+  window.applyEmployeePermissions=function(){
+    ensureRoles(); const p=permsFor();
+    // navigazione bassa e menu
+    document.querySelectorAll('.nav button[data-target="products"]').forEach(b=>b.style.display=p.viewProducts?'':'none');
+    document.querySelectorAll('.nav button[data-target="stock"]').forEach(b=>b.style.display=p.viewStock?'':'none');
+    document.querySelectorAll('.nav button[data-target="sell"]').forEach(b=>b.style.display=p.sell?'':'none');
+    document.querySelectorAll('.nav button[data-target="history"]').forEach(b=>b.style.display=p.viewOrders?'':'none');
+    showHide('[onclick*="go(\'discounts\')"],[onclick*="go(&quot;discounts&quot;)"]',p.viewDiscounts||p.manageDiscounts);
+    showHide('#menuClosuresBtn,[onclick*="go(\'closures\')"],[onclick*="go(&quot;closures&quot;)"]',p.createClosure||p.editClosure);
+    showHide('[onclick*="go(\'settings\')"],[onclick*="go(&quot;settings&quot;)"]',p.settings);
+    showHide('[onclick*="go(\'employees\')"],[onclick*="go(&quot;employees&quot;)"]',p.manageEmployees);
+    showHide('#accessLogsMenuButton',p.viewAccessLogs||p.manageEmployees);
+    // dati economici
+    if(!p.viewRevenue){const el=$('todayRevenue'); if(el)el.innerHTML='<span class="hidden-money">••••</span>';}
+    if(!p.viewCosts){['stockValue','stockCostValue'].forEach(id=>{const el=$(id); if(el)el.innerHTML='<span class="hidden-money">••••</span>'});}
+    document.querySelectorAll('[data-cost-card="1"] .money-actions button,#moneyBtn').forEach(b=>{if(!p.viewCosts){b.textContent='Bloccato';b.title='Questo ruolo non può vedere questi valori';}});
+    // prodotti / stock
+    document.querySelectorAll('#productForm input,#productForm select,#productForm textarea,#productForm button').forEach(el=>{ if(!p.manageProducts){el.disabled=true;} });
+    document.querySelectorAll('[onclick*="openAddProduct"],#products .panel-title .btn.gold').forEach(b=>b.style.display=p.manageProducts?'':'none');
+    // sconti sola lettura
+    const roDisc=!p.manageDiscounts;
+    document.querySelectorAll('#discounts form input,#discounts form select,#discounts form button').forEach(el=>{el.disabled=roDisc;});
+    document.querySelectorAll('#discountsTable button').forEach(b=>{b.style.display=roDisc?'none':'';});
+    // chiusure
+    document.querySelectorAll('[onclick*="openDailyClosureConfirm"]').forEach(b=>b.style.display=p.createClosure?'':'none');
+    if(typeof window.renderEmployees==='function'){};
+  };
+  const rawGo=window.go;
+  window.go=function(id){
+    const p=permsFor();
+    const allowed={home:1,products:p.viewProducts,stock:p.viewStock,sell:p.sell,history:p.viewOrders,drafts:p.viewOrders,discounts:(p.viewDiscounts||p.manageDiscounts),closures:(p.createClosure||p.editClosure),employees:p.manageEmployees,settings:p.settings,accessLogs:(p.viewAccessLogs||p.manageEmployees)};
+    if(!allowed[id]){toastMsg('Non hai il permesso per aprire questa sezione.');return false;}
+    if(typeof rawGo==='function') rawGo(id); else {document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));$(id)?.classList.add('active');}
+    try{localStorage.setItem('noor_active_section_v1',id)}catch(e){}
+    setTimeout(()=>{try{window.applyEmployeePermissions()}catch(e){}},80);
+    return true;
+  };
+  function wrap(name,fn){const old=window[name]; if(typeof old==='function'&&!old.__extraWrapped){const nw=function(){return fn.call(this,old,arguments)}; nw.__extraWrapped=true; window[name]=nw;}}
+  wrap('saveProduct',(old,args)=>{if(!window.canAccess('manageProducts'))return toastMsg('Questo ruolo può vedere i prodotti, ma non modificarli.');return old.apply(null,args)});
+  wrap('deleteProduct',(old,args)=>{if(!window.canAccess('manageProducts'))return toastMsg('Questo ruolo non può eliminare prodotti.');return old.apply(null,args)});
+  wrap('saveDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo può solo visualizzare gli sconti.');return old.apply(null,args)});
+  wrap('editDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo può solo visualizzare gli sconti.');return old.apply(null,args)});
+  wrap('deleteDiscount',(old,args)=>{if(!window.canAccess('manageDiscounts'))return toastMsg('Questo ruolo non può eliminare sconti.');return old.apply(null,args)});
+  wrap('openDailyClosureConfirm',(old,args)=>{if(!window.canAccess('createClosure'))return toastMsg('Questo ruolo non può eseguire chiusure.');return old.apply(null,args)});
+  wrap('confirmDailyClosure',(old,args)=>{try{const today=new Date().toISOString().slice(0,10);const exists=(db.closures||[]).some(c=>c.date===today);if(exists&&!window.canAccess('editClosure'))return toastMsg('Questo ruolo può fare la chiusura, ma non modificare una chiusura già fatta.');if(!exists&&!window.canAccess('createClosure'))return toastMsg('Questo ruolo non può eseguire chiusure.')}catch(e){}return old.apply(null,args)});
+  // aggiorna payload salvataggio dipendenti: se il form vecchio chiama la Function, extraPermissions viene già mantenuto localmente. Qui assicuriamo il ruolo Supervisore.
+  function boot(){ensureRoles();try{window.renderRoleLegend()}catch(e){}try{window.renderEmployees()}catch(e){}try{window.applyEmployeePermissions()}catch(e){}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot); else boot();
+  setTimeout(boot,500);setTimeout(boot,1500);setTimeout(boot,3000);
 })();
 </script>
 
