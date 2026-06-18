@@ -405,14 +405,14 @@ body.login-active .nav{
 <div id="firebaseBootLoading" class="route-loading"><div class="boot-card"><div class="boot-title">Verifica sessione in corso...</div><div class="boot-sub">Sto controllando l’accesso Firebase. Attendi qualche secondo senza ricaricare la pagina.</div></div></div>
 <div id="loginScreen" class="login-screen">
   <div class="login-card">
-    <div class="login-brand"><div class="login-logo">N</div><div><h1>Accesso Gestionale</h1><p class="hint">Inserisci le credenziali create dal Super Admin.</p></div></div>
+    <div class="login-brand"><div class="login-logo">N</div><div><h1>Accesso Gestionale</h1><p class="hint">Inserisci le credenziali fornite per l’accesso.</p></div></div>
     <form id="loginForm" onsubmit="return loginSubmit(event)" class="form" style="grid-template-columns:1fr">
       <div class="field"><label>Email</label><input id="loginEmail" type="email" autocomplete="username" placeholder="email dipendente" required></div>
       <div class="field"><label>Password</label><div class="password-wrap"><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password" required><button id="loginShowPasswordBtn" class="btn secondary" type="button">Mostra</button></div></div>
       <div class="login-actions"><button class="btn gold" type="submit">Entra</button><button class="btn secondary" type="button" id="openResetLoginBtn">Reset password</button><span class="hint" id="loginDemoHint"></span></div>
       <div id="loginResetBox" class="reset-login-box">
         <div class="field"><label>Email</label><input id="resetLoginEmail" type="email" placeholder="email dipendente"></div>
-        <div class="field"><label>Codice reset</label><input id="resetLoginCode" placeholder="codice ricevuto dal Super Admin"></div>
+        <div class="field"><label>Codice reset</label><input id="resetLoginCode" placeholder="codice ricevuto dal responsabile"></div>
         <div class="field"><label>Nuova password</label><input id="resetLoginNewPassword" type="password" placeholder="nuova password"></div>
         <button class="btn gold" type="button" id="confirmResetLoginBtn">Aggiorna password</button>
       </div>
@@ -588,7 +588,7 @@ body.login-active .nav{
       <form id="employeeForm" class="form" onsubmit="saveEmployee(event)">
         <input id="employeeId" type="hidden">
         <div class="field two"><label>Nome dipendente</label><input id="empName" placeholder="Nome e cognome" required></div>
-        <div class="field two"><label>Email / telefono</label><input id="empEmail" placeholder="email o telefono"></div>
+        <div class="field two"><label>Email</label><input id="empEmail" placeholder="email"></div>
         <div class="field two"><label>Ruolo</label><select id="empRole"><option value="owner">Super Admin</option><option value="manager">Admin</option><option value="warehouse">Magazziniere</option><option value="seller">Venditore</option></select></div>
         <div class="field two"><label>Stato</label><select id="empActive"><option value="true">Attivo</option><option value="false">Disattivato</option></select></div>
         <div class="field full"><button class="btn gold" type="submit">Salva dipendente</button></div>
@@ -2828,11 +2828,11 @@ function showWaitingIfCached(){showSessionChecking('Sessione trovata nel browser
 function clearLoginPassword(){const p=$('loginPassword');if(p){p.value='';p.type='password'}const b=$('loginShowPasswordBtn');if(b)b.textContent='Mostra'}
 function firebaseErrorMessage(error){
   if(error?.message==='NO_USER_PROFILE')return 'Utente autenticato, ma manca il profilo Firestore in users/{UID}.';
-  if(error?.message==='USER_DISABLED')return 'Utente disattivato. Contatta il Super Admin.';
-  if(error?.code==='auth/invalid-credential'||error?.code==='auth/wrong-password'||error?.code==='auth/user-not-found')return 'Email o password Firebase non corretti.';
+  if(error?.message==='USER_DISABLED')return 'Utente disattivato. Contatta il responsabile.';
+  if(error?.code==='auth/invalid-credential'||error?.code==='auth/wrong-password'||error?.code==='auth/user-not-found')return 'Email o password non corretti.';
   if(error?.code==='auth/too-many-requests')return 'Troppi tentativi. Attendi qualche minuto e riprova.';
   if(error?.code==='auth/network-request-failed')return 'Errore di rete. Controlla la connessione.';
-  if(error?.code==='auth/unauthorized-domain')return 'Dominio Netlify non autorizzato in Firebase Authentication.';
+  if(error?.code==='auth/unauthorized-domain')return 'Accesso non disponibile. Contatta il responsabile.';
   return 'Accesso non riuscito: '+(error?.code||error?.message||'errore sconosciuto');
 }
 
@@ -2849,12 +2849,12 @@ window.loginSubmit=async function(ev){
     const cred=await signInWithEmailAndPassword(auth,email,password);
     const profile=await getUserProfile(cred.user);
     setLocalActiveUser(cred.user,profile);
-    await writeAccessLog(cred.user,'success','Login Firebase riuscito',profile);
+    await writeAccessLog(cred.user,'success','Accesso riuscito',profile);
     setStatus('Accesso effettuato.','success');
     showApp();
     toastCenter('Accesso effettuato: '+(profile.name||cred.user.email),'success');
   }catch(error){
-    console.error('Errore login Firebase:',error);
+    console.error('Errore login:',error);
     try{await writeAccessLog({email},'failed',error.code||error.message||'Login fallito',{})}catch(e){}
     setStatus(firebaseErrorMessage(error));
     toastCenter(firebaseErrorMessage(error));
@@ -2867,8 +2867,8 @@ window.loginSubmit=async function(ev){
 window.logoutUser=async function(){
   const user=auth.currentUser;
   const profile=getCurrentProfile();
-  try{if(user||profile.email)await writeAccessLog(user||profile,'logout','Logout Firebase',profile)}catch(e){}
-  try{await signOut(auth)}catch(e){console.warn('Logout Firebase:',e)}
+  try{if(user||profile.email)await writeAccessLog(user||profile,'logout','Uscita dal gestionale',profile)}catch(e){}
+  try{await signOut(auth)}catch(e){console.warn('Uscita dal gestionale:',e)}
   clearCachedUser();
   try{localStorage.removeItem(ACTIVE_SECTION_KEY)}catch(e){}
   try{if(typeof settings!=='undefined'&&settings){delete settings.activeEmployeeId;if(typeof saveSettings==='function')saveSettings()}}catch(e){}
@@ -2886,7 +2886,7 @@ window.confirmLogoutUser=function(){
 function installPasswordToggle(){const btn=$('loginShowPasswordBtn');const input=$('loginPassword');if(!btn||!input)return;btn.type='button';btn.onclick=function(ev){ev.preventDefault();ev.stopPropagation();input.type=input.type==='password'?'text':'password';btn.textContent=input.type==='password'?'Mostra':'Nascondi';input.focus();return false}}
 function installLoginForm(){const form=$('loginForm');if(form){form.setAttribute('novalidate','novalidate');form.onsubmit=window.loginSubmit;form.addEventListener('submit',window.loginSubmit,true)}const enterBtn=document.querySelector('#loginForm button[type="submit"]');if(enterBtn){enterBtn.onclick=function(ev){return window.loginSubmit(ev)}}const hint=$('loginDemoHint');if(hint)hint.textContent=''}
 function installLogoutButton(){const menu=$('topMenu');if(!menu)return;let btn=$('logoutMenuButton');if(!btn){btn=document.createElement('button');btn.id='logoutMenuButton';btn.className='btn secondary';btn.type='button'}btn.textContent='⏻ Esci';btn.onclick=function(ev){ev.preventDefault();ev.stopPropagation();return window.confirmLogoutUser()};menu.appendChild(btn)}
-function installResetPasswordUI(){const openBtn=$('openResetLoginBtn');if(openBtn){openBtn.onclick=function(ev){ev.preventDefault();$('loginResetBox')?.classList.toggle('show');return false}}const confirmBtn=$('confirmResetLoginBtn');if(confirmBtn){confirmBtn.onclick=function(ev){ev.preventDefault();setStatus('Il reset password online sarà gestito dal Super Admin nella fase successiva.');return false}}}
+function installResetPasswordUI(){const openBtn=$('openResetLoginBtn');if(openBtn){openBtn.onclick=function(ev){ev.preventDefault();$('loginResetBox')?.classList.toggle('show');return false}}const confirmBtn=$('confirmResetLoginBtn');if(confirmBtn){confirmBtn.onclick=function(ev){ev.preventDefault();setStatus('Il reset password sarà gestito dal responsabile nella fase successiva.');return false}}}
 
 function installAccessLogsUI(){
   let section=$('accessLogs');
@@ -3303,7 +3303,7 @@ setTimeout(()=>{
       var wrap=document.createElement('div');
       wrap.className='field two';
       wrap.id='empPasswordBridgeWrap';
-      wrap.innerHTML='<label>Password iniziale</label><input id="empPassword" type="password" autocomplete="new-password" placeholder="Minimo 6 caratteri"><div class="hint">Obbligatoria solo per nuovo dipendente Firebase. Se modifichi un dipendente, lasciala vuota per non cambiarla.</div>';
+      wrap.innerHTML='<label>Password iniziale</label><input id="empPassword" type="password" autocomplete="new-password" placeholder="Minimo 6 caratteri"><div class="hint">Obbligatoria solo per nuovo dipendente. Se modifichi un dipendente, lasciala vuota per non cambiarla.</div>';
       if(statusField&&statusField.parentNode) statusField.insertAdjacentElement('afterend',wrap); else form.insertBefore(wrap,form.querySelector('.field.full'));
     }
     var submit=form.querySelector('button[type="submit"]'); if(submit)submit.textContent='Salva dipendente';
@@ -3353,11 +3353,11 @@ setTimeout(()=>{
       var role=$('empRole')?.value||'seller';
       var active=($('empActive')?.value||'true')==='true';
       if(!name){toastMsg('Inserisci nome e cognome.');return false;}
-      if(!employeeEmailValid(email)){toastMsg('Per creare un accesso Firebase serve una email valida, non un telefono.');return false;}
+      if(!employeeEmailValid(email)){toastMsg('Per creare l’accesso serve una email valida, non un telefono.');return false;}
       var action=firebaseUid?'update':'create';
       if(action==='create' && password.length<6){toastMsg('Inserisci una password iniziale di almeno 6 caratteri.');return false;}
       if(action==='update' && password && password.length<6){toastMsg('La nuova password deve avere almeno 6 caratteri.');return false;}
-      setStatus(action==='create'?'Creazione dipendente Firebase in corso...':'Aggiornamento dipendente Firebase in corso...');
+      setStatus(action==='create'?'Creazione dipendente in corso...':'Aggiornamento dipendente in corso...');
       var token=await getToken();
       var res=await fetch('/.netlify/functions/createEmployee',{
         method:'POST',
@@ -3365,7 +3365,7 @@ setTimeout(()=>{
         body:JSON.stringify({action:action,uid:firebaseUid,name:name,email:email,password:password,role:role,active:active})
       });
       var data=await res.json().catch(function(){return {error:'Risposta non valida dalla Function'}});
-      if(!res.ok||!data.ok) throw new Error(data.error||'Errore salvataggio dipendente Firebase');
+      if(!res.ok||!data.ok) throw new Error(data.error||'Errore salvataggio dipendente');
       upsertLocalEmployee(data.user||{uid:firebaseUid,name:name,email:email,role:role,active:active});
       if($('employeeForm'))$('employeeForm').reset();
       if($('employeeId'))$('employeeId').value='';
@@ -3373,13 +3373,13 @@ setTimeout(()=>{
       if($('empPassword'))$('empPassword').value='';
       if(typeof renderEmployees==='function')renderEmployees();
       if(typeof applyEmployeePermissions==='function')applyEmployeePermissions();
-      setStatus('Dipendente salvato su Firebase.', '#128a3a');
-      toastMsg('Dipendente salvato su Firebase.','success');
+      setStatus('Dipendente salvato.', '#128a3a');
+      toastMsg('Dipendente salvato.','success');
       return false;
     }catch(err){
       console.error('saveEmployee Firebase:',err);
-      setStatus(err.message||'Errore Firebase','#b51545');
-      toastMsg(err.message||'Errore salvataggio dipendente Firebase.');
+      setStatus(err.message||'Errore','#b51545');
+      toastMsg(err.message||'Errore salvataggio dipendente.');
       return false;
     }
   }
