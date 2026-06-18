@@ -383,8 +383,15 @@ body.login-active .nav{
 }
 </style>
 
+
+<style id="noor-mobile-camera-route-fix-style">
+@media(max-width:720px){.sell-scan-controls{grid-template-columns:1fr!important}.sell-scan-controls .btn{width:100%}}
+.route-loading{position:fixed;inset:0;z-index:49999;display:grid;place-items:center;background:linear-gradient(145deg,#fffafd,#fff0f7);color:#3b1027;font-weight:950;text-align:center;padding:24px}
+.route-loading.hidden{display:none!important}
+</style>
 </head>
 <body>
+<div id="firebaseBootLoading" class="route-loading">Verifica sessione in corso...</div>
 <div id="loginScreen" class="login-screen">
   <div class="login-card">
     <div class="login-brand"><div class="login-logo">N</div><div><h1>Accesso Gestionale</h1><p class="hint">Inserisci le credenziali create dal Super Admin.</p></div></div>
@@ -455,10 +462,12 @@ body.login-active .nav{
       <div class="card panel">
         <div class="panel-title"><div><h2>Vendita rapida</h2><p class="hint">Scansiona con lettore barcode USB oppure scrivi il codice e premi Invio.</p></div></div>
         <div class="scan-area"><div class="scan-icon">▦</div><h2>Scanner codice a barre</h2><p class="hint">Clicca nel campo qui sotto e scansiona il prodotto.</p></div>
-        <div style="display:grid;grid-template-columns:1fr 120px;gap:10px;margin-top:14px">
+        <div style="display:grid;grid-template-columns:1fr 120px 130px;gap:10px;margin-top:14px" class="sell-scan-controls">
           <input id="barcodeInput" class="big-input" placeholder="Barcode EAN13" oninput="normalizeEANInput(this)" onkeydown="if(event.key==='Enter') findByBarcode()">
           <button class="btn" onclick="findByBarcode()">Rileva</button>
+          <button class="btn secondary" type="button" onclick="startSaleBarcodeScan()">Fotocamera</button>
         </div>
+        <div id="saleCameraBox" class="camera-box"><video id="saleVideo" autoplay playsinline muted></video><div class="camera-note">Inquadra il codice EAN13 del prodotto. Su iPhone/Android consenti l’uso della fotocamera.</div><button type="button" class="btn secondary" style="margin:10px" onclick="stopSaleBarcodeScan()">Ferma fotocamera</button></div>
         <div class="sell-tools">
           <input id="saleSearch" placeholder="Cerca prodotto per nome, marca o barcode..." oninput="renderSalePicker()">
           <button class="btn secondary" onclick="renderSalePicker(true)">Lista prodotti</button>
@@ -1370,7 +1379,13 @@ function printDocument(title,bodyHtml){
 .default-pay-box{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
 @media(max-width:760px){.settings-list-grid,.default-pay-box{grid-template-columns:1fr}}
 
-</style></head><body><div class="sheet"><div class="no-print"><button onclick="window.print()" style="padding:10px 16px;border:0;border-radius:12px;background:#e86aa7;color:white;font-weight:900;cursor:pointer">Stampa / Salva PDF</button></div><div class="head"><div><div class="brand">Noor Profumi Pro</div><div class="sub">${escapePrint(title)} · ${now}</div></div><div class="badge">Documento PDF</div></div>${bodyHtml}<div class="footer">Documento generato dal gestionale Noor Profumi Pro.</div></div><script>setTimeout(()=>window.print(),350)<\/script>
+</style>
+<style id="noor-mobile-camera-route-fix-style">
+@media(max-width:720px){.sell-scan-controls{grid-template-columns:1fr!important}.sell-scan-controls .btn{width:100%}}
+.route-loading{position:fixed;inset:0;z-index:49999;display:grid;place-items:center;background:linear-gradient(145deg,#fffafd,#fff0f7);color:#3b1027;font-weight:950;text-align:center;padding:24px}
+.route-loading.hidden{display:none!important}
+</style>
+</head><body><div class="sheet"><div class="no-print"><button onclick="window.print()" style="padding:10px 16px;border:0;border-radius:12px;background:#e86aa7;color:white;font-weight:900;cursor:pointer">Stampa / Salva PDF</button></div><div class="head"><div><div class="brand">Noor Profumi Pro</div><div class="sub">${escapePrint(title)} · ${now}</div></div><div class="badge">Documento PDF</div></div>${bodyHtml}<div class="footer">Documento generato dal gestionale Noor Profumi Pro.</div></div><script>setTimeout(()=>window.print(),350)<\/script>
 
 
 </body></html>`);
@@ -2182,7 +2197,13 @@ load();
   function printHtml(title, body){
     const w=window.open('','_blank'); if(!w){toast('Popup bloccato dal browser.');return;}
     const name=esc(settings?.appName||'Noor Profumi Pro');
-    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font-family:Arial,sans-serif;color:#3b1027;padding:28px}h1{margin:0 0 6px}.muted{color:#8f5a72}.box{border:1px solid #f2c6da;border-radius:18px;padding:14px;margin:12px 0}.row{display:flex;justify-content:space-between;border-bottom:1px solid #f7dcea;padding:8px 0}.total{font-size:26px;font-weight:900}.chip{display:inline-block;background:#fff0f7;border:1px solid #f2c6da;border-radius:999px;padding:7px 10px;margin:4px}</style></head><body><h1>${name}</h1><div class="muted">${esc(title)}</div>${body}<script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font-family:Arial,sans-serif;color:#3b1027;padding:28px}h1{margin:0 0 6px}.muted{color:#8f5a72}.box{border:1px solid #f2c6da;border-radius:18px;padding:14px;margin:12px 0}.row{display:flex;justify-content:space-between;border-bottom:1px solid #f7dcea;padding:8px 0}.total{font-size:26px;font-weight:900}.chip{display:inline-block;background:#fff0f7;border:1px solid #f2c6da;border-radius:999px;padding:7px 10px;margin:4px}</style>
+<style id="noor-mobile-camera-route-fix-style">
+@media(max-width:720px){.sell-scan-controls{grid-template-columns:1fr!important}.sell-scan-controls .btn{width:100%}}
+.route-loading{position:fixed;inset:0;z-index:49999;display:grid;place-items:center;background:linear-gradient(145deg,#fffafd,#fff0f7);color:#3b1027;font-weight:950;text-align:center;padding:24px}
+.route-loading.hidden{display:none!important}
+</style>
+</head><body><h1>${name}</h1><div class="muted">${esc(title)}</div>${body}<script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
     w.document.close();
   }
   window.printClosure=function(id){
@@ -2297,7 +2318,13 @@ load();
     const company=[s.companyName,s.companyPhone,s.companyEmail,s.companyVat].filter(Boolean).map(esc).join(' · ');
     const footer=esc(s.pdfFooterMessage||'Documento generato dal gestionale Noor Profumi Pro.');
     const printButton='<div class="no-print"><button onclick="window.print()" style="padding:10px 16px;border:0;border-radius:12px;background:#e86aa7;color:white;font-weight:900;cursor:pointer">Stampa / Salva PDF</button></div>';
-    const html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>'+esc(title)+'</title><style>@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;margin:0;color:#351126;background:#fff}.sheet{padding:8px}.head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:3px solid #f5bfd7;padding-bottom:14px;margin-bottom:18px}.brand{font-size:25px;font-weight:950;color:#b01361}.sub{color:#8f5a72;font-size:12px;margin-top:4px}.badge{display:inline-block;padding:7px 11px;border-radius:999px;background:#fff0f7;color:#9a1554;font-weight:900;font-size:12px;border:1px solid #f4c2d8}.box{border:1px solid #f4c2d8;border-radius:18px;padding:14px;margin:12px 0;background:#fff8fb}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:10px;border-bottom:1px solid #f4c2d8;text-align:left;font-size:12px;vertical-align:middle}th{background:#fff0f7;color:#7b254c;text-transform:uppercase;font-size:11px}.total{text-align:right;font-size:24px;font-weight:950;margin-top:16px;color:#3b1027}.muted{color:#8f5a72}.right{text-align:right}.footer{margin-top:22px;padding-top:12px;border-top:1px solid #f4c2d8;font-size:11px;color:#8f5a72}.no-print{margin:0 0 16px;text-align:right}.prod{display:flex;align-items:center;gap:10px}@media print{.no-print{display:none}}</style></head><body><div class="sheet">'+printButton+'<div class="head"><div>'+logo+'<div class="brand">'+appName+'</div><div class="sub">'+esc(title)+' · '+esc(now)+'</div>'+(company?'<div class="sub">'+company+'</div>':'')+'</div><div class="badge">Documento PDF</div></div>'+bodyHtml+'<div class="footer">'+footer+'</div></div></body></html>';
+    const html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>'+esc(title)+'</title><style>@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;margin:0;color:#351126;background:#fff}.sheet{padding:8px}.head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:3px solid #f5bfd7;padding-bottom:14px;margin-bottom:18px}.brand{font-size:25px;font-weight:950;color:#b01361}.sub{color:#8f5a72;font-size:12px;margin-top:4px}.badge{display:inline-block;padding:7px 11px;border-radius:999px;background:#fff0f7;color:#9a1554;font-weight:900;font-size:12px;border:1px solid #f4c2d8}.box{border:1px solid #f4c2d8;border-radius:18px;padding:14px;margin:12px 0;background:#fff8fb}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:10px;border-bottom:1px solid #f4c2d8;text-align:left;font-size:12px;vertical-align:middle}th{background:#fff0f7;color:#7b254c;text-transform:uppercase;font-size:11px}.total{text-align:right;font-size:24px;font-weight:950;margin-top:16px;color:#3b1027}.muted{color:#8f5a72}.right{text-align:right}.footer{margin-top:22px;padding-top:12px;border-top:1px solid #f4c2d8;font-size:11px;color:#8f5a72}.no-print{margin:0 0 16px;text-align:right}.prod{display:flex;align-items:center;gap:10px}@media print{.no-print{display:none}}</style>
+<style id="noor-mobile-camera-route-fix-style">
+@media(max-width:720px){.sell-scan-controls{grid-template-columns:1fr!important}.sell-scan-controls .btn{width:100%}}
+.route-loading{position:fixed;inset:0;z-index:49999;display:grid;place-items:center;background:linear-gradient(145deg,#fffafd,#fff0f7);color:#3b1027;font-weight:950;text-align:center;padding:24px}
+.route-loading.hidden{display:none!important}
+</style>
+</head><body><div class="sheet">'+printButton+'<div class="head"><div>'+logo+'<div class="brand">'+appName+'</div><div class="sub">'+esc(title)+' · '+esc(now)+'</div>'+(company?'<div class="sub">'+company+'</div>':'')+'</div><div class="badge">Documento PDF</div></div>'+bodyHtml+'<div class="footer">'+footer+'</div></div></body></html>';
     w.document.open(); w.document.write(html); w.document.close();
   };
   setTimeout(function(){ if(typeof renderSettingsPanel==='function') renderSettingsPanel(); },300);
@@ -2425,7 +2452,13 @@ load();
       return '<div class="r-row"><div><b>'+esc(l.productName||'Prodotto')+'</b><br><small>x '+esc(l.qty||1)+' · '+money(l.price||0)+(l.discountCode||l.manualDiscountCode?' · sconto '+esc(l.discountCode||l.manualDiscountCode):'')+'</small></div><b>'+money(lineTotal)+'</b></div>';
     }).join('');
     var total=Number(o.total||0)||((o.lines||[]).reduce(function(a,l){return a+Number(l.total||0)},0));
-    var html='<!doctype html><html><head><meta charset="utf-8"><title>Ricevuta '+esc(o.orderNumber||o.id)+'</title><style>body{font-family:Arial,sans-serif;margin:0;background:#fff;color:#111}.receipt{width:80mm;max-width:100%;padding:14px;margin:0 auto}.head{text-align:center;border-bottom:1px dashed #999;padding-bottom:10px;margin-bottom:10px}.brand{font-size:20px;font-weight:900}.muted{font-size:12px;color:#555}.r-row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed #ddd;padding:9px 0}.total{display:flex;justify-content:space-between;font-size:20px;font-weight:900;margin-top:12px;padding-top:12px;border-top:2px solid #111}.footer{text-align:center;margin-top:18px;font-size:12px}.pay{margin-top:10px;font-size:13px}@media print{.receipt{width:80mm}.no-print{display:none}}</style></head><body><div class="receipt"><div class="head"><div class="brand">'+esc(company)+'</div><div class="muted">'+esc(phone)+' '+esc(email)+'</div><div class="muted">'+esc(vat)+'</div></div><div class="muted">Data: '+esc(new Date(o.date||Date.now()).toLocaleString('it-IT'))+'</div><div class="muted">Ordine: '+esc(o.orderNumber||o.id)+'</div><div class="pay">Pagamento: <b>'+esc(o.payment||'—')+'</b></div>'+rows+'<div class="total"><span>Totale</span><span>'+money(total)+'</span></div><div class="footer">Grazie per il tuo acquisto</div><div class="no-print" style="text-align:center;margin-top:14px"><button onclick="window.print()">Stampa</button></div></div></body></html>';
+    var html='<!doctype html><html><head><meta charset="utf-8"><title>Ricevuta '+esc(o.orderNumber||o.id)+'</title><style>body{font-family:Arial,sans-serif;margin:0;background:#fff;color:#111}.receipt{width:80mm;max-width:100%;padding:14px;margin:0 auto}.head{text-align:center;border-bottom:1px dashed #999;padding-bottom:10px;margin-bottom:10px}.brand{font-size:20px;font-weight:900}.muted{font-size:12px;color:#555}.r-row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed #ddd;padding:9px 0}.total{display:flex;justify-content:space-between;font-size:20px;font-weight:900;margin-top:12px;padding-top:12px;border-top:2px solid #111}.footer{text-align:center;margin-top:18px;font-size:12px}.pay{margin-top:10px;font-size:13px}@media print{.receipt{width:80mm}.no-print{display:none}}</style>
+<style id="noor-mobile-camera-route-fix-style">
+@media(max-width:720px){.sell-scan-controls{grid-template-columns:1fr!important}.sell-scan-controls .btn{width:100%}}
+.route-loading{position:fixed;inset:0;z-index:49999;display:grid;place-items:center;background:linear-gradient(145deg,#fffafd,#fff0f7);color:#3b1027;font-weight:950;text-align:center;padding:24px}
+.route-loading.hidden{display:none!important}
+</style>
+</head><body><div class="receipt"><div class="head"><div class="brand">'+esc(company)+'</div><div class="muted">'+esc(phone)+' '+esc(email)+'</div><div class="muted">'+esc(vat)+'</div></div><div class="muted">Data: '+esc(new Date(o.date||Date.now()).toLocaleString('it-IT'))+'</div><div class="muted">Ordine: '+esc(o.orderNumber||o.id)+'</div><div class="pay">Pagamento: <b>'+esc(o.payment||'—')+'</b></div>'+rows+'<div class="total"><span>Totale</span><span>'+money(total)+'</span></div><div class="footer">Grazie per il tuo acquisto</div><div class="no-print" style="text-align:center;margin-top:14px"><button onclick="window.print()">Stampa</button></div></div></body></html>';
     var w=window.open('','_blank','width=420,height=760');
     if(!w){ if(typeof toast==='function') toast('Popup bloccato: abilita le finestre popup per stampare.'); return; }
     w.document.open(); w.document.write(html); w.document.close();
@@ -2648,7 +2681,13 @@ load();
   window.printCustomerReceipt=function(orderId){
     var o=getOrder(orderId); if(!o){toastMsg('Ordine non trovato per lo scontrino.');return;}
     var text=buildReceiptText(o);
-    var html='<!doctype html><html><head><meta charset="utf-8"><title>Scontrino '+receiptNo(o)+'</title><style>body{margin:0;background:#f5f5f5}.paper{width:80mm;max-width:100%;margin:0 auto;background:white;padding:10px 8px;color:#000}pre{font:12px/1.35 "Courier New",monospace;white-space:pre-wrap;margin:0}.actions{display:flex;gap:8px;justify-content:center;padding:12px}.actions button{padding:9px 13px;border:1px solid #bbb;border-radius:8px;background:#fff;cursor:pointer}@media print{body{background:white}.paper{width:80mm;margin:0;padding:0}.actions{display:none}}</style></head><body><div class="paper"><pre>'+text.replace(/[&<>]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]})+'</pre></div><div class="actions"><button onclick="window.print()">Stampa</button><button onclick="window.close()">Chiudi</button></div></body></html>';
+    var html='<!doctype html><html><head><meta charset="utf-8"><title>Scontrino '+receiptNo(o)+'</title><style>body{margin:0;background:#f5f5f5}.paper{width:80mm;max-width:100%;margin:0 auto;background:white;padding:10px 8px;color:#000}pre{font:12px/1.35 "Courier New",monospace;white-space:pre-wrap;margin:0}.actions{display:flex;gap:8px;justify-content:center;padding:12px}.actions button{padding:9px 13px;border:1px solid #bbb;border-radius:8px;background:#fff;cursor:pointer}@media print{body{background:white}.paper{width:80mm;margin:0;padding:0}.actions{display:none}}</style>
+<style id="noor-mobile-camera-route-fix-style">
+@media(max-width:720px){.sell-scan-controls{grid-template-columns:1fr!important}.sell-scan-controls .btn{width:100%}}
+.route-loading{position:fixed;inset:0;z-index:49999;display:grid;place-items:center;background:linear-gradient(145deg,#fffafd,#fff0f7);color:#3b1027;font-weight:950;text-align:center;padding:24px}
+.route-loading.hidden{display:none!important}
+</style>
+</head><body><div class="paper"><pre>'+text.replace(/[&<>]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]})+'</pre></div><div class="actions"><button onclick="window.print()">Stampa</button><button onclick="window.close()">Chiudi</button></div></body></html>';
     var win=window.open('','_blank','width=420,height=760'); if(!win){toastMsg('Popup bloccato: abilita i popup per stampare.');return;}
     win.document.open(); win.document.write(html); win.document.close(); setTimeout(function(){try{win.focus();win.print()}catch(e){}},350);
   };
@@ -2896,7 +2935,7 @@ load();
 
 <script type="module" id="noor-firebase-phase1">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { initializeAuth, getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence, indexedDBLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { initializeAuth, getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getFirestore, doc, getDoc, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig={
@@ -2912,14 +2951,14 @@ const firebaseConfig={
 const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
 let auth;
 try{
-  auth=initializeAuth(app,{persistence:[indexedDBLocalPersistence,browserLocalPersistence]});
+  auth=initializeAuth(app,{persistence:browserLocalPersistence});
 }catch(e){
   auth=getAuth(app);
 }
 const firestore=getFirestore(app);
 const SESSION_KEY="noor_firebase_current_user_v1";
 const ACTIVE_SECTION_KEY="noor_active_section_v1";
-let persistenceReady=setPersistence(auth,indexedDBLocalPersistence).catch((e)=>{console.warn('Persistenza IndexedDB Firebase:',e);return setPersistence(auth,browserLocalPersistence)}).catch((e)=>console.warn('Persistenza Firebase:',e));
+let persistenceReady=setPersistence(auth,browserLocalPersistence).catch((e)=>console.warn('Persistenza Firebase:',e));
 let allAccessLogs=[];
 
 function $(id){return document.getElementById(id)}
@@ -2981,10 +3020,10 @@ function setLocalActiveUser(firebaseUser,profile){
   }catch(e){console.warn('Sync utente locale non riuscita:',e)}
 }
 function currentSection(){return document.querySelector('.section.active')?.id||'home'}
-function saveCurrentSection(id){try{if(id&&document.getElementById(id))localStorage.setItem(ACTIVE_SECTION_KEY,id)}catch(e){}}
+function saveCurrentSection(id){try{if(id&&document.getElementById(id)){localStorage.setItem(ACTIVE_SECTION_KEY,id); if(!window.__noorDisableRoutePush)updateUrlForSection(id)}}catch(e){}}
 function restoreSection(){
-  let id='home';
-  try{id=localStorage.getItem(ACTIVE_SECTION_KEY)||'home'}catch(e){}
+  let id=sectionFromLocation();
+  try{if(!id)id=localStorage.getItem(ACTIVE_SECTION_KEY)||'home'}catch(e){}
   if(!document.getElementById(id))id='home';
   try{if(typeof window.go==='function')window.go(id);else document.getElementById(id)?.classList.add('active')}catch(e){}
   if(id==='accessLogs')setTimeout(()=>renderFirebaseAccessLogs(),150);
@@ -2999,6 +3038,7 @@ function wrapGoForSectionMemory(){
   document.querySelectorAll('.nav button[data-target]').forEach(btn=>btn.addEventListener('click',()=>saveCurrentSection(btn.dataset.target)));
 }
 function showApp(){
+  hideBootLoading();
   const screen=$('loginScreen');
   if(screen){screen.classList.add('hidden');screen.style.display='none'}
   document.body.classList.remove('login-active');
@@ -3008,14 +3048,15 @@ function showApp(){
   setTimeout(restoreSection,80);
 }
 function showLogin(){
+  hideBootLoading();
   const screen=$('loginScreen');
   if(screen){screen.classList.remove('hidden');screen.style.display='flex'}
   document.body.classList.add('login-active');
 }
 function showWaitingIfCached(){
-  // Durante il controllo Firebase non mostro subito la pagina login: evita il flash al refresh.
   const screen=$('loginScreen');
   if(screen){screen.classList.add('hidden');screen.style.display='none'}
+  const loader=$('firebaseBootLoading'); if(loader)loader.classList.remove('hidden');
   document.body.classList.remove('login-active');
 }
 function clearLoginPassword(){const p=$('loginPassword');if(p){p.value='';p.type='password'}const b=$('loginShowPasswordBtn');if(b)b.textContent='Mostra'}
@@ -3167,6 +3208,63 @@ window.renderFirebaseAccessLogs=async function(){
   }
 };
 
+
+const SECTION_ROUTES={home:'/',products:'/prodotti',sell:'/vendi',history:'/storico',stock:'/stock',drafts:'/bozze',employees:'/dipendenti',settings:'/impostazioni',discounts:'/sconti',accessLogs:'/controllo-accessi'};
+const ROUTE_SECTIONS=Object.fromEntries(Object.entries(SECTION_ROUTES).map(([k,v])=>[v,k]));
+function sectionFromLocation(){
+  const path=location.pathname.replace(/\/$/,'')||'/';
+  if(ROUTE_SECTIONS[path])return ROUTE_SECTIONS[path];
+  const hash=(location.hash||'').replace('#','');
+  if(hash&&document.getElementById(hash))return hash;
+  try{return localStorage.getItem(ACTIVE_SECTION_KEY)||'home'}catch(e){return 'home'}
+}
+function updateUrlForSection(id){
+  try{
+    const path=SECTION_ROUTES[id]||('/'+id);
+    if(location.pathname!==path)history.pushState({section:id},'',path);
+  }catch(e){try{location.hash=id}catch(_){}}
+}
+function hideBootLoading(){const el=$('firebaseBootLoading');if(el)el.classList.add('hidden')}
+window.addEventListener('popstate',()=>{const id=sectionFromLocation(); if(document.getElementById(id)){const old=window.__noorDisableRoutePush;window.__noorDisableRoutePush=true;try{go(id)}catch(e){}window.__noorDisableRoutePush=old;}});
+
+let saleScanStream=null;
+let saleScanTimer=null;
+window.startSaleBarcodeScan=async function(){
+  const video=$('saleVideo'); const box=$('saleCameraBox');
+  if(!video||!box){toastCenter('Scanner fotocamera non disponibile in questa schermata.');return}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toastCenter('Fotocamera non supportata da questo browser.');return}
+  if(!('BarcodeDetector' in window)){toastCenter('Questo browser non supporta la lettura automatica barcode. Usa il lettore USB o scrivi il codice.');return}
+  try{
+    stopSaleBarcodeScan();
+    const detector=new BarcodeDetector({formats:['ean_13']});
+    saleScanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+    video.srcObject=saleScanStream;
+    box.classList.add('show');
+    toastCenter('Fotocamera attiva. Inquadra il barcode.','success');
+    saleScanTimer=setInterval(async()=>{
+      if(video.readyState<2)return;
+      try{
+        const codes=await detector.detect(video);
+        const found=(codes||[]).find(c=>c.format==='ean_13'||/^\d{13}$/.test(c.rawValue||''));
+        if(found){
+          const code=String(found.rawValue||'').replace(/\D/g,'').slice(0,13);
+          if(code&&(!window.isValidEAN13||isValidEAN13(code))){
+            const input=$('barcodeInput'); if(input)input.value=code;
+            stopSaleBarcodeScan();
+            toastCenter('Barcode rilevato.','success');
+            try{findByBarcode()}catch(e){}
+          }
+        }
+      }catch(e){}
+    },550);
+  }catch(e){toastCenter('Non riesco ad aprire la fotocamera. Controlla i permessi del browser.');}
+}
+window.stopSaleBarcodeScan=function(){
+  if(saleScanTimer){clearInterval(saleScanTimer);saleScanTimer=null}
+  if(saleScanStream){saleScanStream.getTracks().forEach(t=>t.stop());saleScanStream=null}
+  const box=$('saleCameraBox'); if(box)box.classList.remove('show');
+}
+
 function bootFirebaseLogin(){
   installLoginForm();installPasswordToggle();installLogoutButton();installResetPasswordUI();installAccessLogsUI();wrapGoForSectionMemory();
   showWaitingIfCached();
@@ -3175,7 +3273,14 @@ document.addEventListener('DOMContentLoaded',bootFirebaseLogin);if(document.read
 
 await persistenceReady;
 onAuthStateChanged(auth,async(user)=>{
-  if(!user){clearCachedUser();showLogin();return}
+  if(!user){
+    const cached=readCachedUser();
+    if(cached&&Date.now()-(cached.ts||0)<1000*60*60*24*30){
+      setTimeout(()=>{if(!auth.currentUser){clearCachedUser();showLogin();}},2500);
+      return;
+    }
+    clearCachedUser();showLogin();return
+  }
   try{
     const profile=await getUserProfile(user);
     setLocalActiveUser(user,profile);
