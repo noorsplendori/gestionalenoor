@@ -2935,7 +2935,7 @@ load();
 
 <script type="module" id="noor-firebase-phase1">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { initializeAuth, getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { initializeAuth, getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import { getFirestore, doc, getDoc, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const firebaseConfig={
@@ -2951,14 +2951,25 @@ const firebaseConfig={
 const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
 let auth;
 try{
-  auth=initializeAuth(app,{persistence:browserLocalPersistence});
+  // Persistenza robusta: IndexedDB è la più stabile, localStorage è il fallback.
+  // Questo evita logout al refresh su desktop e mobile quando il browser lo consente.
+  auth=initializeAuth(app,{persistence:[indexedDBLocalPersistence,browserLocalPersistence,browserSessionPersistence]});
 }catch(e){
   auth=getAuth(app);
 }
 const firestore=getFirestore(app);
 const SESSION_KEY="noor_firebase_current_user_v1";
 const ACTIVE_SECTION_KEY="noor_active_section_v1";
-let persistenceReady=setPersistence(auth,browserLocalPersistence).catch((e)=>console.warn('Persistenza Firebase:',e));
+let persistenceReady=(async()=>{
+  try{await setPersistence(auth,indexedDBLocalPersistence);return 'indexedDB'}
+  catch(e1){
+    try{await setPersistence(auth,browserLocalPersistence);return 'localStorage'}
+    catch(e2){
+      try{await setPersistence(auth,browserSessionPersistence);return 'sessionStorage'}
+      catch(e3){console.warn('Persistenza Firebase non disponibile:',e1,e2,e3);return 'memory'}
+    }
+  }
+})();
 let allAccessLogs=[];
 
 function $(id){return document.getElementById(id)}
@@ -2994,11 +3005,22 @@ async function writeAccessLog(user,result,note,profile){
   }catch(e){console.warn('Access log non salvato:',e)}
 }
 async function getUserProfile(firebaseUser){
-  const snap=await getDoc(doc(firestore,'users',firebaseUser.uid));
-  if(!snap.exists())throw new Error('NO_USER_PROFILE');
-  const profile=snap.data()||{};
-  if(profile.active===false)throw new Error('USER_DISABLED');
-  return Object.assign({},profile,{uid:firebaseUser.uid,email:profile.email||firebaseUser.email});
+  let lastErr=null;
+  for(let attempt=0;attempt<4;attempt++){
+    try{
+      const snap=await getDoc(doc(firestore,'users',firebaseUser.uid));
+      if(!snap.exists())throw new Error('NO_USER_PROFILE');
+      const profile=snap.data()||{};
+      if(profile.active===false)throw new Error('USER_DISABLED');
+      return Object.assign({},profile,{uid:firebaseUser.uid,email:profile.email||firebaseUser.email});
+    }catch(e){
+      lastErr=e;
+      // Se è solo rete lenta al refresh, aspetta e riprova senza buttare fuori l'utente.
+      if(e?.message==='NO_USER_PROFILE'||e?.message==='USER_DISABLED')throw e;
+      await new Promise(r=>setTimeout(r,450*(attempt+1)));
+    }
+  }
+  throw lastErr||new Error('PROFILE_LOAD_FAILED');
 }
 function setLocalActiveUser(firebaseUser,profile){
   window.currentFirebaseUser=firebaseUser||null;
@@ -3229,40 +3251,121 @@ window.addEventListener('popstate',()=>{const id=sectionFromLocation(); if(docum
 
 let saleScanStream=null;
 let saleScanTimer=null;
+let saleZXingControls=null;
+let productZXingControls=null;
+
+async function loadZXing(){
+  if(window.__ZXingBrowser)return window.__ZXingBrowser;
+  const mod=await import('https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/+esm');
+  window.__ZXingBrowser=mod;
+  return mod;
+}
+function isProbablyEAN13(code){return /^\d{13}$/.test(String(code||'').replace(/\D/g,''));}
+async function startZXingScan(video,onCode){
+  const zxing=await loadZXing();
+  const Reader=zxing.BrowserMultiFormatReader||zxing.BrowserBarcodeReader;
+  const reader=new Reader();
+  const controls=await reader.decodeFromVideoDevice(undefined,video,(result,err,ctrl)=>{
+    if(result){
+      const code=String(result.getText?result.getText():result.text||'').replace(/\D/g,'');
+      if(isProbablyEAN13(code))onCode(code.slice(0,13),ctrl);
+    }
+  });
+  return controls;
+}
+
 window.startSaleBarcodeScan=async function(){
   const video=$('saleVideo'); const box=$('saleCameraBox');
   if(!video||!box){toastCenter('Scanner fotocamera non disponibile in questa schermata.');return}
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toastCenter('Fotocamera non supportata da questo browser.');return}
-  if(!('BarcodeDetector' in window)){toastCenter('Questo browser non supporta la lettura automatica barcode. Usa il lettore USB o scrivi il codice.');return}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toastCenter('Fotocamera non supportata: apri il sito da Chrome/Safari aggiornato e consenti la fotocamera.');return}
   try{
     stopSaleBarcodeScan();
-    const detector=new BarcodeDetector({formats:['ean_13']});
-    saleScanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-    video.srcObject=saleScanStream;
     box.classList.add('show');
-    toastCenter('Fotocamera attiva. Inquadra il barcode.','success');
-    saleScanTimer=setInterval(async()=>{
-      if(video.readyState<2)return;
-      try{
-        const codes=await detector.detect(video);
-        const found=(codes||[]).find(c=>c.format==='ean_13'||/^\d{13}$/.test(c.rawValue||''));
-        if(found){
-          const code=String(found.rawValue||'').replace(/\D/g,'').slice(0,13);
-          if(code&&(!window.isValidEAN13||isValidEAN13(code))){
-            const input=$('barcodeInput'); if(input)input.value=code;
-            stopSaleBarcodeScan();
-            toastCenter('Barcode rilevato.','success');
-            try{findByBarcode()}catch(e){}
+    // Android Chrome supporta spesso BarcodeDetector. iPhone/Chrome usa WebKit e di solito non lo supporta: fallback ZXing.
+    if('BarcodeDetector' in window){
+      const detector=new BarcodeDetector({formats:['ean_13']});
+      saleScanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+      video.srcObject=saleScanStream;
+      toastCenter('Fotocamera attiva. Inquadra il barcode.','success');
+      saleScanTimer=setInterval(async()=>{
+        if(video.readyState<2)return;
+        try{
+          const codes=await detector.detect(video);
+          const found=(codes||[]).find(c=>c.format==='ean_13'||/^\d{13}$/.test(c.rawValue||''));
+          if(found){
+            const code=String(found.rawValue||'').replace(/\D/g,'').slice(0,13);
+            if(code&&(!window.isValidEAN13||isValidEAN13(code))){
+              const input=$('barcodeInput'); if(input)input.value=code;
+              stopSaleBarcodeScan();
+              toastCenter('Barcode rilevato.','success');
+              try{findByBarcode()}catch(e){}
+            }
           }
-        }
-      }catch(e){}
-    },550);
-  }catch(e){toastCenter('Non riesco ad aprire la fotocamera. Controlla i permessi del browser.');}
+        }catch(e){}
+      },550);
+    }else{
+      toastCenter('Fotocamera attiva con scanner compatibile iPhone/Chrome.','success');
+      saleZXingControls=await startZXingScan(video,(code,ctrl)=>{
+        const input=$('barcodeInput'); if(input)input.value=code;
+        try{ctrl&&ctrl.stop&&ctrl.stop()}catch(e){}
+        stopSaleBarcodeScan();
+        toastCenter('Barcode rilevato.','success');
+        try{findByBarcode()}catch(e){}
+      });
+    }
+  }catch(e){console.warn('Scanner vendita:',e);toastCenter('Non riesco ad aprire la fotocamera. Controlla permessi browser e HTTPS.');}
 }
 window.stopSaleBarcodeScan=function(){
   if(saleScanTimer){clearInterval(saleScanTimer);saleScanTimer=null}
+  if(saleZXingControls){try{saleZXingControls.stop()}catch(e){} saleZXingControls=null}
   if(saleScanStream){saleScanStream.getTracks().forEach(t=>t.stop());saleScanStream=null}
+  const video=$('saleVideo'); if(video)video.srcObject=null;
   const box=$('saleCameraBox'); if(box)box.classList.remove('show');
+}
+
+// Override scanner prodotto: stesso fallback ZXing per iPhone/Chrome.
+window.startProductBarcodeScan=async function(){
+  const video=$('productVideo'); const box=$('productCameraBox');
+  if(!video||!box){toastCenter('Scanner prodotto non disponibile.');return}
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toastCenter('Fotocamera non supportata: consenti la fotocamera dal browser.');return}
+  try{
+    stopProductBarcodeScan();
+    box.classList.add('show');
+    if('BarcodeDetector' in window){
+      const detector=new BarcodeDetector({formats:['ean_13']});
+      productScanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+      video.srcObject=productScanStream;
+      productScanTimer=setInterval(async()=>{
+        if(video.readyState<2)return;
+        try{
+          const codes=await detector.detect(video);
+          const found=(codes||[]).find(c=>c.format==='ean_13'||/^\d{13}$/.test(c.rawValue||''));
+          if(found){
+            const code=String(found.rawValue||'').replace(/\D/g,'').slice(0,13);
+            if(code&&(!window.isValidEAN13||isValidEAN13(code))){
+              const input=$('pBarcode'); if(input)input.value=code;
+              stopProductBarcodeScan();
+              toastCenter('EAN13 rilevato correttamente.','success');
+            }
+          }
+        }catch(e){}
+      },550);
+    }else{
+      productZXingControls=await startZXingScan(video,(code,ctrl)=>{
+        const input=$('pBarcode'); if(input)input.value=code;
+        try{ctrl&&ctrl.stop&&ctrl.stop()}catch(e){}
+        stopProductBarcodeScan();
+        toastCenter('EAN13 rilevato correttamente.','success');
+      });
+    }
+  }catch(e){console.warn('Scanner prodotto:',e);toastCenter('Non riesco ad aprire la fotocamera. Controlla permessi browser e HTTPS.');}
+}
+window.stopProductBarcodeScan=function(){
+  if(productScanTimer){clearInterval(productScanTimer);productScanTimer=null}
+  if(productZXingControls){try{productZXingControls.stop()}catch(e){} productZXingControls=null}
+  if(productScanStream){productScanStream.getTracks().forEach(t=>t.stop());productScanStream=null}
+  const video=$('productVideo'); if(video)video.srcObject=null;
+  const box=$('productCameraBox'); if(box)box.classList.remove('show');
 }
 
 function bootFirebaseLogin(){
@@ -3273,24 +3376,34 @@ document.addEventListener('DOMContentLoaded',bootFirebaseLogin);if(document.read
 
 await persistenceReady;
 onAuthStateChanged(auth,async(user)=>{
+  await persistenceReady;
   if(!user){
     const cached=readCachedUser();
+    // Su mobile il ripristino sessione può essere lento: non mostrare subito il login.
     if(cached&&Date.now()-(cached.ts||0)<1000*60*60*24*30){
-      setTimeout(()=>{if(!auth.currentUser){clearCachedUser();showLogin();}},2500);
+      showWaitingIfCached();
+      setTimeout(()=>{if(!auth.currentUser){showLogin();}},6500);
       return;
     }
-    clearCachedUser();showLogin();return
+    showLogin();return;
   }
   try{
     const profile=await getUserProfile(user);
     setLocalActiveUser(user,profile);
     showApp();
   }catch(error){
-    console.warn('Sessione Firebase non valida:',error);
-    await signOut(auth).catch(()=>{});
-    clearCachedUser();
-    setStatus(firebaseErrorMessage(error));
-    showLogin();
+    console.warn('Profilo Firebase non caricato:',error);
+    // Non cancellare la sessione per errori temporanei di rete/Firestore.
+    if(error?.message==='NO_USER_PROFILE'||error?.message==='USER_DISABLED'){
+      await signOut(auth).catch(()=>{});
+      clearCachedUser();
+      setStatus(firebaseErrorMessage(error));
+      showLogin();
+    }else{
+      setStatus('Connessione lenta: sto verificando la sessione...', 'loading');
+      showWaitingIfCached();
+      setTimeout(()=>location.reload(),2500);
+    }
   }
 });
 </script>
