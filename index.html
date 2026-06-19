@@ -1393,6 +1393,192 @@ function printDocument(title,bodyHtml){
 </style></head><body><div class="sheet"><div class="no-print"><button onclick="window.print()" style="padding:10px 16px;border:0;border-radius:12px;background:#e86aa7;color:white;font-weight:900;cursor:pointer">Stampa / Salva PDF</button></div><div class="head"><div><div class="brand">Noor Profumi Pro</div><div class="sub">${escapePrint(title)} · ${now}</div></div><div class="badge">Documento PDF</div></div>${bodyHtml}<div class="footer">Documento generato dal gestionale Noor Profumi Pro.</div></div><script>setTimeout(()=>window.print(),350)<\/script>
 
 
+
+
+<style id="noor-employee-firebase-final-fix-css">
+#noorEmployeeConfirmOverlay{position:fixed;inset:0;background:rgba(30,8,20,.62);backdrop-filter:blur(8px);z-index:60000;display:none;align-items:center;justify-content:center;padding:18px}
+#noorEmployeeConfirmOverlay.show{display:flex}
+.noor-emp-confirm-card{width:min(460px,100%);background:linear-gradient(180deg,#fff,#fff0f7);border:1px solid rgba(143,45,90,.18);border-radius:28px;box-shadow:0 28px 90px rgba(60,10,35,.34);padding:22px;text-align:center;color:var(--text)}
+.noor-emp-confirm-icon{width:58px;height:58px;margin:0 auto 12px;border-radius:20px;background:linear-gradient(135deg,#ffb3d2,#f2b84b);display:grid;place-items:center;font-size:26px;font-weight:950;color:#3a081f}
+.noor-emp-confirm-title{font-size:22px;font-weight:950;margin-bottom:8px}
+.noor-emp-confirm-text{font-size:14px;color:var(--muted);line-height:1.45;margin-bottom:16px}
+.noor-emp-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.noor-emp-confirm-actions .btn{width:100%}
+#employeesFirebaseStatus{grid-column:1/-1;font-size:13px;font-weight:900;text-align:center;margin-top:6px}
+body.dark .noor-emp-confirm-card{background:linear-gradient(180deg,#2a1222,#1d0b17)}
+</style>
+
+<script type="module" id="noor-employee-firebase-final-fix-script">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+  authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+  projectId:"gestionalenoor-2fa61",
+  storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+  messagingSenderId:"66670691093",
+  appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+  measurementId:"G-0HSQB7XLJG"
+};
+const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
+const firestore=getFirestore(app);
+const $=(id)=>document.getElementById(id);
+const ROLE_LABELS={owner:'Owner',manager:'Amministratore',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
+const ROLE_SUBS={owner:'Accesso completo',manager:'Gestione avanzata',warehouse:'Prodotti e stock',seller:'Vendita e chiusura',supervisor:'Controllo e chiusure'};
+let firebaseEmployeesLoaded=false;
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function toastMsg(msg,type){
+  try{ if(typeof toastCenter==='function') return toastCenter(msg,type); }catch(e){}
+  try{ if(typeof toast==='function') return toast(msg,type); }catch(e){}
+  let t=$('firebaseToastCenter'); if(!t){t=document.createElement('div');t.id='firebaseToastCenter';t.className='toast';document.body.appendChild(t)}
+  t.className='toast show'+(type==='success'?' success':'');t.textContent=msg;t.style.display='block';clearTimeout(window.__empToast);window.__empToast=setTimeout(()=>{t.classList.remove('show');t.style.display='none'},2600);
+}
+function currentProfile(){return window.currentFirebaseUserProfile||{};}
+function isManager(){const r=currentProfile().role; return r==='owner'||r==='manager';}
+function ensureEmployeeFields(){
+  const form=$('employeeForm'); if(!form)return;
+  if(!$('empFirebaseUid')){const h=document.createElement('input');h.type='hidden';h.id='empFirebaseUid';form.insertBefore(h,form.firstChild)}
+  const email=$('empEmail'); if(email){email.placeholder='email dipendente'; const lab=email.closest('.field')?.querySelector('label'); if(lab)lab.textContent='Email';}
+  const role=$('empRole'); if(role && !Array.from(role.options).some(o=>o.value==='supervisor')){const o=document.createElement('option');o.value='supervisor';o.textContent='Supervisore';role.appendChild(o)}
+  const perm=$('permRoleSelect'); if(perm && !Array.from(perm.options).some(o=>o.value==='supervisor')){const o=document.createElement('option');o.value='supervisor';o.textContent='Supervisore';perm.appendChild(o)}
+  if(!$('empPassword')){
+    const statusField=$('empActive')?.closest('.field');
+    const wrap=document.createElement('div');wrap.className='field two';wrap.id='empPasswordWrap';
+    wrap.innerHTML='<label>Password iniziale</label><input id="empPassword" type="password" autocomplete="new-password" placeholder="Minimo 6 caratteri"><div class="hint">Obbligatoria solo quando crei un nuovo dipendente.</div>';
+    if(statusField)statusField.insertAdjacentElement('afterend',wrap);else form.appendChild(wrap);
+  }
+  if(!$('employeesFirebaseStatus')){const st=document.createElement('div');st.id='employeesFirebaseStatus';form.appendChild(st)}
+}
+function setEmployeeStatus(msg,color){const st=$('employeesFirebaseStatus'); if(st){st.textContent=msg||''; st.style.color=color||'#8a5700'}}
+async function getToken(){const u=window.currentFirebaseUser; if(u&&typeof u.getIdToken==='function')return await u.getIdToken(true); throw new Error('Sessione non trovata. Esci e rientra.');}
+async function loadFirebaseEmployees(){
+  try{
+    const snap=await getDocs(collection(firestore,'users'));
+    const list=snap.docs.map(d=>{const u=d.data()||{};return {id:d.id,uid:d.id,firebaseUid:u.uid||u.firebaseUid||d.id,name:u.name||u.email||'Dipendente',email:u.email||'',role:u.role||'seller',active:u.active!==false,extraPermissions:u.extraPermissions||{},createdAt:u.createdAtClient||'',updatedAt:u.updatedAtClient||''}})
+      .filter(e=>e.email || e.name);
+    if(window.db){db.employees=list; try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db))}catch(e){}}
+    firebaseEmployeesLoaded=true;
+    if(typeof window.renderEmployees==='function')window.renderEmployees();
+    return list;
+  }catch(e){console.warn('Dipendenti Firebase non caricati:',e);return (window.db&&Array.isArray(db.employees))?db.employees:[];}
+}
+function roleSummary(role){
+  if(role==='owner')return 'Accesso completo';
+  if(role==='manager')return 'Gestione avanzata';
+  if(role==='warehouse')return 'Prodotti e stock';
+  if(role==='supervisor')return 'Vendite, storico e chiusure modificabili';
+  return 'Vendite, sconti in sola lettura e chiusura non modificabile';
+}
+function renderDashboard(list){
+  const section=$('employees'); if(!section)return;
+  const panel=section.querySelector('.card.panel'); if(!panel)return;
+  let dash=$('employeeRoleDashboard');
+  if(!dash){dash=document.createElement('div');dash.id='employeeRoleDashboard'; const title=panel.querySelector('.panel-title'); if(title)title.insertAdjacentElement('afterend',dash); else panel.prepend(dash)}
+  const roles=['owner','manager','warehouse','seller','supervisor'];
+  dash.innerHTML=roles.map(role=>{
+    const n=(list||[]).filter(e=>(e.role||'seller')===role&&e.active!==false).length;
+    return `<div class="employee-role-card"><div class="erc-title">${esc(ROLE_LABELS[role])}</div><div class="erc-number">${n}</div><div class="erc-sub">${esc(ROLE_SUBS[role])}</div></div>`;
+  }).join('');
+}
+function renderEmployeeTable(){
+  ensureEmployeeFields();
+  const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+  renderDashboard(list);
+  const tb=$('employeesTable');
+  if(tb){
+    tb.innerHTML=list.map(e=>`<tr><td><b>${esc(e.name)}</b><br><span class="hint">${esc(e.email||'—')}</span></td><td><span class="badge">${esc(ROLE_LABELS[e.role]||'Venditore')}</span></td><td>${e.active!==false?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Disattivato</span>'}</td><td>${esc(roleSummary(e.role))}</td><td><div class="action-row"><button class="btn small secondary" onclick="editEmployee('${esc(e.firebaseUid||e.uid||e.id)}')">Modifica</button><button class="btn small red" onclick="deleteEmployee('${esc(e.firebaseUid||e.uid||e.id)}')">Elimina</button></div></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';
+  }
+  const sel=$('activeEmployeeSelect'); if(sel){sel.innerHTML=list.filter(e=>e.active!==false).map(e=>`<option value="${esc(e.id)}" ${String(e.id)===String((window.settings||{}).activeEmployeeId)?'selected':''}>${esc(e.name)} · ${esc(ROLE_LABELS[e.role]||'Venditore')}</option>`).join('')}
+}
+const oldRender=window.renderEmployees;
+window.renderEmployees=function(){
+  try{ if(typeof oldRender==='function') oldRender.apply(this,arguments); }catch(e){console.warn('renderEmployees originale:',e)}
+  renderEmployeeTable();
+};
+window.editEmployee=function(id){
+  ensureEmployeeFields();
+  const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+  const e=list.find(x=>String(x.firebaseUid||x.uid||x.id)===String(id)); if(!e)return;
+  if($('employeeId'))$('employeeId').value=e.id||e.firebaseUid||e.uid||'';
+  if($('empFirebaseUid'))$('empFirebaseUid').value=e.firebaseUid||e.uid||e.id||'';
+  if($('empName'))$('empName').value=e.name||'';
+  if($('empEmail'))$('empEmail').value=e.email||'';
+  if($('empRole'))$('empRole').value=e.role||'seller';
+  if($('empActive'))$('empActive').value=e.active!==false?'true':'false';
+  if($('empPassword'))$('empPassword').value='';
+  try{go('employees')}catch(_){ }
+};
+window.saveEmployee=async function(ev){
+  if(ev){ev.preventDefault();ev.stopPropagation();}
+  try{
+    ensureEmployeeFields();
+    if(!isManager()){toastMsg('Non hai i permessi per salvare dipendenti.');return false;}
+    const uid=($('empFirebaseUid')?.value||$('employeeId')?.value||'').trim();
+    const name=($('empName')?.value||'').trim();
+    const email=($('empEmail')?.value||'').trim().toLowerCase();
+    const password=$('empPassword')?.value||'';
+    const role=$('empRole')?.value||'seller';
+    const active=($('empActive')?.value||'true')==='true';
+    if(!name){toastMsg('Inserisci nome e cognome.');return false;}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toastMsg('Inserisci una email valida.');return false;}
+    const action=uid?'update':'create';
+    if(action==='create'&&password.length<6){toastMsg('Inserisci una password iniziale di almeno 6 caratteri.');return false;}
+    if(action==='update'&&password&&password.length<6){toastMsg('La nuova password deve avere almeno 6 caratteri.');return false;}
+    setEmployeeStatus(action==='create'?'Creazione dipendente...':'Salvataggio ruolo e dati...');
+    const token=await getToken();
+    const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action,uid,name,email,password,role,active})});
+    const data=await res.json().catch(()=>({error:'Risposta non valida'}));
+    if(!res.ok||!data.ok)throw new Error(data.error||'Errore salvataggio dipendente');
+    if($('employeeForm'))$('employeeForm').reset(); if($('employeeId'))$('employeeId').value=''; if($('empFirebaseUid'))$('empFirebaseUid').value=''; if($('empPassword'))$('empPassword').value='';
+    await loadFirebaseEmployees();
+    setEmployeeStatus('Dipendente salvato.','#128a3a'); toastMsg('Dipendente salvato.','success');
+    return false;
+  }catch(e){console.error('saveEmployee:',e);setEmployeeStatus(e.message||'Errore','#b51545');toastMsg(e.message||'Errore salvataggio dipendente.');return false;}
+};
+function showDeleteConfirm(employee){
+  return new Promise(resolve=>{
+    let o=$('noorEmployeeConfirmOverlay');
+    if(!o){o=document.createElement('div');o.id='noorEmployeeConfirmOverlay';document.body.appendChild(o)}
+    o.innerHTML=`<div class="noor-emp-confirm-card"><div class="noor-emp-confirm-icon">×</div><div class="noor-emp-confirm-title">Eliminare il dipendente?</div><div class="noor-emp-confirm-text"><b>${esc(employee.name||'Dipendente')}</b><br>${esc(employee.email||'')}<br><br>Verrà rimosso l’accesso al gestionale.</div><div class="noor-emp-confirm-actions"><button class="btn secondary" id="noorEmpCancelDelete" type="button">Annulla</button><button class="btn red" id="noorEmpConfirmDelete" type="button">Elimina</button></div></div>`;
+    o.classList.add('show');
+    $('noorEmpCancelDelete').onclick=()=>{o.classList.remove('show');resolve(false)};
+    $('noorEmpConfirmDelete').onclick=()=>{o.classList.remove('show');resolve(true)};
+    o.onclick=(ev)=>{if(ev.target===o){o.classList.remove('show');resolve(false)}};
+  });
+}
+window.deleteEmployee=async function(id){
+  try{
+    if(!isManager()){toastMsg('Non hai i permessi per eliminare dipendenti.');return;}
+    const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+    const e=list.find(x=>String(x.firebaseUid||x.uid||x.id)===String(id)); if(!e)return;
+    const uid=e.firebaseUid||e.uid||e.id;
+    if(uid===window.currentFirebaseUser?.uid){toastMsg('Non puoi eliminare il tuo account.');return;}
+    if(e.role==='owner'&&list.filter(x=>x.role==='owner'&&x.active!==false).length<=1){toastMsg('Deve rimanere almeno un Owner attivo.');return;}
+    const ok=await showDeleteConfirm(e); if(!ok)return;
+    const token=await getToken();
+    const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'delete',uid,email:e.email})});
+    const data=await res.json().catch(()=>({error:'Risposta non valida'}));
+    if(!res.ok||!data.ok)throw new Error(data.error||'Errore eliminazione dipendente');
+    await loadFirebaseEmployees();
+    toastMsg('Dipendente eliminato.','success');
+  }catch(e){console.error('deleteEmployee:',e);toastMsg(e.message||'Errore eliminazione dipendente.');}
+};
+function install(){
+  ensureEmployeeFields();
+  const form=$('employeeForm'); if(form){form.onsubmit=window.saveEmployee; form.addEventListener('submit',window.saveEmployee,true)}
+  if(location.pathname.includes('dipendenti')||document.querySelector('#employees.active'))loadFirebaseEmployees();
+  renderEmployeeTable();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
+setTimeout(install,600);setTimeout(install,1800);
+const oldGo=window.go;
+if(typeof oldGo==='function'&&!oldGo.__employeeFinalPatch){
+  const patched=function(id){const r=oldGo.apply(this,arguments); if(id==='employees')setTimeout(loadFirebaseEmployees,120); return r;};
+  patched.__employeeFinalPatch=true; window.go=patched;
+}
+</script>
+
 </body></html>`);
   w.document.close();
 }
@@ -2202,7 +2388,193 @@ load();
   function printHtml(title, body){
     const w=window.open('','_blank'); if(!w){toast('Popup bloccato dal browser.');return;}
     const name=esc(settings?.appName||'Noor Profumi Pro');
-    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font-family:Arial,sans-serif;color:#3b1027;padding:28px}h1{margin:0 0 6px}.muted{color:#8f5a72}.box{border:1px solid #f2c6da;border-radius:18px;padding:14px;margin:12px 0}.row{display:flex;justify-content:space-between;border-bottom:1px solid #f7dcea;padding:8px 0}.total{font-size:26px;font-weight:900}.chip{display:inline-block;background:#fff0f7;border:1px solid #f2c6da;border-radius:999px;padding:7px 10px;margin:4px}</style></head><body><h1>${name}</h1><div class="muted">${esc(title)}</div>${body}<script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font-family:Arial,sans-serif;color:#3b1027;padding:28px}h1{margin:0 0 6px}.muted{color:#8f5a72}.box{border:1px solid #f2c6da;border-radius:18px;padding:14px;margin:12px 0}.row{display:flex;justify-content:space-between;border-bottom:1px solid #f7dcea;padding:8px 0}.total{font-size:26px;font-weight:900}.chip{display:inline-block;background:#fff0f7;border:1px solid #f2c6da;border-radius:999px;padding:7px 10px;margin:4px}</style></head><body><h1>${name}</h1><div class="muted">${esc(title)}</div>${body}<script>setTimeout(()=>window.print(),300)<\/script>
+
+<style id="noor-employee-firebase-final-fix-css">
+#noorEmployeeConfirmOverlay{position:fixed;inset:0;background:rgba(30,8,20,.62);backdrop-filter:blur(8px);z-index:60000;display:none;align-items:center;justify-content:center;padding:18px}
+#noorEmployeeConfirmOverlay.show{display:flex}
+.noor-emp-confirm-card{width:min(460px,100%);background:linear-gradient(180deg,#fff,#fff0f7);border:1px solid rgba(143,45,90,.18);border-radius:28px;box-shadow:0 28px 90px rgba(60,10,35,.34);padding:22px;text-align:center;color:var(--text)}
+.noor-emp-confirm-icon{width:58px;height:58px;margin:0 auto 12px;border-radius:20px;background:linear-gradient(135deg,#ffb3d2,#f2b84b);display:grid;place-items:center;font-size:26px;font-weight:950;color:#3a081f}
+.noor-emp-confirm-title{font-size:22px;font-weight:950;margin-bottom:8px}
+.noor-emp-confirm-text{font-size:14px;color:var(--muted);line-height:1.45;margin-bottom:16px}
+.noor-emp-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.noor-emp-confirm-actions .btn{width:100%}
+#employeesFirebaseStatus{grid-column:1/-1;font-size:13px;font-weight:900;text-align:center;margin-top:6px}
+body.dark .noor-emp-confirm-card{background:linear-gradient(180deg,#2a1222,#1d0b17)}
+</style>
+
+<script type="module" id="noor-employee-firebase-final-fix-script">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+  authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+  projectId:"gestionalenoor-2fa61",
+  storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+  messagingSenderId:"66670691093",
+  appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+  measurementId:"G-0HSQB7XLJG"
+};
+const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
+const firestore=getFirestore(app);
+const $=(id)=>document.getElementById(id);
+const ROLE_LABELS={owner:'Owner',manager:'Amministratore',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
+const ROLE_SUBS={owner:'Accesso completo',manager:'Gestione avanzata',warehouse:'Prodotti e stock',seller:'Vendita e chiusura',supervisor:'Controllo e chiusure'};
+let firebaseEmployeesLoaded=false;
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function toastMsg(msg,type){
+  try{ if(typeof toastCenter==='function') return toastCenter(msg,type); }catch(e){}
+  try{ if(typeof toast==='function') return toast(msg,type); }catch(e){}
+  let t=$('firebaseToastCenter'); if(!t){t=document.createElement('div');t.id='firebaseToastCenter';t.className='toast';document.body.appendChild(t)}
+  t.className='toast show'+(type==='success'?' success':'');t.textContent=msg;t.style.display='block';clearTimeout(window.__empToast);window.__empToast=setTimeout(()=>{t.classList.remove('show');t.style.display='none'},2600);
+}
+function currentProfile(){return window.currentFirebaseUserProfile||{};}
+function isManager(){const r=currentProfile().role; return r==='owner'||r==='manager';}
+function ensureEmployeeFields(){
+  const form=$('employeeForm'); if(!form)return;
+  if(!$('empFirebaseUid')){const h=document.createElement('input');h.type='hidden';h.id='empFirebaseUid';form.insertBefore(h,form.firstChild)}
+  const email=$('empEmail'); if(email){email.placeholder='email dipendente'; const lab=email.closest('.field')?.querySelector('label'); if(lab)lab.textContent='Email';}
+  const role=$('empRole'); if(role && !Array.from(role.options).some(o=>o.value==='supervisor')){const o=document.createElement('option');o.value='supervisor';o.textContent='Supervisore';role.appendChild(o)}
+  const perm=$('permRoleSelect'); if(perm && !Array.from(perm.options).some(o=>o.value==='supervisor')){const o=document.createElement('option');o.value='supervisor';o.textContent='Supervisore';perm.appendChild(o)}
+  if(!$('empPassword')){
+    const statusField=$('empActive')?.closest('.field');
+    const wrap=document.createElement('div');wrap.className='field two';wrap.id='empPasswordWrap';
+    wrap.innerHTML='<label>Password iniziale</label><input id="empPassword" type="password" autocomplete="new-password" placeholder="Minimo 6 caratteri"><div class="hint">Obbligatoria solo quando crei un nuovo dipendente.</div>';
+    if(statusField)statusField.insertAdjacentElement('afterend',wrap);else form.appendChild(wrap);
+  }
+  if(!$('employeesFirebaseStatus')){const st=document.createElement('div');st.id='employeesFirebaseStatus';form.appendChild(st)}
+}
+function setEmployeeStatus(msg,color){const st=$('employeesFirebaseStatus'); if(st){st.textContent=msg||''; st.style.color=color||'#8a5700'}}
+async function getToken(){const u=window.currentFirebaseUser; if(u&&typeof u.getIdToken==='function')return await u.getIdToken(true); throw new Error('Sessione non trovata. Esci e rientra.');}
+async function loadFirebaseEmployees(){
+  try{
+    const snap=await getDocs(collection(firestore,'users'));
+    const list=snap.docs.map(d=>{const u=d.data()||{};return {id:d.id,uid:d.id,firebaseUid:u.uid||u.firebaseUid||d.id,name:u.name||u.email||'Dipendente',email:u.email||'',role:u.role||'seller',active:u.active!==false,extraPermissions:u.extraPermissions||{},createdAt:u.createdAtClient||'',updatedAt:u.updatedAtClient||''}})
+      .filter(e=>e.email || e.name);
+    if(window.db){db.employees=list; try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db))}catch(e){}}
+    firebaseEmployeesLoaded=true;
+    if(typeof window.renderEmployees==='function')window.renderEmployees();
+    return list;
+  }catch(e){console.warn('Dipendenti Firebase non caricati:',e);return (window.db&&Array.isArray(db.employees))?db.employees:[];}
+}
+function roleSummary(role){
+  if(role==='owner')return 'Accesso completo';
+  if(role==='manager')return 'Gestione avanzata';
+  if(role==='warehouse')return 'Prodotti e stock';
+  if(role==='supervisor')return 'Vendite, storico e chiusure modificabili';
+  return 'Vendite, sconti in sola lettura e chiusura non modificabile';
+}
+function renderDashboard(list){
+  const section=$('employees'); if(!section)return;
+  const panel=section.querySelector('.card.panel'); if(!panel)return;
+  let dash=$('employeeRoleDashboard');
+  if(!dash){dash=document.createElement('div');dash.id='employeeRoleDashboard'; const title=panel.querySelector('.panel-title'); if(title)title.insertAdjacentElement('afterend',dash); else panel.prepend(dash)}
+  const roles=['owner','manager','warehouse','seller','supervisor'];
+  dash.innerHTML=roles.map(role=>{
+    const n=(list||[]).filter(e=>(e.role||'seller')===role&&e.active!==false).length;
+    return `<div class="employee-role-card"><div class="erc-title">${esc(ROLE_LABELS[role])}</div><div class="erc-number">${n}</div><div class="erc-sub">${esc(ROLE_SUBS[role])}</div></div>`;
+  }).join('');
+}
+function renderEmployeeTable(){
+  ensureEmployeeFields();
+  const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+  renderDashboard(list);
+  const tb=$('employeesTable');
+  if(tb){
+    tb.innerHTML=list.map(e=>`<tr><td><b>${esc(e.name)}</b><br><span class="hint">${esc(e.email||'—')}</span></td><td><span class="badge">${esc(ROLE_LABELS[e.role]||'Venditore')}</span></td><td>${e.active!==false?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Disattivato</span>'}</td><td>${esc(roleSummary(e.role))}</td><td><div class="action-row"><button class="btn small secondary" onclick="editEmployee('${esc(e.firebaseUid||e.uid||e.id)}')">Modifica</button><button class="btn small red" onclick="deleteEmployee('${esc(e.firebaseUid||e.uid||e.id)}')">Elimina</button></div></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';
+  }
+  const sel=$('activeEmployeeSelect'); if(sel){sel.innerHTML=list.filter(e=>e.active!==false).map(e=>`<option value="${esc(e.id)}" ${String(e.id)===String((window.settings||{}).activeEmployeeId)?'selected':''}>${esc(e.name)} · ${esc(ROLE_LABELS[e.role]||'Venditore')}</option>`).join('')}
+}
+const oldRender=window.renderEmployees;
+window.renderEmployees=function(){
+  try{ if(typeof oldRender==='function') oldRender.apply(this,arguments); }catch(e){console.warn('renderEmployees originale:',e)}
+  renderEmployeeTable();
+};
+window.editEmployee=function(id){
+  ensureEmployeeFields();
+  const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+  const e=list.find(x=>String(x.firebaseUid||x.uid||x.id)===String(id)); if(!e)return;
+  if($('employeeId'))$('employeeId').value=e.id||e.firebaseUid||e.uid||'';
+  if($('empFirebaseUid'))$('empFirebaseUid').value=e.firebaseUid||e.uid||e.id||'';
+  if($('empName'))$('empName').value=e.name||'';
+  if($('empEmail'))$('empEmail').value=e.email||'';
+  if($('empRole'))$('empRole').value=e.role||'seller';
+  if($('empActive'))$('empActive').value=e.active!==false?'true':'false';
+  if($('empPassword'))$('empPassword').value='';
+  try{go('employees')}catch(_){ }
+};
+window.saveEmployee=async function(ev){
+  if(ev){ev.preventDefault();ev.stopPropagation();}
+  try{
+    ensureEmployeeFields();
+    if(!isManager()){toastMsg('Non hai i permessi per salvare dipendenti.');return false;}
+    const uid=($('empFirebaseUid')?.value||$('employeeId')?.value||'').trim();
+    const name=($('empName')?.value||'').trim();
+    const email=($('empEmail')?.value||'').trim().toLowerCase();
+    const password=$('empPassword')?.value||'';
+    const role=$('empRole')?.value||'seller';
+    const active=($('empActive')?.value||'true')==='true';
+    if(!name){toastMsg('Inserisci nome e cognome.');return false;}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toastMsg('Inserisci una email valida.');return false;}
+    const action=uid?'update':'create';
+    if(action==='create'&&password.length<6){toastMsg('Inserisci una password iniziale di almeno 6 caratteri.');return false;}
+    if(action==='update'&&password&&password.length<6){toastMsg('La nuova password deve avere almeno 6 caratteri.');return false;}
+    setEmployeeStatus(action==='create'?'Creazione dipendente...':'Salvataggio ruolo e dati...');
+    const token=await getToken();
+    const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action,uid,name,email,password,role,active})});
+    const data=await res.json().catch(()=>({error:'Risposta non valida'}));
+    if(!res.ok||!data.ok)throw new Error(data.error||'Errore salvataggio dipendente');
+    if($('employeeForm'))$('employeeForm').reset(); if($('employeeId'))$('employeeId').value=''; if($('empFirebaseUid'))$('empFirebaseUid').value=''; if($('empPassword'))$('empPassword').value='';
+    await loadFirebaseEmployees();
+    setEmployeeStatus('Dipendente salvato.','#128a3a'); toastMsg('Dipendente salvato.','success');
+    return false;
+  }catch(e){console.error('saveEmployee:',e);setEmployeeStatus(e.message||'Errore','#b51545');toastMsg(e.message||'Errore salvataggio dipendente.');return false;}
+};
+function showDeleteConfirm(employee){
+  return new Promise(resolve=>{
+    let o=$('noorEmployeeConfirmOverlay');
+    if(!o){o=document.createElement('div');o.id='noorEmployeeConfirmOverlay';document.body.appendChild(o)}
+    o.innerHTML=`<div class="noor-emp-confirm-card"><div class="noor-emp-confirm-icon">×</div><div class="noor-emp-confirm-title">Eliminare il dipendente?</div><div class="noor-emp-confirm-text"><b>${esc(employee.name||'Dipendente')}</b><br>${esc(employee.email||'')}<br><br>Verrà rimosso l’accesso al gestionale.</div><div class="noor-emp-confirm-actions"><button class="btn secondary" id="noorEmpCancelDelete" type="button">Annulla</button><button class="btn red" id="noorEmpConfirmDelete" type="button">Elimina</button></div></div>`;
+    o.classList.add('show');
+    $('noorEmpCancelDelete').onclick=()=>{o.classList.remove('show');resolve(false)};
+    $('noorEmpConfirmDelete').onclick=()=>{o.classList.remove('show');resolve(true)};
+    o.onclick=(ev)=>{if(ev.target===o){o.classList.remove('show');resolve(false)}};
+  });
+}
+window.deleteEmployee=async function(id){
+  try{
+    if(!isManager()){toastMsg('Non hai i permessi per eliminare dipendenti.');return;}
+    const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+    const e=list.find(x=>String(x.firebaseUid||x.uid||x.id)===String(id)); if(!e)return;
+    const uid=e.firebaseUid||e.uid||e.id;
+    if(uid===window.currentFirebaseUser?.uid){toastMsg('Non puoi eliminare il tuo account.');return;}
+    if(e.role==='owner'&&list.filter(x=>x.role==='owner'&&x.active!==false).length<=1){toastMsg('Deve rimanere almeno un Owner attivo.');return;}
+    const ok=await showDeleteConfirm(e); if(!ok)return;
+    const token=await getToken();
+    const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'delete',uid,email:e.email})});
+    const data=await res.json().catch(()=>({error:'Risposta non valida'}));
+    if(!res.ok||!data.ok)throw new Error(data.error||'Errore eliminazione dipendente');
+    await loadFirebaseEmployees();
+    toastMsg('Dipendente eliminato.','success');
+  }catch(e){console.error('deleteEmployee:',e);toastMsg(e.message||'Errore eliminazione dipendente.');}
+};
+function install(){
+  ensureEmployeeFields();
+  const form=$('employeeForm'); if(form){form.onsubmit=window.saveEmployee; form.addEventListener('submit',window.saveEmployee,true)}
+  if(location.pathname.includes('dipendenti')||document.querySelector('#employees.active'))loadFirebaseEmployees();
+  renderEmployeeTable();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
+setTimeout(install,600);setTimeout(install,1800);
+const oldGo=window.go;
+if(typeof oldGo==='function'&&!oldGo.__employeeFinalPatch){
+  const patched=function(id){const r=oldGo.apply(this,arguments); if(id==='employees')setTimeout(loadFirebaseEmployees,120); return r;};
+  patched.__employeeFinalPatch=true; window.go=patched;
+}
+</script>
+
+</body></html>`);
     w.document.close();
   }
   window.printClosure=function(id){
@@ -2317,7 +2689,193 @@ load();
     const company=[s.companyName,s.companyPhone,s.companyEmail,s.companyVat].filter(Boolean).map(esc).join(' · ');
     const footer=esc(s.pdfFooterMessage||'Documento generato dal gestionale Noor Profumi Pro.');
     const printButton='<div class="no-print"><button onclick="window.print()" style="padding:10px 16px;border:0;border-radius:12px;background:#e86aa7;color:white;font-weight:900;cursor:pointer">Stampa / Salva PDF</button></div>';
-    const html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>'+esc(title)+'</title><style>@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;margin:0;color:#351126;background:#fff}.sheet{padding:8px}.head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:3px solid #f5bfd7;padding-bottom:14px;margin-bottom:18px}.brand{font-size:25px;font-weight:950;color:#b01361}.sub{color:#8f5a72;font-size:12px;margin-top:4px}.badge{display:inline-block;padding:7px 11px;border-radius:999px;background:#fff0f7;color:#9a1554;font-weight:900;font-size:12px;border:1px solid #f4c2d8}.box{border:1px solid #f4c2d8;border-radius:18px;padding:14px;margin:12px 0;background:#fff8fb}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:10px;border-bottom:1px solid #f4c2d8;text-align:left;font-size:12px;vertical-align:middle}th{background:#fff0f7;color:#7b254c;text-transform:uppercase;font-size:11px}.total{text-align:right;font-size:24px;font-weight:950;margin-top:16px;color:#3b1027}.muted{color:#8f5a72}.right{text-align:right}.footer{margin-top:22px;padding-top:12px;border-top:1px solid #f4c2d8;font-size:11px;color:#8f5a72}.no-print{margin:0 0 16px;text-align:right}.prod{display:flex;align-items:center;gap:10px}@media print{.no-print{display:none}}</style></head><body><div class="sheet">'+printButton+'<div class="head"><div>'+logo+'<div class="brand">'+appName+'</div><div class="sub">'+esc(title)+' · '+esc(now)+'</div>'+(company?'<div class="sub">'+company+'</div>':'')+'</div><div class="badge">Documento PDF</div></div>'+bodyHtml+'<div class="footer">'+footer+'</div></div></body></html>';
+    const html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>'+esc(title)+'</title><style>@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;margin:0;color:#351126;background:#fff}.sheet{padding:8px}.head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:3px solid #f5bfd7;padding-bottom:14px;margin-bottom:18px}.brand{font-size:25px;font-weight:950;color:#b01361}.sub{color:#8f5a72;font-size:12px;margin-top:4px}.badge{display:inline-block;padding:7px 11px;border-radius:999px;background:#fff0f7;color:#9a1554;font-weight:900;font-size:12px;border:1px solid #f4c2d8}.box{border:1px solid #f4c2d8;border-radius:18px;padding:14px;margin:12px 0;background:#fff8fb}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:10px;border-bottom:1px solid #f4c2d8;text-align:left;font-size:12px;vertical-align:middle}th{background:#fff0f7;color:#7b254c;text-transform:uppercase;font-size:11px}.total{text-align:right;font-size:24px;font-weight:950;margin-top:16px;color:#3b1027}.muted{color:#8f5a72}.right{text-align:right}.footer{margin-top:22px;padding-top:12px;border-top:1px solid #f4c2d8;font-size:11px;color:#8f5a72}.no-print{margin:0 0 16px;text-align:right}.prod{display:flex;align-items:center;gap:10px}@media print{.no-print{display:none}}</style></head><body><div class="sheet">'+printButton+'<div class="head"><div>'+logo+'<div class="brand">'+appName+'</div><div class="sub">'+esc(title)+' · '+esc(now)+'</div>'+(company?'<div class="sub">'+company+'</div>':'')+'</div><div class="badge">Documento PDF</div></div>'+bodyHtml+'<div class="footer">'+footer+'</div></div>
+
+<style id="noor-employee-firebase-final-fix-css">
+#noorEmployeeConfirmOverlay{position:fixed;inset:0;background:rgba(30,8,20,.62);backdrop-filter:blur(8px);z-index:60000;display:none;align-items:center;justify-content:center;padding:18px}
+#noorEmployeeConfirmOverlay.show{display:flex}
+.noor-emp-confirm-card{width:min(460px,100%);background:linear-gradient(180deg,#fff,#fff0f7);border:1px solid rgba(143,45,90,.18);border-radius:28px;box-shadow:0 28px 90px rgba(60,10,35,.34);padding:22px;text-align:center;color:var(--text)}
+.noor-emp-confirm-icon{width:58px;height:58px;margin:0 auto 12px;border-radius:20px;background:linear-gradient(135deg,#ffb3d2,#f2b84b);display:grid;place-items:center;font-size:26px;font-weight:950;color:#3a081f}
+.noor-emp-confirm-title{font-size:22px;font-weight:950;margin-bottom:8px}
+.noor-emp-confirm-text{font-size:14px;color:var(--muted);line-height:1.45;margin-bottom:16px}
+.noor-emp-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.noor-emp-confirm-actions .btn{width:100%}
+#employeesFirebaseStatus{grid-column:1/-1;font-size:13px;font-weight:900;text-align:center;margin-top:6px}
+body.dark .noor-emp-confirm-card{background:linear-gradient(180deg,#2a1222,#1d0b17)}
+</style>
+
+<script type="module" id="noor-employee-firebase-final-fix-script">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+  authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+  projectId:"gestionalenoor-2fa61",
+  storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+  messagingSenderId:"66670691093",
+  appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+  measurementId:"G-0HSQB7XLJG"
+};
+const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
+const firestore=getFirestore(app);
+const $=(id)=>document.getElementById(id);
+const ROLE_LABELS={owner:'Owner',manager:'Amministratore',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
+const ROLE_SUBS={owner:'Accesso completo',manager:'Gestione avanzata',warehouse:'Prodotti e stock',seller:'Vendita e chiusura',supervisor:'Controllo e chiusure'};
+let firebaseEmployeesLoaded=false;
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function toastMsg(msg,type){
+  try{ if(typeof toastCenter==='function') return toastCenter(msg,type); }catch(e){}
+  try{ if(typeof toast==='function') return toast(msg,type); }catch(e){}
+  let t=$('firebaseToastCenter'); if(!t){t=document.createElement('div');t.id='firebaseToastCenter';t.className='toast';document.body.appendChild(t)}
+  t.className='toast show'+(type==='success'?' success':'');t.textContent=msg;t.style.display='block';clearTimeout(window.__empToast);window.__empToast=setTimeout(()=>{t.classList.remove('show');t.style.display='none'},2600);
+}
+function currentProfile(){return window.currentFirebaseUserProfile||{};}
+function isManager(){const r=currentProfile().role; return r==='owner'||r==='manager';}
+function ensureEmployeeFields(){
+  const form=$('employeeForm'); if(!form)return;
+  if(!$('empFirebaseUid')){const h=document.createElement('input');h.type='hidden';h.id='empFirebaseUid';form.insertBefore(h,form.firstChild)}
+  const email=$('empEmail'); if(email){email.placeholder='email dipendente'; const lab=email.closest('.field')?.querySelector('label'); if(lab)lab.textContent='Email';}
+  const role=$('empRole'); if(role && !Array.from(role.options).some(o=>o.value==='supervisor')){const o=document.createElement('option');o.value='supervisor';o.textContent='Supervisore';role.appendChild(o)}
+  const perm=$('permRoleSelect'); if(perm && !Array.from(perm.options).some(o=>o.value==='supervisor')){const o=document.createElement('option');o.value='supervisor';o.textContent='Supervisore';perm.appendChild(o)}
+  if(!$('empPassword')){
+    const statusField=$('empActive')?.closest('.field');
+    const wrap=document.createElement('div');wrap.className='field two';wrap.id='empPasswordWrap';
+    wrap.innerHTML='<label>Password iniziale</label><input id="empPassword" type="password" autocomplete="new-password" placeholder="Minimo 6 caratteri"><div class="hint">Obbligatoria solo quando crei un nuovo dipendente.</div>';
+    if(statusField)statusField.insertAdjacentElement('afterend',wrap);else form.appendChild(wrap);
+  }
+  if(!$('employeesFirebaseStatus')){const st=document.createElement('div');st.id='employeesFirebaseStatus';form.appendChild(st)}
+}
+function setEmployeeStatus(msg,color){const st=$('employeesFirebaseStatus'); if(st){st.textContent=msg||''; st.style.color=color||'#8a5700'}}
+async function getToken(){const u=window.currentFirebaseUser; if(u&&typeof u.getIdToken==='function')return await u.getIdToken(true); throw new Error('Sessione non trovata. Esci e rientra.');}
+async function loadFirebaseEmployees(){
+  try{
+    const snap=await getDocs(collection(firestore,'users'));
+    const list=snap.docs.map(d=>{const u=d.data()||{};return {id:d.id,uid:d.id,firebaseUid:u.uid||u.firebaseUid||d.id,name:u.name||u.email||'Dipendente',email:u.email||'',role:u.role||'seller',active:u.active!==false,extraPermissions:u.extraPermissions||{},createdAt:u.createdAtClient||'',updatedAt:u.updatedAtClient||''}})
+      .filter(e=>e.email || e.name);
+    if(window.db){db.employees=list; try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db))}catch(e){}}
+    firebaseEmployeesLoaded=true;
+    if(typeof window.renderEmployees==='function')window.renderEmployees();
+    return list;
+  }catch(e){console.warn('Dipendenti Firebase non caricati:',e);return (window.db&&Array.isArray(db.employees))?db.employees:[];}
+}
+function roleSummary(role){
+  if(role==='owner')return 'Accesso completo';
+  if(role==='manager')return 'Gestione avanzata';
+  if(role==='warehouse')return 'Prodotti e stock';
+  if(role==='supervisor')return 'Vendite, storico e chiusure modificabili';
+  return 'Vendite, sconti in sola lettura e chiusura non modificabile';
+}
+function renderDashboard(list){
+  const section=$('employees'); if(!section)return;
+  const panel=section.querySelector('.card.panel'); if(!panel)return;
+  let dash=$('employeeRoleDashboard');
+  if(!dash){dash=document.createElement('div');dash.id='employeeRoleDashboard'; const title=panel.querySelector('.panel-title'); if(title)title.insertAdjacentElement('afterend',dash); else panel.prepend(dash)}
+  const roles=['owner','manager','warehouse','seller','supervisor'];
+  dash.innerHTML=roles.map(role=>{
+    const n=(list||[]).filter(e=>(e.role||'seller')===role&&e.active!==false).length;
+    return `<div class="employee-role-card"><div class="erc-title">${esc(ROLE_LABELS[role])}</div><div class="erc-number">${n}</div><div class="erc-sub">${esc(ROLE_SUBS[role])}</div></div>`;
+  }).join('');
+}
+function renderEmployeeTable(){
+  ensureEmployeeFields();
+  const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+  renderDashboard(list);
+  const tb=$('employeesTable');
+  if(tb){
+    tb.innerHTML=list.map(e=>`<tr><td><b>${esc(e.name)}</b><br><span class="hint">${esc(e.email||'—')}</span></td><td><span class="badge">${esc(ROLE_LABELS[e.role]||'Venditore')}</span></td><td>${e.active!==false?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Disattivato</span>'}</td><td>${esc(roleSummary(e.role))}</td><td><div class="action-row"><button class="btn small secondary" onclick="editEmployee('${esc(e.firebaseUid||e.uid||e.id)}')">Modifica</button><button class="btn small red" onclick="deleteEmployee('${esc(e.firebaseUid||e.uid||e.id)}')">Elimina</button></div></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';
+  }
+  const sel=$('activeEmployeeSelect'); if(sel){sel.innerHTML=list.filter(e=>e.active!==false).map(e=>`<option value="${esc(e.id)}" ${String(e.id)===String((window.settings||{}).activeEmployeeId)?'selected':''}>${esc(e.name)} · ${esc(ROLE_LABELS[e.role]||'Venditore')}</option>`).join('')}
+}
+const oldRender=window.renderEmployees;
+window.renderEmployees=function(){
+  try{ if(typeof oldRender==='function') oldRender.apply(this,arguments); }catch(e){console.warn('renderEmployees originale:',e)}
+  renderEmployeeTable();
+};
+window.editEmployee=function(id){
+  ensureEmployeeFields();
+  const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+  const e=list.find(x=>String(x.firebaseUid||x.uid||x.id)===String(id)); if(!e)return;
+  if($('employeeId'))$('employeeId').value=e.id||e.firebaseUid||e.uid||'';
+  if($('empFirebaseUid'))$('empFirebaseUid').value=e.firebaseUid||e.uid||e.id||'';
+  if($('empName'))$('empName').value=e.name||'';
+  if($('empEmail'))$('empEmail').value=e.email||'';
+  if($('empRole'))$('empRole').value=e.role||'seller';
+  if($('empActive'))$('empActive').value=e.active!==false?'true':'false';
+  if($('empPassword'))$('empPassword').value='';
+  try{go('employees')}catch(_){ }
+};
+window.saveEmployee=async function(ev){
+  if(ev){ev.preventDefault();ev.stopPropagation();}
+  try{
+    ensureEmployeeFields();
+    if(!isManager()){toastMsg('Non hai i permessi per salvare dipendenti.');return false;}
+    const uid=($('empFirebaseUid')?.value||$('employeeId')?.value||'').trim();
+    const name=($('empName')?.value||'').trim();
+    const email=($('empEmail')?.value||'').trim().toLowerCase();
+    const password=$('empPassword')?.value||'';
+    const role=$('empRole')?.value||'seller';
+    const active=($('empActive')?.value||'true')==='true';
+    if(!name){toastMsg('Inserisci nome e cognome.');return false;}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toastMsg('Inserisci una email valida.');return false;}
+    const action=uid?'update':'create';
+    if(action==='create'&&password.length<6){toastMsg('Inserisci una password iniziale di almeno 6 caratteri.');return false;}
+    if(action==='update'&&password&&password.length<6){toastMsg('La nuova password deve avere almeno 6 caratteri.');return false;}
+    setEmployeeStatus(action==='create'?'Creazione dipendente...':'Salvataggio ruolo e dati...');
+    const token=await getToken();
+    const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action,uid,name,email,password,role,active})});
+    const data=await res.json().catch(()=>({error:'Risposta non valida'}));
+    if(!res.ok||!data.ok)throw new Error(data.error||'Errore salvataggio dipendente');
+    if($('employeeForm'))$('employeeForm').reset(); if($('employeeId'))$('employeeId').value=''; if($('empFirebaseUid'))$('empFirebaseUid').value=''; if($('empPassword'))$('empPassword').value='';
+    await loadFirebaseEmployees();
+    setEmployeeStatus('Dipendente salvato.','#128a3a'); toastMsg('Dipendente salvato.','success');
+    return false;
+  }catch(e){console.error('saveEmployee:',e);setEmployeeStatus(e.message||'Errore','#b51545');toastMsg(e.message||'Errore salvataggio dipendente.');return false;}
+};
+function showDeleteConfirm(employee){
+  return new Promise(resolve=>{
+    let o=$('noorEmployeeConfirmOverlay');
+    if(!o){o=document.createElement('div');o.id='noorEmployeeConfirmOverlay';document.body.appendChild(o)}
+    o.innerHTML=`<div class="noor-emp-confirm-card"><div class="noor-emp-confirm-icon">×</div><div class="noor-emp-confirm-title">Eliminare il dipendente?</div><div class="noor-emp-confirm-text"><b>${esc(employee.name||'Dipendente')}</b><br>${esc(employee.email||'')}<br><br>Verrà rimosso l’accesso al gestionale.</div><div class="noor-emp-confirm-actions"><button class="btn secondary" id="noorEmpCancelDelete" type="button">Annulla</button><button class="btn red" id="noorEmpConfirmDelete" type="button">Elimina</button></div></div>`;
+    o.classList.add('show');
+    $('noorEmpCancelDelete').onclick=()=>{o.classList.remove('show');resolve(false)};
+    $('noorEmpConfirmDelete').onclick=()=>{o.classList.remove('show');resolve(true)};
+    o.onclick=(ev)=>{if(ev.target===o){o.classList.remove('show');resolve(false)}};
+  });
+}
+window.deleteEmployee=async function(id){
+  try{
+    if(!isManager()){toastMsg('Non hai i permessi per eliminare dipendenti.');return;}
+    const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+    const e=list.find(x=>String(x.firebaseUid||x.uid||x.id)===String(id)); if(!e)return;
+    const uid=e.firebaseUid||e.uid||e.id;
+    if(uid===window.currentFirebaseUser?.uid){toastMsg('Non puoi eliminare il tuo account.');return;}
+    if(e.role==='owner'&&list.filter(x=>x.role==='owner'&&x.active!==false).length<=1){toastMsg('Deve rimanere almeno un Owner attivo.');return;}
+    const ok=await showDeleteConfirm(e); if(!ok)return;
+    const token=await getToken();
+    const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'delete',uid,email:e.email})});
+    const data=await res.json().catch(()=>({error:'Risposta non valida'}));
+    if(!res.ok||!data.ok)throw new Error(data.error||'Errore eliminazione dipendente');
+    await loadFirebaseEmployees();
+    toastMsg('Dipendente eliminato.','success');
+  }catch(e){console.error('deleteEmployee:',e);toastMsg(e.message||'Errore eliminazione dipendente.');}
+};
+function install(){
+  ensureEmployeeFields();
+  const form=$('employeeForm'); if(form){form.onsubmit=window.saveEmployee; form.addEventListener('submit',window.saveEmployee,true)}
+  if(location.pathname.includes('dipendenti')||document.querySelector('#employees.active'))loadFirebaseEmployees();
+  renderEmployeeTable();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
+setTimeout(install,600);setTimeout(install,1800);
+const oldGo=window.go;
+if(typeof oldGo==='function'&&!oldGo.__employeeFinalPatch){
+  const patched=function(id){const r=oldGo.apply(this,arguments); if(id==='employees')setTimeout(loadFirebaseEmployees,120); return r;};
+  patched.__employeeFinalPatch=true; window.go=patched;
+}
+</script>
+
+</body></html>';
     w.document.open(); w.document.write(html); w.document.close();
   };
   setTimeout(function(){ if(typeof renderSettingsPanel==='function') renderSettingsPanel(); },300);
@@ -2445,7 +3003,193 @@ load();
       return '<div class="r-row"><div><b>'+esc(l.productName||'Prodotto')+'</b><br><small>x '+esc(l.qty||1)+' · '+money(l.price||0)+(l.discountCode||l.manualDiscountCode?' · sconto '+esc(l.discountCode||l.manualDiscountCode):'')+'</small></div><b>'+money(lineTotal)+'</b></div>';
     }).join('');
     var total=Number(o.total||0)||((o.lines||[]).reduce(function(a,l){return a+Number(l.total||0)},0));
-    var html='<!doctype html><html><head><meta charset="utf-8"><title>Ricevuta '+esc(o.orderNumber||o.id)+'</title><style>body{font-family:Arial,sans-serif;margin:0;background:#fff;color:#111}.receipt{width:80mm;max-width:100%;padding:14px;margin:0 auto}.head{text-align:center;border-bottom:1px dashed #999;padding-bottom:10px;margin-bottom:10px}.brand{font-size:20px;font-weight:900}.muted{font-size:12px;color:#555}.r-row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed #ddd;padding:9px 0}.total{display:flex;justify-content:space-between;font-size:20px;font-weight:900;margin-top:12px;padding-top:12px;border-top:2px solid #111}.footer{text-align:center;margin-top:18px;font-size:12px}.pay{margin-top:10px;font-size:13px}@media print{.receipt{width:80mm}.no-print{display:none}}</style></head><body><div class="receipt"><div class="head"><div class="brand">'+esc(company)+'</div><div class="muted">'+esc(phone)+' '+esc(email)+'</div><div class="muted">'+esc(vat)+'</div></div><div class="muted">Data: '+esc(new Date(o.date||Date.now()).toLocaleString('it-IT'))+'</div><div class="muted">Ordine: '+esc(o.orderNumber||o.id)+'</div><div class="pay">Pagamento: <b>'+esc(o.payment||'—')+'</b></div>'+rows+'<div class="total"><span>Totale</span><span>'+money(total)+'</span></div><div class="footer">Grazie per il tuo acquisto</div><div class="no-print" style="text-align:center;margin-top:14px"><button onclick="window.print()">Stampa</button></div></div></body></html>';
+    var html='<!doctype html><html><head><meta charset="utf-8"><title>Ricevuta '+esc(o.orderNumber||o.id)+'</title><style>body{font-family:Arial,sans-serif;margin:0;background:#fff;color:#111}.receipt{width:80mm;max-width:100%;padding:14px;margin:0 auto}.head{text-align:center;border-bottom:1px dashed #999;padding-bottom:10px;margin-bottom:10px}.brand{font-size:20px;font-weight:900}.muted{font-size:12px;color:#555}.r-row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed #ddd;padding:9px 0}.total{display:flex;justify-content:space-between;font-size:20px;font-weight:900;margin-top:12px;padding-top:12px;border-top:2px solid #111}.footer{text-align:center;margin-top:18px;font-size:12px}.pay{margin-top:10px;font-size:13px}@media print{.receipt{width:80mm}.no-print{display:none}}</style></head><body><div class="receipt"><div class="head"><div class="brand">'+esc(company)+'</div><div class="muted">'+esc(phone)+' '+esc(email)+'</div><div class="muted">'+esc(vat)+'</div></div><div class="muted">Data: '+esc(new Date(o.date||Date.now()).toLocaleString('it-IT'))+'</div><div class="muted">Ordine: '+esc(o.orderNumber||o.id)+'</div><div class="pay">Pagamento: <b>'+esc(o.payment||'—')+'</b></div>'+rows+'<div class="total"><span>Totale</span><span>'+money(total)+'</span></div><div class="footer">Grazie per il tuo acquisto</div><div class="no-print" style="text-align:center;margin-top:14px"><button onclick="window.print()">Stampa</button></div></div>
+
+<style id="noor-employee-firebase-final-fix-css">
+#noorEmployeeConfirmOverlay{position:fixed;inset:0;background:rgba(30,8,20,.62);backdrop-filter:blur(8px);z-index:60000;display:none;align-items:center;justify-content:center;padding:18px}
+#noorEmployeeConfirmOverlay.show{display:flex}
+.noor-emp-confirm-card{width:min(460px,100%);background:linear-gradient(180deg,#fff,#fff0f7);border:1px solid rgba(143,45,90,.18);border-radius:28px;box-shadow:0 28px 90px rgba(60,10,35,.34);padding:22px;text-align:center;color:var(--text)}
+.noor-emp-confirm-icon{width:58px;height:58px;margin:0 auto 12px;border-radius:20px;background:linear-gradient(135deg,#ffb3d2,#f2b84b);display:grid;place-items:center;font-size:26px;font-weight:950;color:#3a081f}
+.noor-emp-confirm-title{font-size:22px;font-weight:950;margin-bottom:8px}
+.noor-emp-confirm-text{font-size:14px;color:var(--muted);line-height:1.45;margin-bottom:16px}
+.noor-emp-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.noor-emp-confirm-actions .btn{width:100%}
+#employeesFirebaseStatus{grid-column:1/-1;font-size:13px;font-weight:900;text-align:center;margin-top:6px}
+body.dark .noor-emp-confirm-card{background:linear-gradient(180deg,#2a1222,#1d0b17)}
+</style>
+
+<script type="module" id="noor-employee-firebase-final-fix-script">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+  authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+  projectId:"gestionalenoor-2fa61",
+  storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+  messagingSenderId:"66670691093",
+  appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+  measurementId:"G-0HSQB7XLJG"
+};
+const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
+const firestore=getFirestore(app);
+const $=(id)=>document.getElementById(id);
+const ROLE_LABELS={owner:'Owner',manager:'Amministratore',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
+const ROLE_SUBS={owner:'Accesso completo',manager:'Gestione avanzata',warehouse:'Prodotti e stock',seller:'Vendita e chiusura',supervisor:'Controllo e chiusure'};
+let firebaseEmployeesLoaded=false;
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function toastMsg(msg,type){
+  try{ if(typeof toastCenter==='function') return toastCenter(msg,type); }catch(e){}
+  try{ if(typeof toast==='function') return toast(msg,type); }catch(e){}
+  let t=$('firebaseToastCenter'); if(!t){t=document.createElement('div');t.id='firebaseToastCenter';t.className='toast';document.body.appendChild(t)}
+  t.className='toast show'+(type==='success'?' success':'');t.textContent=msg;t.style.display='block';clearTimeout(window.__empToast);window.__empToast=setTimeout(()=>{t.classList.remove('show');t.style.display='none'},2600);
+}
+function currentProfile(){return window.currentFirebaseUserProfile||{};}
+function isManager(){const r=currentProfile().role; return r==='owner'||r==='manager';}
+function ensureEmployeeFields(){
+  const form=$('employeeForm'); if(!form)return;
+  if(!$('empFirebaseUid')){const h=document.createElement('input');h.type='hidden';h.id='empFirebaseUid';form.insertBefore(h,form.firstChild)}
+  const email=$('empEmail'); if(email){email.placeholder='email dipendente'; const lab=email.closest('.field')?.querySelector('label'); if(lab)lab.textContent='Email';}
+  const role=$('empRole'); if(role && !Array.from(role.options).some(o=>o.value==='supervisor')){const o=document.createElement('option');o.value='supervisor';o.textContent='Supervisore';role.appendChild(o)}
+  const perm=$('permRoleSelect'); if(perm && !Array.from(perm.options).some(o=>o.value==='supervisor')){const o=document.createElement('option');o.value='supervisor';o.textContent='Supervisore';perm.appendChild(o)}
+  if(!$('empPassword')){
+    const statusField=$('empActive')?.closest('.field');
+    const wrap=document.createElement('div');wrap.className='field two';wrap.id='empPasswordWrap';
+    wrap.innerHTML='<label>Password iniziale</label><input id="empPassword" type="password" autocomplete="new-password" placeholder="Minimo 6 caratteri"><div class="hint">Obbligatoria solo quando crei un nuovo dipendente.</div>';
+    if(statusField)statusField.insertAdjacentElement('afterend',wrap);else form.appendChild(wrap);
+  }
+  if(!$('employeesFirebaseStatus')){const st=document.createElement('div');st.id='employeesFirebaseStatus';form.appendChild(st)}
+}
+function setEmployeeStatus(msg,color){const st=$('employeesFirebaseStatus'); if(st){st.textContent=msg||''; st.style.color=color||'#8a5700'}}
+async function getToken(){const u=window.currentFirebaseUser; if(u&&typeof u.getIdToken==='function')return await u.getIdToken(true); throw new Error('Sessione non trovata. Esci e rientra.');}
+async function loadFirebaseEmployees(){
+  try{
+    const snap=await getDocs(collection(firestore,'users'));
+    const list=snap.docs.map(d=>{const u=d.data()||{};return {id:d.id,uid:d.id,firebaseUid:u.uid||u.firebaseUid||d.id,name:u.name||u.email||'Dipendente',email:u.email||'',role:u.role||'seller',active:u.active!==false,extraPermissions:u.extraPermissions||{},createdAt:u.createdAtClient||'',updatedAt:u.updatedAtClient||''}})
+      .filter(e=>e.email || e.name);
+    if(window.db){db.employees=list; try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db))}catch(e){}}
+    firebaseEmployeesLoaded=true;
+    if(typeof window.renderEmployees==='function')window.renderEmployees();
+    return list;
+  }catch(e){console.warn('Dipendenti Firebase non caricati:',e);return (window.db&&Array.isArray(db.employees))?db.employees:[];}
+}
+function roleSummary(role){
+  if(role==='owner')return 'Accesso completo';
+  if(role==='manager')return 'Gestione avanzata';
+  if(role==='warehouse')return 'Prodotti e stock';
+  if(role==='supervisor')return 'Vendite, storico e chiusure modificabili';
+  return 'Vendite, sconti in sola lettura e chiusura non modificabile';
+}
+function renderDashboard(list){
+  const section=$('employees'); if(!section)return;
+  const panel=section.querySelector('.card.panel'); if(!panel)return;
+  let dash=$('employeeRoleDashboard');
+  if(!dash){dash=document.createElement('div');dash.id='employeeRoleDashboard'; const title=panel.querySelector('.panel-title'); if(title)title.insertAdjacentElement('afterend',dash); else panel.prepend(dash)}
+  const roles=['owner','manager','warehouse','seller','supervisor'];
+  dash.innerHTML=roles.map(role=>{
+    const n=(list||[]).filter(e=>(e.role||'seller')===role&&e.active!==false).length;
+    return `<div class="employee-role-card"><div class="erc-title">${esc(ROLE_LABELS[role])}</div><div class="erc-number">${n}</div><div class="erc-sub">${esc(ROLE_SUBS[role])}</div></div>`;
+  }).join('');
+}
+function renderEmployeeTable(){
+  ensureEmployeeFields();
+  const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+  renderDashboard(list);
+  const tb=$('employeesTable');
+  if(tb){
+    tb.innerHTML=list.map(e=>`<tr><td><b>${esc(e.name)}</b><br><span class="hint">${esc(e.email||'—')}</span></td><td><span class="badge">${esc(ROLE_LABELS[e.role]||'Venditore')}</span></td><td>${e.active!==false?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Disattivato</span>'}</td><td>${esc(roleSummary(e.role))}</td><td><div class="action-row"><button class="btn small secondary" onclick="editEmployee('${esc(e.firebaseUid||e.uid||e.id)}')">Modifica</button><button class="btn small red" onclick="deleteEmployee('${esc(e.firebaseUid||e.uid||e.id)}')">Elimina</button></div></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';
+  }
+  const sel=$('activeEmployeeSelect'); if(sel){sel.innerHTML=list.filter(e=>e.active!==false).map(e=>`<option value="${esc(e.id)}" ${String(e.id)===String((window.settings||{}).activeEmployeeId)?'selected':''}>${esc(e.name)} · ${esc(ROLE_LABELS[e.role]||'Venditore')}</option>`).join('')}
+}
+const oldRender=window.renderEmployees;
+window.renderEmployees=function(){
+  try{ if(typeof oldRender==='function') oldRender.apply(this,arguments); }catch(e){console.warn('renderEmployees originale:',e)}
+  renderEmployeeTable();
+};
+window.editEmployee=function(id){
+  ensureEmployeeFields();
+  const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+  const e=list.find(x=>String(x.firebaseUid||x.uid||x.id)===String(id)); if(!e)return;
+  if($('employeeId'))$('employeeId').value=e.id||e.firebaseUid||e.uid||'';
+  if($('empFirebaseUid'))$('empFirebaseUid').value=e.firebaseUid||e.uid||e.id||'';
+  if($('empName'))$('empName').value=e.name||'';
+  if($('empEmail'))$('empEmail').value=e.email||'';
+  if($('empRole'))$('empRole').value=e.role||'seller';
+  if($('empActive'))$('empActive').value=e.active!==false?'true':'false';
+  if($('empPassword'))$('empPassword').value='';
+  try{go('employees')}catch(_){ }
+};
+window.saveEmployee=async function(ev){
+  if(ev){ev.preventDefault();ev.stopPropagation();}
+  try{
+    ensureEmployeeFields();
+    if(!isManager()){toastMsg('Non hai i permessi per salvare dipendenti.');return false;}
+    const uid=($('empFirebaseUid')?.value||$('employeeId')?.value||'').trim();
+    const name=($('empName')?.value||'').trim();
+    const email=($('empEmail')?.value||'').trim().toLowerCase();
+    const password=$('empPassword')?.value||'';
+    const role=$('empRole')?.value||'seller';
+    const active=($('empActive')?.value||'true')==='true';
+    if(!name){toastMsg('Inserisci nome e cognome.');return false;}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toastMsg('Inserisci una email valida.');return false;}
+    const action=uid?'update':'create';
+    if(action==='create'&&password.length<6){toastMsg('Inserisci una password iniziale di almeno 6 caratteri.');return false;}
+    if(action==='update'&&password&&password.length<6){toastMsg('La nuova password deve avere almeno 6 caratteri.');return false;}
+    setEmployeeStatus(action==='create'?'Creazione dipendente...':'Salvataggio ruolo e dati...');
+    const token=await getToken();
+    const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action,uid,name,email,password,role,active})});
+    const data=await res.json().catch(()=>({error:'Risposta non valida'}));
+    if(!res.ok||!data.ok)throw new Error(data.error||'Errore salvataggio dipendente');
+    if($('employeeForm'))$('employeeForm').reset(); if($('employeeId'))$('employeeId').value=''; if($('empFirebaseUid'))$('empFirebaseUid').value=''; if($('empPassword'))$('empPassword').value='';
+    await loadFirebaseEmployees();
+    setEmployeeStatus('Dipendente salvato.','#128a3a'); toastMsg('Dipendente salvato.','success');
+    return false;
+  }catch(e){console.error('saveEmployee:',e);setEmployeeStatus(e.message||'Errore','#b51545');toastMsg(e.message||'Errore salvataggio dipendente.');return false;}
+};
+function showDeleteConfirm(employee){
+  return new Promise(resolve=>{
+    let o=$('noorEmployeeConfirmOverlay');
+    if(!o){o=document.createElement('div');o.id='noorEmployeeConfirmOverlay';document.body.appendChild(o)}
+    o.innerHTML=`<div class="noor-emp-confirm-card"><div class="noor-emp-confirm-icon">×</div><div class="noor-emp-confirm-title">Eliminare il dipendente?</div><div class="noor-emp-confirm-text"><b>${esc(employee.name||'Dipendente')}</b><br>${esc(employee.email||'')}<br><br>Verrà rimosso l’accesso al gestionale.</div><div class="noor-emp-confirm-actions"><button class="btn secondary" id="noorEmpCancelDelete" type="button">Annulla</button><button class="btn red" id="noorEmpConfirmDelete" type="button">Elimina</button></div></div>`;
+    o.classList.add('show');
+    $('noorEmpCancelDelete').onclick=()=>{o.classList.remove('show');resolve(false)};
+    $('noorEmpConfirmDelete').onclick=()=>{o.classList.remove('show');resolve(true)};
+    o.onclick=(ev)=>{if(ev.target===o){o.classList.remove('show');resolve(false)}};
+  });
+}
+window.deleteEmployee=async function(id){
+  try{
+    if(!isManager()){toastMsg('Non hai i permessi per eliminare dipendenti.');return;}
+    const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+    const e=list.find(x=>String(x.firebaseUid||x.uid||x.id)===String(id)); if(!e)return;
+    const uid=e.firebaseUid||e.uid||e.id;
+    if(uid===window.currentFirebaseUser?.uid){toastMsg('Non puoi eliminare il tuo account.');return;}
+    if(e.role==='owner'&&list.filter(x=>x.role==='owner'&&x.active!==false).length<=1){toastMsg('Deve rimanere almeno un Owner attivo.');return;}
+    const ok=await showDeleteConfirm(e); if(!ok)return;
+    const token=await getToken();
+    const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'delete',uid,email:e.email})});
+    const data=await res.json().catch(()=>({error:'Risposta non valida'}));
+    if(!res.ok||!data.ok)throw new Error(data.error||'Errore eliminazione dipendente');
+    await loadFirebaseEmployees();
+    toastMsg('Dipendente eliminato.','success');
+  }catch(e){console.error('deleteEmployee:',e);toastMsg(e.message||'Errore eliminazione dipendente.');}
+};
+function install(){
+  ensureEmployeeFields();
+  const form=$('employeeForm'); if(form){form.onsubmit=window.saveEmployee; form.addEventListener('submit',window.saveEmployee,true)}
+  if(location.pathname.includes('dipendenti')||document.querySelector('#employees.active'))loadFirebaseEmployees();
+  renderEmployeeTable();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
+setTimeout(install,600);setTimeout(install,1800);
+const oldGo=window.go;
+if(typeof oldGo==='function'&&!oldGo.__employeeFinalPatch){
+  const patched=function(id){const r=oldGo.apply(this,arguments); if(id==='employees')setTimeout(loadFirebaseEmployees,120); return r;};
+  patched.__employeeFinalPatch=true; window.go=patched;
+}
+</script>
+
+</body></html>';
     var w=window.open('','_blank','width=420,height=760');
     if(!w){ if(typeof toast==='function') toast('Popup bloccato: abilita le finestre popup per stampare.'); return; }
     w.document.open(); w.document.write(html); w.document.close();
@@ -2607,7 +3351,193 @@ load();
   window.printCustomerReceipt=function(orderId){
     var o=getOrder(orderId); if(!o){toastMsg('Ordine non trovato per lo scontrino.');return;}
     var text=buildReceiptText(o);
-    var html='<!doctype html><html><head><meta charset="utf-8"><title>Scontrino '+receiptNo(o)+'</title><style>body{margin:0;background:#f5f5f5}.paper{width:80mm;max-width:100%;margin:0 auto;background:white;padding:10px 8px;color:#000}pre{font:12px/1.35 "Courier New",monospace;white-space:pre-wrap;margin:0}.actions{display:flex;gap:8px;justify-content:center;padding:12px}.actions button{padding:9px 13px;border:1px solid #bbb;border-radius:8px;background:#fff;cursor:pointer}@media print{body{background:white}.paper{width:80mm;margin:0;padding:0}.actions{display:none}}</style></head><body><div class="paper"><pre>'+text.replace(/[&<>]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]})+'</pre></div><div class="actions"><button onclick="window.print()">Stampa</button><button onclick="window.close()">Chiudi</button></div></body></html>';
+    var html='<!doctype html><html><head><meta charset="utf-8"><title>Scontrino '+receiptNo(o)+'</title><style>body{margin:0;background:#f5f5f5}.paper{width:80mm;max-width:100%;margin:0 auto;background:white;padding:10px 8px;color:#000}pre{font:12px/1.35 "Courier New",monospace;white-space:pre-wrap;margin:0}.actions{display:flex;gap:8px;justify-content:center;padding:12px}.actions button{padding:9px 13px;border:1px solid #bbb;border-radius:8px;background:#fff;cursor:pointer}@media print{body{background:white}.paper{width:80mm;margin:0;padding:0}.actions{display:none}}</style></head><body><div class="paper"><pre>'+text.replace(/[&<>]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]})+'</pre></div><div class="actions"><button onclick="window.print()">Stampa</button><button onclick="window.close()">Chiudi</button></div>
+
+<style id="noor-employee-firebase-final-fix-css">
+#noorEmployeeConfirmOverlay{position:fixed;inset:0;background:rgba(30,8,20,.62);backdrop-filter:blur(8px);z-index:60000;display:none;align-items:center;justify-content:center;padding:18px}
+#noorEmployeeConfirmOverlay.show{display:flex}
+.noor-emp-confirm-card{width:min(460px,100%);background:linear-gradient(180deg,#fff,#fff0f7);border:1px solid rgba(143,45,90,.18);border-radius:28px;box-shadow:0 28px 90px rgba(60,10,35,.34);padding:22px;text-align:center;color:var(--text)}
+.noor-emp-confirm-icon{width:58px;height:58px;margin:0 auto 12px;border-radius:20px;background:linear-gradient(135deg,#ffb3d2,#f2b84b);display:grid;place-items:center;font-size:26px;font-weight:950;color:#3a081f}
+.noor-emp-confirm-title{font-size:22px;font-weight:950;margin-bottom:8px}
+.noor-emp-confirm-text{font-size:14px;color:var(--muted);line-height:1.45;margin-bottom:16px}
+.noor-emp-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.noor-emp-confirm-actions .btn{width:100%}
+#employeesFirebaseStatus{grid-column:1/-1;font-size:13px;font-weight:900;text-align:center;margin-top:6px}
+body.dark .noor-emp-confirm-card{background:linear-gradient(180deg,#2a1222,#1d0b17)}
+</style>
+
+<script type="module" id="noor-employee-firebase-final-fix-script">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+  authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+  projectId:"gestionalenoor-2fa61",
+  storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+  messagingSenderId:"66670691093",
+  appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+  measurementId:"G-0HSQB7XLJG"
+};
+const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
+const firestore=getFirestore(app);
+const $=(id)=>document.getElementById(id);
+const ROLE_LABELS={owner:'Owner',manager:'Amministratore',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
+const ROLE_SUBS={owner:'Accesso completo',manager:'Gestione avanzata',warehouse:'Prodotti e stock',seller:'Vendita e chiusura',supervisor:'Controllo e chiusure'};
+let firebaseEmployeesLoaded=false;
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function toastMsg(msg,type){
+  try{ if(typeof toastCenter==='function') return toastCenter(msg,type); }catch(e){}
+  try{ if(typeof toast==='function') return toast(msg,type); }catch(e){}
+  let t=$('firebaseToastCenter'); if(!t){t=document.createElement('div');t.id='firebaseToastCenter';t.className='toast';document.body.appendChild(t)}
+  t.className='toast show'+(type==='success'?' success':'');t.textContent=msg;t.style.display='block';clearTimeout(window.__empToast);window.__empToast=setTimeout(()=>{t.classList.remove('show');t.style.display='none'},2600);
+}
+function currentProfile(){return window.currentFirebaseUserProfile||{};}
+function isManager(){const r=currentProfile().role; return r==='owner'||r==='manager';}
+function ensureEmployeeFields(){
+  const form=$('employeeForm'); if(!form)return;
+  if(!$('empFirebaseUid')){const h=document.createElement('input');h.type='hidden';h.id='empFirebaseUid';form.insertBefore(h,form.firstChild)}
+  const email=$('empEmail'); if(email){email.placeholder='email dipendente'; const lab=email.closest('.field')?.querySelector('label'); if(lab)lab.textContent='Email';}
+  const role=$('empRole'); if(role && !Array.from(role.options).some(o=>o.value==='supervisor')){const o=document.createElement('option');o.value='supervisor';o.textContent='Supervisore';role.appendChild(o)}
+  const perm=$('permRoleSelect'); if(perm && !Array.from(perm.options).some(o=>o.value==='supervisor')){const o=document.createElement('option');o.value='supervisor';o.textContent='Supervisore';perm.appendChild(o)}
+  if(!$('empPassword')){
+    const statusField=$('empActive')?.closest('.field');
+    const wrap=document.createElement('div');wrap.className='field two';wrap.id='empPasswordWrap';
+    wrap.innerHTML='<label>Password iniziale</label><input id="empPassword" type="password" autocomplete="new-password" placeholder="Minimo 6 caratteri"><div class="hint">Obbligatoria solo quando crei un nuovo dipendente.</div>';
+    if(statusField)statusField.insertAdjacentElement('afterend',wrap);else form.appendChild(wrap);
+  }
+  if(!$('employeesFirebaseStatus')){const st=document.createElement('div');st.id='employeesFirebaseStatus';form.appendChild(st)}
+}
+function setEmployeeStatus(msg,color){const st=$('employeesFirebaseStatus'); if(st){st.textContent=msg||''; st.style.color=color||'#8a5700'}}
+async function getToken(){const u=window.currentFirebaseUser; if(u&&typeof u.getIdToken==='function')return await u.getIdToken(true); throw new Error('Sessione non trovata. Esci e rientra.');}
+async function loadFirebaseEmployees(){
+  try{
+    const snap=await getDocs(collection(firestore,'users'));
+    const list=snap.docs.map(d=>{const u=d.data()||{};return {id:d.id,uid:d.id,firebaseUid:u.uid||u.firebaseUid||d.id,name:u.name||u.email||'Dipendente',email:u.email||'',role:u.role||'seller',active:u.active!==false,extraPermissions:u.extraPermissions||{},createdAt:u.createdAtClient||'',updatedAt:u.updatedAtClient||''}})
+      .filter(e=>e.email || e.name);
+    if(window.db){db.employees=list; try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db))}catch(e){}}
+    firebaseEmployeesLoaded=true;
+    if(typeof window.renderEmployees==='function')window.renderEmployees();
+    return list;
+  }catch(e){console.warn('Dipendenti Firebase non caricati:',e);return (window.db&&Array.isArray(db.employees))?db.employees:[];}
+}
+function roleSummary(role){
+  if(role==='owner')return 'Accesso completo';
+  if(role==='manager')return 'Gestione avanzata';
+  if(role==='warehouse')return 'Prodotti e stock';
+  if(role==='supervisor')return 'Vendite, storico e chiusure modificabili';
+  return 'Vendite, sconti in sola lettura e chiusura non modificabile';
+}
+function renderDashboard(list){
+  const section=$('employees'); if(!section)return;
+  const panel=section.querySelector('.card.panel'); if(!panel)return;
+  let dash=$('employeeRoleDashboard');
+  if(!dash){dash=document.createElement('div');dash.id='employeeRoleDashboard'; const title=panel.querySelector('.panel-title'); if(title)title.insertAdjacentElement('afterend',dash); else panel.prepend(dash)}
+  const roles=['owner','manager','warehouse','seller','supervisor'];
+  dash.innerHTML=roles.map(role=>{
+    const n=(list||[]).filter(e=>(e.role||'seller')===role&&e.active!==false).length;
+    return `<div class="employee-role-card"><div class="erc-title">${esc(ROLE_LABELS[role])}</div><div class="erc-number">${n}</div><div class="erc-sub">${esc(ROLE_SUBS[role])}</div></div>`;
+  }).join('');
+}
+function renderEmployeeTable(){
+  ensureEmployeeFields();
+  const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+  renderDashboard(list);
+  const tb=$('employeesTable');
+  if(tb){
+    tb.innerHTML=list.map(e=>`<tr><td><b>${esc(e.name)}</b><br><span class="hint">${esc(e.email||'—')}</span></td><td><span class="badge">${esc(ROLE_LABELS[e.role]||'Venditore')}</span></td><td>${e.active!==false?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Disattivato</span>'}</td><td>${esc(roleSummary(e.role))}</td><td><div class="action-row"><button class="btn small secondary" onclick="editEmployee('${esc(e.firebaseUid||e.uid||e.id)}')">Modifica</button><button class="btn small red" onclick="deleteEmployee('${esc(e.firebaseUid||e.uid||e.id)}')">Elimina</button></div></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';
+  }
+  const sel=$('activeEmployeeSelect'); if(sel){sel.innerHTML=list.filter(e=>e.active!==false).map(e=>`<option value="${esc(e.id)}" ${String(e.id)===String((window.settings||{}).activeEmployeeId)?'selected':''}>${esc(e.name)} · ${esc(ROLE_LABELS[e.role]||'Venditore')}</option>`).join('')}
+}
+const oldRender=window.renderEmployees;
+window.renderEmployees=function(){
+  try{ if(typeof oldRender==='function') oldRender.apply(this,arguments); }catch(e){console.warn('renderEmployees originale:',e)}
+  renderEmployeeTable();
+};
+window.editEmployee=function(id){
+  ensureEmployeeFields();
+  const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+  const e=list.find(x=>String(x.firebaseUid||x.uid||x.id)===String(id)); if(!e)return;
+  if($('employeeId'))$('employeeId').value=e.id||e.firebaseUid||e.uid||'';
+  if($('empFirebaseUid'))$('empFirebaseUid').value=e.firebaseUid||e.uid||e.id||'';
+  if($('empName'))$('empName').value=e.name||'';
+  if($('empEmail'))$('empEmail').value=e.email||'';
+  if($('empRole'))$('empRole').value=e.role||'seller';
+  if($('empActive'))$('empActive').value=e.active!==false?'true':'false';
+  if($('empPassword'))$('empPassword').value='';
+  try{go('employees')}catch(_){ }
+};
+window.saveEmployee=async function(ev){
+  if(ev){ev.preventDefault();ev.stopPropagation();}
+  try{
+    ensureEmployeeFields();
+    if(!isManager()){toastMsg('Non hai i permessi per salvare dipendenti.');return false;}
+    const uid=($('empFirebaseUid')?.value||$('employeeId')?.value||'').trim();
+    const name=($('empName')?.value||'').trim();
+    const email=($('empEmail')?.value||'').trim().toLowerCase();
+    const password=$('empPassword')?.value||'';
+    const role=$('empRole')?.value||'seller';
+    const active=($('empActive')?.value||'true')==='true';
+    if(!name){toastMsg('Inserisci nome e cognome.');return false;}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toastMsg('Inserisci una email valida.');return false;}
+    const action=uid?'update':'create';
+    if(action==='create'&&password.length<6){toastMsg('Inserisci una password iniziale di almeno 6 caratteri.');return false;}
+    if(action==='update'&&password&&password.length<6){toastMsg('La nuova password deve avere almeno 6 caratteri.');return false;}
+    setEmployeeStatus(action==='create'?'Creazione dipendente...':'Salvataggio ruolo e dati...');
+    const token=await getToken();
+    const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action,uid,name,email,password,role,active})});
+    const data=await res.json().catch(()=>({error:'Risposta non valida'}));
+    if(!res.ok||!data.ok)throw new Error(data.error||'Errore salvataggio dipendente');
+    if($('employeeForm'))$('employeeForm').reset(); if($('employeeId'))$('employeeId').value=''; if($('empFirebaseUid'))$('empFirebaseUid').value=''; if($('empPassword'))$('empPassword').value='';
+    await loadFirebaseEmployees();
+    setEmployeeStatus('Dipendente salvato.','#128a3a'); toastMsg('Dipendente salvato.','success');
+    return false;
+  }catch(e){console.error('saveEmployee:',e);setEmployeeStatus(e.message||'Errore','#b51545');toastMsg(e.message||'Errore salvataggio dipendente.');return false;}
+};
+function showDeleteConfirm(employee){
+  return new Promise(resolve=>{
+    let o=$('noorEmployeeConfirmOverlay');
+    if(!o){o=document.createElement('div');o.id='noorEmployeeConfirmOverlay';document.body.appendChild(o)}
+    o.innerHTML=`<div class="noor-emp-confirm-card"><div class="noor-emp-confirm-icon">×</div><div class="noor-emp-confirm-title">Eliminare il dipendente?</div><div class="noor-emp-confirm-text"><b>${esc(employee.name||'Dipendente')}</b><br>${esc(employee.email||'')}<br><br>Verrà rimosso l’accesso al gestionale.</div><div class="noor-emp-confirm-actions"><button class="btn secondary" id="noorEmpCancelDelete" type="button">Annulla</button><button class="btn red" id="noorEmpConfirmDelete" type="button">Elimina</button></div></div>`;
+    o.classList.add('show');
+    $('noorEmpCancelDelete').onclick=()=>{o.classList.remove('show');resolve(false)};
+    $('noorEmpConfirmDelete').onclick=()=>{o.classList.remove('show');resolve(true)};
+    o.onclick=(ev)=>{if(ev.target===o){o.classList.remove('show');resolve(false)}};
+  });
+}
+window.deleteEmployee=async function(id){
+  try{
+    if(!isManager()){toastMsg('Non hai i permessi per eliminare dipendenti.');return;}
+    const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+    const e=list.find(x=>String(x.firebaseUid||x.uid||x.id)===String(id)); if(!e)return;
+    const uid=e.firebaseUid||e.uid||e.id;
+    if(uid===window.currentFirebaseUser?.uid){toastMsg('Non puoi eliminare il tuo account.');return;}
+    if(e.role==='owner'&&list.filter(x=>x.role==='owner'&&x.active!==false).length<=1){toastMsg('Deve rimanere almeno un Owner attivo.');return;}
+    const ok=await showDeleteConfirm(e); if(!ok)return;
+    const token=await getToken();
+    const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'delete',uid,email:e.email})});
+    const data=await res.json().catch(()=>({error:'Risposta non valida'}));
+    if(!res.ok||!data.ok)throw new Error(data.error||'Errore eliminazione dipendente');
+    await loadFirebaseEmployees();
+    toastMsg('Dipendente eliminato.','success');
+  }catch(e){console.error('deleteEmployee:',e);toastMsg(e.message||'Errore eliminazione dipendente.');}
+};
+function install(){
+  ensureEmployeeFields();
+  const form=$('employeeForm'); if(form){form.onsubmit=window.saveEmployee; form.addEventListener('submit',window.saveEmployee,true)}
+  if(location.pathname.includes('dipendenti')||document.querySelector('#employees.active'))loadFirebaseEmployees();
+  renderEmployeeTable();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
+setTimeout(install,600);setTimeout(install,1800);
+const oldGo=window.go;
+if(typeof oldGo==='function'&&!oldGo.__employeeFinalPatch){
+  const patched=function(id){const r=oldGo.apply(this,arguments); if(id==='employees')setTimeout(loadFirebaseEmployees,120); return r;};
+  patched.__employeeFinalPatch=true; window.go=patched;
+}
+</script>
+
+</body></html>';
     var win=window.open('','_blank','width=420,height=760'); if(!win){toastMsg('Popup bloccato: abilita i popup per stampare.');return;}
     win.document.open(); win.document.write(html); win.document.close(); setTimeout(function(){try{win.focus();win.print()}catch(e){}},350);
   };
@@ -3469,5 +4399,191 @@ body.dark .employee-role-card{background:rgba(255,255,255,.04)}
   setTimeout(boot,400); setTimeout(boot,1200); setTimeout(boot,2500);
 })();
 </script>
+
+
+<style id="noor-employee-firebase-final-fix-css">
+#noorEmployeeConfirmOverlay{position:fixed;inset:0;background:rgba(30,8,20,.62);backdrop-filter:blur(8px);z-index:60000;display:none;align-items:center;justify-content:center;padding:18px}
+#noorEmployeeConfirmOverlay.show{display:flex}
+.noor-emp-confirm-card{width:min(460px,100%);background:linear-gradient(180deg,#fff,#fff0f7);border:1px solid rgba(143,45,90,.18);border-radius:28px;box-shadow:0 28px 90px rgba(60,10,35,.34);padding:22px;text-align:center;color:var(--text)}
+.noor-emp-confirm-icon{width:58px;height:58px;margin:0 auto 12px;border-radius:20px;background:linear-gradient(135deg,#ffb3d2,#f2b84b);display:grid;place-items:center;font-size:26px;font-weight:950;color:#3a081f}
+.noor-emp-confirm-title{font-size:22px;font-weight:950;margin-bottom:8px}
+.noor-emp-confirm-text{font-size:14px;color:var(--muted);line-height:1.45;margin-bottom:16px}
+.noor-emp-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.noor-emp-confirm-actions .btn{width:100%}
+#employeesFirebaseStatus{grid-column:1/-1;font-size:13px;font-weight:900;text-align:center;margin-top:6px}
+body.dark .noor-emp-confirm-card{background:linear-gradient(180deg,#2a1222,#1d0b17)}
+</style>
+
+<script type="module" id="noor-employee-firebase-final-fix-script">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const firebaseConfig={
+  apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+  authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+  projectId:"gestionalenoor-2fa61",
+  storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+  messagingSenderId:"66670691093",
+  appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+  measurementId:"G-0HSQB7XLJG"
+};
+const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
+const firestore=getFirestore(app);
+const $=(id)=>document.getElementById(id);
+const ROLE_LABELS={owner:'Owner',manager:'Amministratore',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
+const ROLE_SUBS={owner:'Accesso completo',manager:'Gestione avanzata',warehouse:'Prodotti e stock',seller:'Vendita e chiusura',supervisor:'Controllo e chiusure'};
+let firebaseEmployeesLoaded=false;
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function toastMsg(msg,type){
+  try{ if(typeof toastCenter==='function') return toastCenter(msg,type); }catch(e){}
+  try{ if(typeof toast==='function') return toast(msg,type); }catch(e){}
+  let t=$('firebaseToastCenter'); if(!t){t=document.createElement('div');t.id='firebaseToastCenter';t.className='toast';document.body.appendChild(t)}
+  t.className='toast show'+(type==='success'?' success':'');t.textContent=msg;t.style.display='block';clearTimeout(window.__empToast);window.__empToast=setTimeout(()=>{t.classList.remove('show');t.style.display='none'},2600);
+}
+function currentProfile(){return window.currentFirebaseUserProfile||{};}
+function isManager(){const r=currentProfile().role; return r==='owner'||r==='manager';}
+function ensureEmployeeFields(){
+  const form=$('employeeForm'); if(!form)return;
+  if(!$('empFirebaseUid')){const h=document.createElement('input');h.type='hidden';h.id='empFirebaseUid';form.insertBefore(h,form.firstChild)}
+  const email=$('empEmail'); if(email){email.placeholder='email dipendente'; const lab=email.closest('.field')?.querySelector('label'); if(lab)lab.textContent='Email';}
+  const role=$('empRole'); if(role && !Array.from(role.options).some(o=>o.value==='supervisor')){const o=document.createElement('option');o.value='supervisor';o.textContent='Supervisore';role.appendChild(o)}
+  const perm=$('permRoleSelect'); if(perm && !Array.from(perm.options).some(o=>o.value==='supervisor')){const o=document.createElement('option');o.value='supervisor';o.textContent='Supervisore';perm.appendChild(o)}
+  if(!$('empPassword')){
+    const statusField=$('empActive')?.closest('.field');
+    const wrap=document.createElement('div');wrap.className='field two';wrap.id='empPasswordWrap';
+    wrap.innerHTML='<label>Password iniziale</label><input id="empPassword" type="password" autocomplete="new-password" placeholder="Minimo 6 caratteri"><div class="hint">Obbligatoria solo quando crei un nuovo dipendente.</div>';
+    if(statusField)statusField.insertAdjacentElement('afterend',wrap);else form.appendChild(wrap);
+  }
+  if(!$('employeesFirebaseStatus')){const st=document.createElement('div');st.id='employeesFirebaseStatus';form.appendChild(st)}
+}
+function setEmployeeStatus(msg,color){const st=$('employeesFirebaseStatus'); if(st){st.textContent=msg||''; st.style.color=color||'#8a5700'}}
+async function getToken(){const u=window.currentFirebaseUser; if(u&&typeof u.getIdToken==='function')return await u.getIdToken(true); throw new Error('Sessione non trovata. Esci e rientra.');}
+async function loadFirebaseEmployees(){
+  try{
+    const snap=await getDocs(collection(firestore,'users'));
+    const list=snap.docs.map(d=>{const u=d.data()||{};return {id:d.id,uid:d.id,firebaseUid:u.uid||u.firebaseUid||d.id,name:u.name||u.email||'Dipendente',email:u.email||'',role:u.role||'seller',active:u.active!==false,extraPermissions:u.extraPermissions||{},createdAt:u.createdAtClient||'',updatedAt:u.updatedAtClient||''}})
+      .filter(e=>e.email || e.name);
+    if(window.db){db.employees=list; try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db))}catch(e){}}
+    firebaseEmployeesLoaded=true;
+    if(typeof window.renderEmployees==='function')window.renderEmployees();
+    return list;
+  }catch(e){console.warn('Dipendenti Firebase non caricati:',e);return (window.db&&Array.isArray(db.employees))?db.employees:[];}
+}
+function roleSummary(role){
+  if(role==='owner')return 'Accesso completo';
+  if(role==='manager')return 'Gestione avanzata';
+  if(role==='warehouse')return 'Prodotti e stock';
+  if(role==='supervisor')return 'Vendite, storico e chiusure modificabili';
+  return 'Vendite, sconti in sola lettura e chiusura non modificabile';
+}
+function renderDashboard(list){
+  const section=$('employees'); if(!section)return;
+  const panel=section.querySelector('.card.panel'); if(!panel)return;
+  let dash=$('employeeRoleDashboard');
+  if(!dash){dash=document.createElement('div');dash.id='employeeRoleDashboard'; const title=panel.querySelector('.panel-title'); if(title)title.insertAdjacentElement('afterend',dash); else panel.prepend(dash)}
+  const roles=['owner','manager','warehouse','seller','supervisor'];
+  dash.innerHTML=roles.map(role=>{
+    const n=(list||[]).filter(e=>(e.role||'seller')===role&&e.active!==false).length;
+    return `<div class="employee-role-card"><div class="erc-title">${esc(ROLE_LABELS[role])}</div><div class="erc-number">${n}</div><div class="erc-sub">${esc(ROLE_SUBS[role])}</div></div>`;
+  }).join('');
+}
+function renderEmployeeTable(){
+  ensureEmployeeFields();
+  const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+  renderDashboard(list);
+  const tb=$('employeesTable');
+  if(tb){
+    tb.innerHTML=list.map(e=>`<tr><td><b>${esc(e.name)}</b><br><span class="hint">${esc(e.email||'—')}</span></td><td><span class="badge">${esc(ROLE_LABELS[e.role]||'Venditore')}</span></td><td>${e.active!==false?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Disattivato</span>'}</td><td>${esc(roleSummary(e.role))}</td><td><div class="action-row"><button class="btn small secondary" onclick="editEmployee('${esc(e.firebaseUid||e.uid||e.id)}')">Modifica</button><button class="btn small red" onclick="deleteEmployee('${esc(e.firebaseUid||e.uid||e.id)}')">Elimina</button></div></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';
+  }
+  const sel=$('activeEmployeeSelect'); if(sel){sel.innerHTML=list.filter(e=>e.active!==false).map(e=>`<option value="${esc(e.id)}" ${String(e.id)===String((window.settings||{}).activeEmployeeId)?'selected':''}>${esc(e.name)} · ${esc(ROLE_LABELS[e.role]||'Venditore')}</option>`).join('')}
+}
+const oldRender=window.renderEmployees;
+window.renderEmployees=function(){
+  try{ if(typeof oldRender==='function') oldRender.apply(this,arguments); }catch(e){console.warn('renderEmployees originale:',e)}
+  renderEmployeeTable();
+};
+window.editEmployee=function(id){
+  ensureEmployeeFields();
+  const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+  const e=list.find(x=>String(x.firebaseUid||x.uid||x.id)===String(id)); if(!e)return;
+  if($('employeeId'))$('employeeId').value=e.id||e.firebaseUid||e.uid||'';
+  if($('empFirebaseUid'))$('empFirebaseUid').value=e.firebaseUid||e.uid||e.id||'';
+  if($('empName'))$('empName').value=e.name||'';
+  if($('empEmail'))$('empEmail').value=e.email||'';
+  if($('empRole'))$('empRole').value=e.role||'seller';
+  if($('empActive'))$('empActive').value=e.active!==false?'true':'false';
+  if($('empPassword'))$('empPassword').value='';
+  try{go('employees')}catch(_){ }
+};
+window.saveEmployee=async function(ev){
+  if(ev){ev.preventDefault();ev.stopPropagation();}
+  try{
+    ensureEmployeeFields();
+    if(!isManager()){toastMsg('Non hai i permessi per salvare dipendenti.');return false;}
+    const uid=($('empFirebaseUid')?.value||$('employeeId')?.value||'').trim();
+    const name=($('empName')?.value||'').trim();
+    const email=($('empEmail')?.value||'').trim().toLowerCase();
+    const password=$('empPassword')?.value||'';
+    const role=$('empRole')?.value||'seller';
+    const active=($('empActive')?.value||'true')==='true';
+    if(!name){toastMsg('Inserisci nome e cognome.');return false;}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toastMsg('Inserisci una email valida.');return false;}
+    const action=uid?'update':'create';
+    if(action==='create'&&password.length<6){toastMsg('Inserisci una password iniziale di almeno 6 caratteri.');return false;}
+    if(action==='update'&&password&&password.length<6){toastMsg('La nuova password deve avere almeno 6 caratteri.');return false;}
+    setEmployeeStatus(action==='create'?'Creazione dipendente...':'Salvataggio ruolo e dati...');
+    const token=await getToken();
+    const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action,uid,name,email,password,role,active})});
+    const data=await res.json().catch(()=>({error:'Risposta non valida'}));
+    if(!res.ok||!data.ok)throw new Error(data.error||'Errore salvataggio dipendente');
+    if($('employeeForm'))$('employeeForm').reset(); if($('employeeId'))$('employeeId').value=''; if($('empFirebaseUid'))$('empFirebaseUid').value=''; if($('empPassword'))$('empPassword').value='';
+    await loadFirebaseEmployees();
+    setEmployeeStatus('Dipendente salvato.','#128a3a'); toastMsg('Dipendente salvato.','success');
+    return false;
+  }catch(e){console.error('saveEmployee:',e);setEmployeeStatus(e.message||'Errore','#b51545');toastMsg(e.message||'Errore salvataggio dipendente.');return false;}
+};
+function showDeleteConfirm(employee){
+  return new Promise(resolve=>{
+    let o=$('noorEmployeeConfirmOverlay');
+    if(!o){o=document.createElement('div');o.id='noorEmployeeConfirmOverlay';document.body.appendChild(o)}
+    o.innerHTML=`<div class="noor-emp-confirm-card"><div class="noor-emp-confirm-icon">×</div><div class="noor-emp-confirm-title">Eliminare il dipendente?</div><div class="noor-emp-confirm-text"><b>${esc(employee.name||'Dipendente')}</b><br>${esc(employee.email||'')}<br><br>Verrà rimosso l’accesso al gestionale.</div><div class="noor-emp-confirm-actions"><button class="btn secondary" id="noorEmpCancelDelete" type="button">Annulla</button><button class="btn red" id="noorEmpConfirmDelete" type="button">Elimina</button></div></div>`;
+    o.classList.add('show');
+    $('noorEmpCancelDelete').onclick=()=>{o.classList.remove('show');resolve(false)};
+    $('noorEmpConfirmDelete').onclick=()=>{o.classList.remove('show');resolve(true)};
+    o.onclick=(ev)=>{if(ev.target===o){o.classList.remove('show');resolve(false)}};
+  });
+}
+window.deleteEmployee=async function(id){
+  try{
+    if(!isManager()){toastMsg('Non hai i permessi per eliminare dipendenti.');return;}
+    const list=(window.db&&Array.isArray(db.employees))?db.employees:[];
+    const e=list.find(x=>String(x.firebaseUid||x.uid||x.id)===String(id)); if(!e)return;
+    const uid=e.firebaseUid||e.uid||e.id;
+    if(uid===window.currentFirebaseUser?.uid){toastMsg('Non puoi eliminare il tuo account.');return;}
+    if(e.role==='owner'&&list.filter(x=>x.role==='owner'&&x.active!==false).length<=1){toastMsg('Deve rimanere almeno un Owner attivo.');return;}
+    const ok=await showDeleteConfirm(e); if(!ok)return;
+    const token=await getToken();
+    const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'delete',uid,email:e.email})});
+    const data=await res.json().catch(()=>({error:'Risposta non valida'}));
+    if(!res.ok||!data.ok)throw new Error(data.error||'Errore eliminazione dipendente');
+    await loadFirebaseEmployees();
+    toastMsg('Dipendente eliminato.','success');
+  }catch(e){console.error('deleteEmployee:',e);toastMsg(e.message||'Errore eliminazione dipendente.');}
+};
+function install(){
+  ensureEmployeeFields();
+  const form=$('employeeForm'); if(form){form.onsubmit=window.saveEmployee; form.addEventListener('submit',window.saveEmployee,true)}
+  if(location.pathname.includes('dipendenti')||document.querySelector('#employees.active'))loadFirebaseEmployees();
+  renderEmployeeTable();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
+setTimeout(install,600);setTimeout(install,1800);
+const oldGo=window.go;
+if(typeof oldGo==='function'&&!oldGo.__employeeFinalPatch){
+  const patched=function(id){const r=oldGo.apply(this,arguments); if(id==='employees')setTimeout(loadFirebaseEmployees,120); return r;};
+  patched.__employeeFinalPatch=true; window.go=patched;
+}
+</script>
+
 </body>
 </html>
