@@ -56,6 +56,20 @@ function cleanExtraPermissions(input){
   return out;
 }
 
+async function getUserByUidOrEmail(uid, email){
+  if(uid){
+    try{return await admin.auth().getUser(uid);}catch(e){
+      if(e.code !== 'auth/user-not-found') throw e;
+    }
+  }
+  if(email){
+    try{return await admin.auth().getUserByEmail(email);}catch(e){
+      if(e.code !== 'auth/user-not-found') throw e;
+    }
+  }
+  return null;
+}
+
 exports.handler = async (event) => {
   if(event.httpMethod === 'OPTIONS') return json(200, {ok:true});
   if(event.httpMethod !== 'POST') return json(405, {error:'Metodo non consentito'});
@@ -69,49 +83,14 @@ exports.handler = async (event) => {
     const decoded = await admin.auth().verifyIdToken(token);
     const db = admin.firestore();
     const callerSnap = await db.collection('users').doc(decoded.uid).get();
-    if(!callerSnap.exists) return json(403, {error:'Profilo Super Admin non trovato'});
+    if(!callerSnap.exists) return json(403, {error:'Profilo amministratore non trovato'});
     const caller = callerSnap.data() || {};
     if(caller.active === false) return json(403, {error:'Utente disattivato'});
-    if(!['owner','manager'].includes(caller.role)) return json(403, {error:'Solo Owner/Admin può gestire dipendenti'});
+    if(!['owner','manager'].includes(caller.role)) return json(403, {error:'Non hai i permessi per gestire i dipendenti'});
 
     const body = JSON.parse(event.body || '{}');
     const action = body.action || 'create';
-    if(action === 'delete'){
-  const uid = String(body.uid || '').trim();
-
-  if(!uid){
-    return json(400,{error:'UID dipendente mancante'});
-  }
-
-  if(uid === decoded.uid){
-    return json(400,{error:'Non puoi eliminare il tuo account'});
-  }
-
-  const targetDoc = await db.collection('users').doc(uid).get();
-
-  if(targetDoc.exists){
-    await db.collection('users').doc(uid).delete();
-  }
-
-  try{
-    await admin.auth().deleteUser(uid);
-  }catch(err){
-    console.error('Delete auth user:', err);
-  }
-
-  await db.collection('activityLogs').add({
-    type:'employee_deleted',
-    actorUid:decoded.uid,
-    actorEmail:decoded.email || caller.email || '',
-    targetUid:uid,
-    createdAt:admin.firestore.FieldValue.serverTimestamp()
-  });
-
-  return json(200,{
-    ok:true,
-    deleted:true
-  });
-}
+    const uid = String(body.uid || body.firebaseUid || '').trim();
     const name = String(body.name || '').trim();
     const email = String(body.email || '').trim().toLowerCase();
     const password = String(body.password || '').trim();
@@ -119,6 +98,41 @@ exports.handler = async (event) => {
     const active = body.active !== false;
     const hasExtraPermissions = Object.prototype.hasOwnProperty.call(body, 'extraPermissions');
     const incomingExtraPermissions = cleanExtraPermissions(body.extraPermissions || {});
+
+    if(action === 'delete'){
+      if(!uid && !email) return json(400, {error:'Dipendente non identificato'});
+      let target = await getUserByUidOrEmail(uid, email);
+      const targetUid = target?.uid || uid;
+      if(targetUid === decoded.uid) return json(400, {error:'Non puoi eliminare il tuo account'});
+
+      if(targetUid){
+        try{ await admin.auth().deleteUser(targetUid); }catch(e){
+          if(e.code !== 'auth/user-not-found') throw e;
+        }
+        try{ await db.collection('users').doc(targetUid).delete(); }catch(e){}
+      }
+      if(email){
+        // pulizia eventuali documenti creati con id non Firebase
+        const qs = await db.collection('users').where('email','==',email).get().catch(()=>null);
+        if(qs){
+          const batch = db.batch();
+          qs.docs.forEach(d=>batch.delete(d.ref));
+          await batch.commit().catch(()=>{});
+        }
+      }
+
+      await db.collection('activityLogs').add({
+        type:'employee_deleted',
+        actorUid:decoded.uid,
+        actorEmail:decoded.email || caller.email || '',
+        targetUid:targetUid || uid || '',
+        targetEmail:email || target?.email || '',
+        createdAt:admin.firestore.FieldValue.serverTimestamp(),
+        createdAtClient:new Date().toISOString()
+      });
+
+      return json(200, {ok:true, deleted:true});
+    }
 
     if(!name) return json(400, {error:'Nome dipendente mancante'});
     if(!email) return json(400, {error:'Email dipendente mancante'});
@@ -129,7 +143,7 @@ exports.handler = async (event) => {
     if(action === 'create'){
       try{
         userRecord = await admin.auth().getUserByEmail(email);
-        return json(409, {error:'Esiste già un utente Firebase con questa email'});
+        return json(409, {error:'Esiste già un utente con questa email'});
       }catch(e){
         if(e.code !== 'auth/user-not-found') throw e;
       }
@@ -141,11 +155,13 @@ exports.handler = async (event) => {
         emailVerified: false
       });
     } else {
-      const uid = String(body.uid || '').trim();
-      if(!uid) return json(400, {error:'UID dipendente mancante'});
+      userRecord = await getUserByUidOrEmail(uid, email);
+      if(!userRecord){
+        return json(404, {error:'Dipendente non trovato in Authentication. Eliminalo e ricrealo dal gestionale.'});
+      }
       const update = {email, displayName:name, disabled: !active};
       if(password && password.length >= 6) update.password = password;
-      userRecord = await admin.auth().updateUser(uid, update);
+      userRecord = await admin.auth().updateUser(userRecord.uid, update);
     }
 
     await admin.auth().setCustomUserClaims(userRecord.uid, {role, active});
@@ -156,6 +172,7 @@ exports.handler = async (event) => {
 
     const userDoc = {
       uid: userRecord.uid,
+      firebaseUid: userRecord.uid,
       name,
       email,
       role,
@@ -200,9 +217,10 @@ exports.handler = async (event) => {
     });
   }catch(error){
     console.error('createEmployee error:', error);
-    let msg = error.message || 'Errore creazione dipendente';
-    if(error.code === 'auth/email-already-exists') msg = 'Email già registrata in Firebase';
+    let msg = error.message || 'Errore gestione dipendente';
+    if(error.code === 'auth/email-already-exists') msg = 'Email già registrata';
     if(error.code === 'auth/invalid-password') msg = 'Password non valida';
+    if(error.code === 'auth/user-not-found') msg = 'Dipendente non trovato. Eliminalo e ricrealo dal gestionale.';
     return json(500, {error: msg});
   }
 };
