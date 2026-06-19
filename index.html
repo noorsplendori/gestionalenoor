@@ -3469,5 +3469,137 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 setTimeout(boot,700);setTimeout(boot,2000);setInterval(()=>{applyMenuByRole();},2500);
 </script>
 
+<style id="noor-menu-popup-discount-final-verified-css">
+.noor-role-hidden{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;}
+body.noor-discounts-readonly #discounts form,
+body.noor-discounts-readonly #discounts .form-grid{display:none!important;}
+body.noor-discounts-readonly #discountsTable td:last-child,
+body.noor-discounts-readonly #discountsTable th:last-child{display:none!important;}
+#noorDeleteEmployeeOverlay{position:fixed;inset:0;z-index:90000;background:rgba(35,8,24,.62);backdrop-filter:blur(12px);display:none;align-items:center;justify-content:center;padding:18px;}
+#noorDeleteEmployeeOverlay.show{display:flex!important;}
+#noorDeleteEmployeeOverlay .noor-delete-card{width:min(440px,100%);background:linear-gradient(180deg,rgba(255,255,255,.98),rgba(255,246,251,.96));border:1px solid var(--line);border-radius:30px;box-shadow:0 28px 80px rgba(143,45,90,.30);padding:24px;text-align:center;color:var(--text);}
+#noorDeleteEmployeeOverlay .noor-delete-icon{width:64px;height:64px;border-radius:22px;margin:0 auto 12px;display:grid;place-items:center;background:linear-gradient(135deg,#ffd3e6,#f2b84b);color:#3a081f;font-size:28px;font-weight:950;}
+#noorDeleteEmployeeOverlay h3{margin:0 0 8px;font-size:22px;font-weight:950;}
+#noorDeleteEmployeeOverlay p{margin:0 0 14px;color:var(--muted);line-height:1.45;font-weight:750;}
+#noorDeleteEmployeeOverlay .noor-delete-person{border:1px solid var(--line);background:var(--panel2);border-radius:18px;padding:12px;margin:12px 0;text-align:left;}
+#noorDeleteEmployeeOverlay .noor-delete-person b{display:block;font-size:15px;}
+#noorDeleteEmployeeOverlay .noor-delete-person span{display:block;color:var(--muted);font-size:13px;margin-top:3px;}
+#noorDeleteEmployeeOverlay .noor-delete-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px;}
+body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradient(180deg,rgba(43,17,34,.98),rgba(31,12,25,.96));}
+@media(max-width:430px){#noorDeleteEmployeeOverlay .noor-delete-actions{grid-template-columns:1fr;}#noorDeleteEmployeeOverlay .noor-delete-card{border-radius:24px;padding:18px;}}
+</style>
+<script id="noor-menu-popup-discount-final-verified-js">
+(function(){
+  'use strict';
+  function $(id){return document.getElementById(id)}
+  function readJSON(k){try{return JSON.parse(localStorage.getItem(k)||sessionStorage.getItem(k)||'null')||{}}catch(e){return {}}}
+  function getProfile(){return window.currentFirebaseUserProfile||readJSON('noor_firebase_current_user_v1')||{}}
+  function getRole(){return String(getProfile().role||'seller').toLowerCase()}
+  function getExtra(){const p=getProfile();return (p&&typeof p.extraPermissions==='object'&&p.extraPermissions)||{}}
+  const base={
+    owner:{all:true},
+    manager:{sell:true,viewProducts:true,manageProducts:true,viewStock:true,manageStock:true,viewDiscounts:true,manageDiscounts:true,viewOrders:true,cancelOrders:true,editPayment:true,createClosure:true,editClosure:true,viewRevenue:true,viewCosts:true,manageEmployees:true,settings:true,backup:true,viewAccessLogs:true},
+    admin:{sell:true,viewProducts:true,manageProducts:true,viewStock:true,manageStock:true,viewDiscounts:true,manageDiscounts:true,viewOrders:true,cancelOrders:true,editPayment:true,createClosure:true,editClosure:true,viewRevenue:true,viewCosts:true,manageEmployees:true,settings:true,backup:true,viewAccessLogs:true},
+    warehouse:{viewProducts:true,manageProducts:true,viewStock:true,manageStock:true,viewDiscounts:true},
+    magazziniere:{viewProducts:true,manageProducts:true,viewStock:true,manageStock:true,viewDiscounts:true},
+    seller:{sell:true,viewProducts:true,viewStock:true,viewDiscounts:true,viewOrders:true,createClosure:true,viewRevenue:true},
+    venditore:{sell:true,viewProducts:true,viewStock:true,viewDiscounts:true,viewOrders:true,createClosure:true,viewRevenue:true},
+    supervisor:{sell:true,viewProducts:true,viewStock:true,viewDiscounts:true,viewOrders:true,cancelOrders:true,editPayment:true,createClosure:true,editClosure:true,viewRevenue:true},
+    supervisore:{sell:true,viewProducts:true,viewStock:true,viewDiscounts:true,viewOrders:true,cancelOrders:true,editPayment:true,createClosure:true,editClosure:true,viewRevenue:true}
+  };
+  const sectionPerm={home:'home',profile:'profile',products:'viewProducts',productDetail:'viewProducts',sell:'sell',history:'viewOrders',drafts:'viewOrders',stock:'viewStock',discounts:'viewDiscounts',closures:'createClosure',settings:'settings',employees:'manageEmployees',accessLogs:'viewAccessLogs'};
+  function perms(){const r=getRole();const b=base[r]||base.seller;return b.all?{all:true}:Object.assign({},b,getExtra());}
+  function can(perm){if(!perm||perm==='home'||perm==='profile'||perm==='logout')return true;const p=perms();return !!(p.all||p[perm]);}
+  function sectionFromButton(btn){
+    const oc=btn.getAttribute('onclick')||'';
+    const m=oc.match(/go\(['\"]([^'\"]+)['\"]\)/); if(m)return m[1];
+    const id=(btn.id||'').toLowerCase();
+    const t=(btn.textContent||'').trim().toLowerCase();
+    if(id.includes('profile')||t==='profilo')return 'profile';
+    if(id.includes('logout')||t.includes('esci'))return 'logout';
+    if(t.includes('importa')||t.includes('backup'))return 'backup';
+    if(t.includes('impostazioni'))return 'settings';
+    if(t.includes('dipendenti'))return 'employees';
+    if(t.includes('sconti'))return 'discounts';
+    if(t.includes('controllo accessi')||t.includes('registro accessi')||t==='accessi')return 'accessLogs';
+    if(t.includes('prodotti')||t.includes('prodotto'))return 'products';
+    if(t.includes('stock')||t.includes('magazzino'))return 'stock';
+    if(t.includes('storico')||t.includes('bozze'))return 'history';
+    if(t.includes('vendi')||t.includes('vendita'))return 'sell';
+    if(t.includes('chiusure')||t.includes('chiusura'))return 'closures';
+    return '';
+  }
+  function canOpenSection(sec){if(sec==='backup')return can('backup'); return can(sectionPerm[sec]||sec);}
+  function setHidden(el,hide){
+    if(!el)return;
+    el.classList.toggle('noor-role-hidden',!!hide);
+    if(hide){el.style.setProperty('display','none','important');el.setAttribute('aria-hidden','true');}
+    else {el.style.removeProperty('display');el.removeAttribute('aria-hidden');}
+  }
+  function ensureProfile(){
+    const menu=$('topMenu'); if(!menu||$('profileMenuButton'))return;
+    const b=document.createElement('button');b.id='profileMenuButton';b.type='button';b.className='btn secondary';b.textContent='Profilo';
+    b.onclick=function(){try{go('profile')}catch(e){} try{closeTopMenu()}catch(e){} return false;};
+    const out=$('logoutMenuButton'); if(out)menu.insertBefore(b,out); else menu.appendChild(b);
+  }
+  function applyMenu(){
+    ensureProfile();
+    document.querySelectorAll('#topMenu button,.nav button').forEach(function(btn){
+      const sec=sectionFromButton(btn); let allowed=true;
+      if(sec)allowed=canOpenSection(sec);
+      setHidden(btn,!allowed);
+    });
+    document.querySelectorAll('button').forEach(function(btn){
+      const txt=(btn.textContent||'').trim();
+      if(/^\+\s*Prodotto/i.test(txt)||/^Aggiungi prodotto/i.test(txt))setHidden(btn,!can('manageProducts'));
+    });
+  }
+  function applyDiscountReadonly(){
+    const readOnly=can('viewDiscounts')&&!can('manageDiscounts');
+    document.body.classList.toggle('noor-discounts-readonly',readOnly);
+    const form=document.querySelector('#discounts form'); if(form)setHidden(form,readOnly);
+    document.querySelectorAll('#discountsTable button').forEach(function(b){setHidden(b,readOnly)});
+  }
+  function patchGo(){
+    if(window.__noorFinalGoRolePatch)return; window.__noorFinalGoRolePatch=true;
+    const old=window.go;
+    if(typeof old==='function'){
+      window.go=function(id){ if(!canOpenSection(id)){try{toast('Non hai il permesso per accedere a questa sezione.')}catch(e){} id='home';} return old.call(this,id); };
+    }
+  }
+  function makeOverlay(){
+    let o=$('noorDeleteEmployeeOverlay'); if(o)return o;
+    o=document.createElement('div'); o.id='noorDeleteEmployeeOverlay';
+    o.innerHTML='<div class="noor-delete-card"><div class="noor-delete-icon">!</div><h3>Eliminare dipendente?</h3><p>Conferma solo se vuoi rimuovere questo dipendente dal gestionale.</p><div class="noor-delete-person"><b id="noorDelEmpName">Dipendente</b><span id="noorDelEmpMeta"></span></div><div class="noor-delete-actions"><button class="btn secondary" type="button" id="noorDelCancel">Annulla</button><button class="btn red" type="button" id="noorDelConfirm">Elimina</button></div></div>';
+    document.body.appendChild(o);
+    $('noorDelCancel').onclick=function(){o.classList.remove('show')};
+    o.addEventListener('click',function(ev){if(ev.target===o)o.classList.remove('show')});
+    return o;
+  }
+  function findEmp(id){try{return (window.db&&Array.isArray(db.employees)?db.employees:[]).find(function(e){return String(e.id)===String(id)||String(e.uid)===String(id)||String(e.firebaseUid)===String(id)})||null}catch(e){return null}}
+  function patchDelete(){
+    if(window.__noorFinalDeletePatch)return; window.__noorFinalDeletePatch=true;
+    const old=window.deleteEmployee;
+    if(typeof old!=='function')return;
+    window.deleteEmployee=function(id){
+      const emp=findEmp(id)||{name:'Dipendente',email:'',role:''};
+      const o=makeOverlay();
+      $('noorDelEmpName').textContent=emp.name||emp.email||'Dipendente';
+      $('noorDelEmpMeta').textContent=[emp.email,emp.role].filter(Boolean).join(' · ');
+      $('noorDelConfirm').onclick=function(){
+        o.classList.remove('show');
+        const originalConfirm=window.confirm;
+        window.confirm=function(){return true};
+        try{return old.call(window,id)}finally{setTimeout(function(){window.confirm=originalConfirm},100)}
+      };
+      o.classList.add('show');
+      return false;
+    };
+  }
+  function boot(){patchGo();patchDelete();applyMenu();applyDiscountReadonly();}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+  setTimeout(boot,300);setTimeout(boot,1000);setTimeout(boot,2500);setInterval(function(){applyMenu();applyDiscountReadonly();},1200);
+})();
+</script>
 </body>
 </html>
