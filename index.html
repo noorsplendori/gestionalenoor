@@ -2094,19 +2094,132 @@ load();
 })();
 </script>
 
-<script>
-/* CHIUSURE GIORNALIERE - patch conservativa */
+<script id="noor-closures-firestore-step1">
+/* CHIUSURE GIORNALIERE ONLINE - patch sicura */
 (function(){
+  if(window.__NOOR_CLOSURES_FIRESTORE_PATCH__) return;
+  window.__NOOR_CLOSURES_FIRESTORE_PATCH__ = true;
+
+  const FIREBASE_CONFIG = {
+    apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+    authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+    projectId:"gestionalenoor-2fa61",
+    storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+    messagingSenderId:"66670691093",
+    appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+    measurementId:"G-0HSQB7XLJG"
+  };
+
+  let fbReady=false, fbAuth=null, fbDb=null, fbFns=null, unsubscribeClosures=null;
+  let loadingFromFirestore=false;
+
   function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
   function ymd(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');}
   function dateIT(d){return new Date(d).toLocaleDateString('it-IT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});}
   function dayStart(d){const x=new Date(d);x.setHours(0,0,0,0);return x;}
   function dayEnd(d){const x=new Date(d);x.setHours(23,59,59,999);return x;}
+  function getLS(){return typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1';}
+  function money(v){try{return typeof eur==='function'?eur(Number(v)||0):('€'+(Number(v)||0).toFixed(2).replace('.',','));}catch(e){return '€0,00';}}
+  function notify(msg,type){try{if(typeof toast==='function')toast(msg,type||'')}catch(e){}}
+
   function ensureClosures(){
     if(typeof db!=='object' || !db) window.db={products:[],sales:[],discounts:[],drafts:[],closures:[]};
     if(!Array.isArray(db.closures)) db.closures=[];
-    try{localStorage.setItem(LS_KEY,JSON.stringify(db));}catch(e){}
+    try{localStorage.setItem(getLS(),JSON.stringify(db));}catch(e){}
   }
+
+  async function initFirebaseClosures(){
+    if(fbReady) return true;
+    try{
+      const [appMod, authMod, fsMod] = await Promise.all([
+        import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js')
+      ]);
+      const app = appMod.getApps().length ? appMod.getApps()[0] : appMod.initializeApp(FIREBASE_CONFIG);
+      fbAuth = authMod.getAuth(app);
+      fbDb = fsMod.getFirestore(app);
+      fbFns = fsMod;
+      fbReady = true;
+      authMod.onAuthStateChanged(fbAuth,function(user){
+        if(user) startClosuresListener(); else stopClosuresListener();
+      });
+      return true;
+    }catch(err){
+      console.error('Firebase chiusure non inizializzato:',err);
+      notify('Errore collegamento chiusure online: '+(err.message||err));
+      return false;
+    }
+  }
+
+  function stopClosuresListener(){
+    if(unsubscribeClosures){try{unsubscribeClosures()}catch(e){} unsubscribeClosures=null;}
+  }
+
+  function normalizeClosure(data,id){
+    const c={...(data||{})};
+    c.id=String(c.id||id||'');
+    c.date=String(c.date||ymd(new Date()));
+    c.closedAt=c.closedAtClient||c.closedAt||new Date().toISOString();
+    c.closedAtText=c.closedAtText||'';
+    c.orders=Number(c.orders)||0;
+    c.items=Number(c.items)||0;
+    c.total=Number(c.total)||0;
+    c.payments=(c.payments&&typeof c.payments==='object')?c.payments:{};
+    c.topProducts=Array.isArray(c.topProducts)?c.topProducts:[];
+    c.orderIds=Array.isArray(c.orderIds)?c.orderIds:[];
+    c.notes=String(c.notes||'');
+    c.employeeUid=c.employeeUid||'';
+    c.employeeEmail=c.employeeEmail||'';
+    c.employeeName=c.employeeName||'';
+    c.employeeRole=c.employeeRole||'';
+    return c;
+  }
+
+  async function startClosuresListener(){
+    if(!fbReady||!fbDb||!fbFns||unsubscribeClosures) return;
+    try{
+      const ref=fbFns.collection(fbDb,'closures');
+      let q=ref;
+      try{q=fbFns.query(ref,fbFns.orderBy('date','desc'));}catch(e){}
+      unsubscribeClosures=fbFns.onSnapshot(q,function(snapshot){
+        loadingFromFirestore=true;
+        const list=[];
+        snapshot.forEach(function(s){const d=s.data()||{}; if(d.test===true)return; list.push(normalizeClosure(d,s.id));});
+        ensureClosures();
+        db.closures=list.sort(function(a,b){return String(b.date).localeCompare(String(a.date));});
+        try{localStorage.setItem(getLS(),JSON.stringify(db));}catch(e){}
+        loadingFromFirestore=false;
+        window.__NOOR_CLOSURES_ONLINE_ACTIVE__=true;
+        if(typeof renderClosures==='function') renderClosures();
+        console.log('Chiusure online caricate da Firestore:',list.length);
+      },function(err){
+        loadingFromFirestore=false;
+        console.error('Errore listener chiusure:',err);
+        notify('Errore caricamento chiusure online: '+(err.message||err));
+      });
+    }catch(err){console.error('Avvio listener chiusure fallito:',err);}
+  }
+
+  async function saveClosureOnline(rec){
+    const ok=await initFirebaseClosures();
+    if(!ok||!fbAuth||!fbAuth.currentUser) throw new Error('Devi essere loggato per salvare chiusure online.');
+    const profile=(window.currentUserProfile||window.currentProfileData||{});
+    const clean=normalizeClosure(rec,rec.id);
+    const ref=fbFns.doc(fbDb,'closures',clean.id);
+    await fbFns.setDoc(ref,{
+      ...clean,
+      closedAtClient:clean.closedAt,
+      employeeUid:fbAuth.currentUser.uid,
+      employeeEmail:fbAuth.currentUser.email||'',
+      employeeName:profile.name||profile.displayName||fbAuth.currentUser.email||'',
+      employeeRole:profile.role||'',
+      updatedAt:fbFns.serverTimestamp(),
+      createdAt:fbFns.serverTimestamp()
+    },{merge:true});
+    return clean;
+  }
+
   function getAllSales(){return Array.isArray(db?.sales)?db.sales:[];}
   function ordersFromSales(list){
     if(typeof buildOrdersFromSales==='function') return buildOrdersFromSales(list||[]);
@@ -2123,6 +2236,7 @@ load();
     return {start:ymd(start),end:ymd(end),orders:orders.length,items:orders.reduce((a,o)=>a+Number(o.qty||0),0),total:orders.reduce((a,o)=>a+Number(o.total||0),0),payments,topProducts,orderIds:orders.map(o=>o.id)};
   }
   function todaySummary(){return summarize(dayStart(new Date()),dayEnd(new Date()));}
+
   function installMenu(){
     const menu=document.getElementById('topMenu'); if(!menu || document.getElementById('menuClosuresBtn'))return;
     const settingsBtn=[...menu.querySelectorAll('button')].find(b=>(b.getAttribute('onclick')||'').includes("go('settings')"));
@@ -2131,6 +2245,7 @@ load();
     menu.appendChild(btn);
     if(settingsBtn) menu.appendChild(settingsBtn); else {const sbtn=document.createElement('button');sbtn.className='btn secondary';sbtn.setAttribute('onclick',"go('settings');closeTopMenu()");sbtn.textContent='Impostazioni';menu.appendChild(sbtn);}
   }
+
   function installSection(){
     if(document.getElementById('closures'))return;
     const sec=document.createElement('section'); sec.id='closures'; sec.className='section';
@@ -2138,39 +2253,29 @@ load();
       <div class="panel-title"><div><h2>Chiusure giornaliere</h2><p class="hint">Raggruppa incassi, ordini e articoli venduti per giorno.</p></div><button class="btn gold" onclick="openDailyClosureConfirm()">Esegui chiusura di oggi</button></div>
       <div id="closureTodayBox"></div>
       <div style="height:14px"></div>
-      <div class="panel-title"><div><h2>Storico chiusure</h2><p class="hint">Consulta tutte le chiusure già salvate.</p></div><button class="btn secondary" onclick="printClosuresPeriod()">Stampa periodo PDF</button></div>
-      <div class="closure-filters">
-        <button class="btn small secondary" onclick="setClosureFilter('today')">Oggi</button>
-        <button class="btn small secondary" onclick="setClosureFilter('yesterday')">Ieri</button>
-        <button class="btn small secondary" onclick="setClosureFilter('7')">7 giorni</button>
-        <button class="btn small secondary" onclick="setClosureFilter('30')">30 giorni</button>
-        <button class="btn small secondary" onclick="setClosureFilter('90')">90 giorni</button>
-        <button class="btn small secondary" onclick="setClosureFilter('365')">365 giorni</button>
-        <button class="btn small secondary" onclick="setClosureFilter('manual')">Filtro manuale</button>
-      </div>
+      <div class="panel-title"><div><h2>Storico chiusure</h2><p class="hint">Consulta tutte le chiusure già salvate online.</p></div><button class="btn secondary" onclick="printClosuresPeriod()">Stampa periodo PDF</button></div>
+      <div class="closure-filters"><button class="btn small secondary" onclick="setClosureFilter('today')">Oggi</button><button class="btn small secondary" onclick="setClosureFilter('yesterday')">Ieri</button><button class="btn small secondary" onclick="setClosureFilter('7')">7 giorni</button><button class="btn small secondary" onclick="setClosureFilter('30')">30 giorni</button><button class="btn small secondary" onclick="setClosureFilter('90')">90 giorni</button><button class="btn small secondary" onclick="setClosureFilter('365')">365 giorni</button><button class="btn small secondary" onclick="setClosureFilter('manual')">Filtro manuale</button></div>
       <div id="closureManualFilter" class="closure-manual"><input id="closureFrom" type="date" onchange="renderClosures()"><input id="closureTo" type="date" onchange="renderClosures()"><button class="btn small gold" onclick="renderClosures()">Applica</button></div>
-      <div id="closuresSummary" class="hint" style="margin-bottom:10px"></div>
-      <div id="closuresList"></div>
+      <div id="closuresSummary" class="hint" style="margin-bottom:10px"></div><div id="closuresList"></div>
     </div>`;
-    const settings=document.getElementById('settings');
-    const main=document.querySelector('main.app')||document.querySelector('main');
+    const settings=document.getElementById('settings'); const main=document.querySelector('main.app')||document.querySelector('main');
     if(settings && settings.parentNode) settings.parentNode.insertBefore(sec, settings); else main?.appendChild(sec);
   }
+
   function renderToday(){
     const box=document.getElementById('closureTodayBox'); if(!box)return;
-    const s=todaySummary(); const payHtml=Object.entries(s.payments).map(([k,v])=>`<span class="closure-chip">${esc(k)} ${eur(v)}</span>`).join('')||'<span class="closure-chip">Nessun incasso</span>';
-    box.innerHTML=`<div class="closure-grid"><div class="closure-kpi"><div class="k">Ordini oggi</div><div class="v">${s.orders}</div></div><div class="closure-kpi"><div class="k">Articoli venduti</div><div class="v">${s.items}</div></div><div class="closure-kpi"><div class="k">Incasso totale</div><div class="v">${eur(s.total)}</div></div><div class="closure-kpi"><div class="k">Data</div><div class="v" style="font-size:18px">${dateIT(new Date())}</div></div></div><div class="closure-card"><b>Pagamenti di oggi</b><div class="closure-payments">${payHtml}</div></div>`;
+    const s=todaySummary(); const payHtml=Object.entries(s.payments).map(([k,v])=>`<span class="closure-chip">${esc(k)} ${money(v)}</span>`).join('')||'<span class="closure-chip">Nessun incasso</span>';
+    box.innerHTML=`<div class="closure-grid"><div class="closure-kpi"><div class="k">Ordini oggi</div><div class="v">${s.orders}</div></div><div class="closure-kpi"><div class="k">Articoli venduti</div><div class="v">${s.items}</div></div><div class="closure-kpi"><div class="k">Incasso totale</div><div class="v">${money(s.total)}</div></div><div class="closure-kpi"><div class="k">Data</div><div class="v" style="font-size:18px">${dateIT(new Date())}</div></div></div><div class="closure-card"><b>Pagamenti di oggi</b><div class="closure-payments">${payHtml}</div></div>`;
   }
+
   function filterRange(){
     const now=new Date(); let start=dayStart(now), end=dayEnd(now); const f=window.currentClosureFilter||'30';
     if(f==='yesterday'){const y=new Date(now);y.setDate(y.getDate()-1);start=dayStart(y);end=dayEnd(y)}
     else if(['7','30','90','365'].includes(f)){start=dayStart(now);start.setDate(start.getDate()-(Number(f)-1));end=dayEnd(now)}
-    else if(f==='manual'){
-      const a=document.getElementById('closureFrom')?.value, b=document.getElementById('closureTo')?.value;
-      if(a)start=dayStart(new Date(a+'T00:00:00')); if(b)end=dayEnd(new Date(b+'T00:00:00'));
-    }
+    else if(f==='manual'){const a=document.getElementById('closureFrom')?.value, b=document.getElementById('closureTo')?.value; if(a)start=dayStart(new Date(a+'T00:00:00')); if(b)end=dayEnd(new Date(b+'T00:00:00'));}
     return {start,end};
   }
+
   window.setClosureFilter=function(f){window.currentClosureFilter=f;const mf=document.getElementById('closureManualFilter');if(mf)mf.classList.toggle('show',f==='manual');renderClosures();};
   window.renderClosures=function(){
     ensureClosures(); renderToday();
@@ -2178,53 +2283,60 @@ load();
     const {start,end}=filterRange(); const a=start.getTime(), b=end.getTime();
     const clos=[...db.closures].filter(c=>{const t=new Date(c.date+'T12:00:00').getTime();return t>=a&&t<=b;}).sort((x,y)=>String(y.date).localeCompare(String(x.date)));
     const total=clos.reduce((n,c)=>n+Number(c.total||0),0); const orders=clos.reduce((n,c)=>n+Number(c.orders||0),0); const items=clos.reduce((n,c)=>n+Number(c.items||0),0);
-    const sum=document.getElementById('closuresSummary'); if(sum)sum.innerHTML=`Periodo: <b>${start.toLocaleDateString('it-IT')}</b> - <b>${end.toLocaleDateString('it-IT')}</b> · Chiusure: <b>${clos.length}</b> · Ordini: <b>${orders}</b> · Articoli: <b>${items}</b> · Incasso: <b>${eur(total)}</b>`;
-    list.innerHTML=clos.map(c=>{const pay=Object.entries(c.payments||{}).map(([k,v])=>`<span class="closure-chip">${esc(k)} ${eur(v)}</span>`).join('');return `<div class="closure-card"><div class="closure-head"><div><h2>${dateIT(c.date)}</h2><p class="hint">${esc(c.id)} · chiusa alle ${esc(c.closedAtText||'')}</p></div><div style="text-align:right"><div style="font-size:26px;font-weight:950">${eur(c.total)}</div><div class="hint">${c.orders} ordini · ${c.items} articoli</div></div></div><div class="closure-payments">${pay}</div>${c.notes?`<p class="hint"><b>Note:</b> ${esc(c.notes)}</p>`:''}<div class="action-row" style="margin-top:12px"><button class="btn small secondary" onclick="openClosureDetail('${esc(c.id)}')">Apri</button><button class="btn small secondary" onclick="printClosure('${esc(c.id)}')">PDF</button></div></div>`}).join('')||'<div class="empty">Nessuna chiusura salvata in questo periodo.</div>';
+    const sum=document.getElementById('closuresSummary'); if(sum)sum.innerHTML=`Periodo: <b>${start.toLocaleDateString('it-IT')}</b> - <b>${end.toLocaleDateString('it-IT')}</b> · Chiusure: <b>${clos.length}</b> · Ordini: <b>${orders}</b> · Articoli: <b>${items}</b> · Incasso: <b>${money(total)}</b>`;
+    list.innerHTML=clos.map(c=>{const pay=Object.entries(c.payments||{}).map(([k,v])=>`<span class="closure-chip">${esc(k)} ${money(v)}</span>`).join('');return `<div class="closure-card"><div class="closure-head"><div><h2>${dateIT(c.date)}</h2><p class="hint">${esc(c.id)} · chiusa alle ${esc(c.closedAtText||'')} ${c.employeeName?('· '+esc(c.employeeName)):''}</p></div><div style="text-align:right"><div style="font-size:26px;font-weight:950">${money(c.total)}</div><div class="hint">${c.orders} ordini · ${c.items} articoli</div></div></div><div class="closure-payments">${pay}</div>${c.notes?`<p class="hint"><b>Note:</b> ${esc(c.notes)}</p>`:''}<div class="action-row" style="margin-top:12px"><button class="btn small secondary" onclick="openClosureDetail('${esc(c.id)}')">Apri</button><button class="btn small secondary" onclick="printClosure('${esc(c.id)}')">PDF</button></div></div>`}).join('')||'<div class="empty">Nessuna chiusura salvata in questo periodo.</div>';
   };
+
   window.openDailyClosureConfirm=function(){
     ensureClosures(); const s=todaySummary(); const id='CHI-'+ymd(new Date()).replaceAll('-','')+'-001';
     const existing=db.closures.find(c=>c.date===ymd(new Date()));
-    const payHtml=Object.entries(s.payments).map(([k,v])=>`<div class="confirm-row"><span>${esc(k)}</span><b>${eur(v)}</b></div>`).join('')||'<div class="empty">Nessun pagamento registrato oggi.</div>';
-    document.getElementById('cancelSaleContent').innerHTML=`<div class="confirm-row"><span>Chiusura</span><b>${id}</b></div><div class="confirm-row"><span>Data</span><b>${dateIT(new Date())}</b></div><div class="confirm-row"><span>Ordini</span><b>${s.orders}</b></div><div class="confirm-row"><span>Articoli</span><b>${s.items}</b></div><div class="confirm-row"><span>Totale</span><b>${eur(s.total)}</b></div><h2>Pagamenti</h2>${payHtml}<div class="field"><label>Note chiusura</label><textarea id="closureNotes" placeholder="Note contabili, differenze cassa, appunti..."></textarea></div>${existing?'<p class="compat-note">Esiste già una chiusura per oggi: confermando verrà aggiornata.</p>':''}<div class="action-row"><button class="btn secondary" onclick="closeCancelSale()">Annulla</button><button class="btn gold" onclick="confirmDailyClosure()">Conferma chiusura</button></div>`;
+    const payHtml=Object.entries(s.payments).map(([k,v])=>`<div class="confirm-row"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join('')||'<div class="empty">Nessun pagamento registrato oggi.</div>';
+    const content=document.getElementById('cancelSaleContent'); if(!content){notify('Popup non trovato.');return;}
+    content.innerHTML=`<div class="confirm-row"><span>Chiusura</span><b>${id}</b></div><div class="confirm-row"><span>Data</span><b>${dateIT(new Date())}</b></div><div class="confirm-row"><span>Ordini</span><b>${s.orders}</b></div><div class="confirm-row"><span>Articoli</span><b>${s.items}</b></div><div class="confirm-row"><span>Totale</span><b>${money(s.total)}</b></div><h2>Pagamenti</h2>${payHtml}<div class="field"><label>Note chiusura</label><textarea id="closureNotes" placeholder="Note contabili, differenze cassa, appunti...">${existing?esc(existing.notes||''):''}</textarea></div>${existing?'<p class="compat-note">Esiste già una chiusura per oggi: confermando verrà aggiornata online.</p>':''}<div class="action-row"><button class="btn secondary" onclick="closeCancelSale()">Annulla</button><button class="btn gold" onclick="confirmDailyClosure()">Conferma chiusura</button></div>`;
     document.getElementById('cancelSaleModal')?.classList.add('show');
   };
-  window.confirmDailyClosure=function(){
+
+  window.confirmDailyClosure=async function(){
     ensureClosures(); const now=new Date(); const s=todaySummary(); const date=ymd(now); const id='CHI-'+date.replaceAll('-','')+'-001';
     const rec={id,date,closedAt:now.toISOString(),closedAtText:now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}),orders:s.orders,items:s.items,total:s.total,payments:s.payments,topProducts:s.topProducts,orderIds:s.orderIds,notes:document.getElementById('closureNotes')?.value||''};
     db.closures=db.closures.filter(c=>c.date!==date); db.closures.push(rec);
-    try{localStorage.setItem(LS_KEY,JSON.stringify(db));}catch(e){}
-    closeCancelSale(); renderClosures(); if(typeof toast==='function')toast('Chiusura giornaliera salvata.','success');
+    try{localStorage.setItem(getLS(),JSON.stringify(db));}catch(e){}
+    try{
+      await saveClosureOnline(rec);
+      if(typeof closeCancelSale==='function') closeCancelSale();
+      renderClosures();
+      notify('Chiusura giornaliera salvata online su Firebase.','success');
+    }catch(err){
+      console.error('Errore salvataggio chiusura online:',err);
+      notify('Errore salvataggio chiusura online: '+(err.message||err));
+    }
   };
+
   window.openClosureDetail=function(id){
     ensureClosures(); const c=db.closures.find(x=>x.id===id); if(!c)return;
-    const pays=Object.entries(c.payments||{}).map(([k,v])=>`<div class="confirm-row"><span>${esc(k)}</span><b>${eur(v)}</b></div>`).join('');
-    const top=(c.topProducts||[]).map((p,i)=>`<div class="confirm-row"><span>${i+1}. ${esc(p.name)}</span><b>${p.qty} pz · ${eur(p.total)}</b></div>`).join('')||'<div class="empty">Nessun prodotto venduto.</div>';
-    document.getElementById('cancelSaleContent').innerHTML=`<div class="confirm-row"><span>Chiusura</span><b>${esc(c.id)}</b></div><div class="confirm-row"><span>Data</span><b>${dateIT(c.date)}</b></div><div class="confirm-row"><span>Ordini</span><b>${c.orders}</b></div><div class="confirm-row"><span>Articoli</span><b>${c.items}</b></div><div class="confirm-row"><span>Totale</span><b>${eur(c.total)}</b></div><h2>Pagamenti</h2>${pays}<h2>Prodotti più venduti</h2>${top}${c.notes?`<p class="hint"><b>Note:</b> ${esc(c.notes)}</p>`:''}<div class="action-row"><button class="btn secondary" onclick="closeCancelSale()">Chiudi</button><button class="btn gold" onclick="printClosure('${esc(c.id)}')">Stampa PDF</button></div>`;
+    const pays=Object.entries(c.payments||{}).map(([k,v])=>`<div class="confirm-row"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join('');
+    const top=(c.topProducts||[]).map((p,i)=>`<div class="confirm-row"><span>${i+1}. ${esc(p.name)}</span><b>${p.qty} pz · ${money(p.total)}</b></div>`).join('')||'<div class="empty">Nessun prodotto venduto.</div>';
+    document.getElementById('cancelSaleContent').innerHTML=`<div class="confirm-row"><span>Chiusura</span><b>${esc(c.id)}</b></div><div class="confirm-row"><span>Data</span><b>${dateIT(c.date)}</b></div><div class="confirm-row"><span>Ordini</span><b>${c.orders}</b></div><div class="confirm-row"><span>Articoli</span><b>${c.items}</b></div><div class="confirm-row"><span>Totale</span><b>${money(c.total)}</b></div>${c.employeeName?`<div class="confirm-row"><span>Operatore</span><b>${esc(c.employeeName)}</b></div>`:''}<h2>Pagamenti</h2>${pays}<h2>Prodotti più venduti</h2>${top}${c.notes?`<p class="hint"><b>Note:</b> ${esc(c.notes)}</p>`:''}<div class="action-row"><button class="btn secondary" onclick="closeCancelSale()">Chiudi</button><button class="btn gold" onclick="printClosure('${esc(c.id)}')">Stampa PDF</button></div>`;
     document.getElementById('cancelSaleModal')?.classList.add('show');
   };
+
   function printHtml(title, body){
-    const w=window.open('','_blank'); if(!w){toast('Popup bloccato dal browser.');return;}
-    const name=esc(settings?.appName||'Noor Profumi Pro');
+    const w=window.open('','_blank'); if(!w){notify('Popup bloccato dal browser.');return;}
+    const name=esc(settings?.appName||'Noor Splendori');
     w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font-family:Arial,sans-serif;color:#3b1027;padding:28px}h1{margin:0 0 6px}.muted{color:#8f5a72}.box{border:1px solid #f2c6da;border-radius:18px;padding:14px;margin:12px 0}.row{display:flex;justify-content:space-between;border-bottom:1px solid #f7dcea;padding:8px 0}.total{font-size:26px;font-weight:900}.chip{display:inline-block;background:#fff0f7;border:1px solid #f2c6da;border-radius:999px;padding:7px 10px;margin:4px}</style></head><body><h1>${name}</h1><div class="muted">${esc(title)}</div>${body}<script>setTimeout(()=>window.print(),300)<\/script></body></html>`);
     w.document.close();
   }
-  window.printClosure=function(id){
-    ensureClosures(); const c=db.closures.find(x=>x.id===id); if(!c)return;
-    const pays=Object.entries(c.payments||{}).map(([k,v])=>`<div class="row"><span>${esc(k)}</span><b>${eur(v)}</b></div>`).join('');
-    const top=(c.topProducts||[]).map((p,i)=>`<div class="row"><span>${i+1}. ${esc(p.name)}</span><b>${p.qty} pz · ${eur(p.total)}</b></div>`).join('');
-    printHtml('Chiusura '+dateIT(c.date),`<div class="box"><div class="row"><span>Codice</span><b>${esc(c.id)}</b></div><div class="row"><span>Ordini</span><b>${c.orders}</b></div><div class="row"><span>Articoli</span><b>${c.items}</b></div><div class="row"><span>Totale</span><b class="total">${eur(c.total)}</b></div></div><h2>Pagamenti</h2><div class="box">${pays}</div><h2>Prodotti più venduti</h2><div class="box">${top||'<div class="muted">Nessun prodotto.</div>'}</div>${c.notes?`<h2>Note</h2><div class="box">${esc(c.notes)}</div>`:''}`);
-  };
-  window.printClosuresPeriod=function(){
-    ensureClosures(); const {start,end}=filterRange(); const clos=[...db.closures].filter(c=>{const t=new Date(c.date+'T12:00:00').getTime();return t>=start.getTime()&&t<=end.getTime();}).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-    const total=clos.reduce((n,c)=>n+Number(c.total||0),0);
-    const rows=clos.map(c=>`<div class="row"><span>${dateIT(c.date)}<br><span class="muted">${c.orders} ordini · ${c.items} articoli</span></span><b>${eur(c.total)}</b></div>`).join('');
-    printHtml('Report chiusure periodo',`<div class="box"><div class="row"><span>Periodo</span><b>${start.toLocaleDateString('it-IT')} - ${end.toLocaleDateString('it-IT')}</b></div><div class="row"><span>Chiusure</span><b>${clos.length}</b></div><div class="row"><span>Totale periodo</span><b class="total">${eur(total)}</b></div></div><h2>Dettaglio giornaliero</h2><div class="box">${rows||'<div class="muted">Nessuna chiusura.</div>'}</div>`);
-  };
+  window.printClosure=function(id){ensureClosures(); const c=db.closures.find(x=>x.id===id); if(!c)return; const pays=Object.entries(c.payments||{}).map(([k,v])=>`<div class="row"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join(''); const top=(c.topProducts||[]).map((p,i)=>`<div class="row"><span>${i+1}. ${esc(p.name)}</span><b>${p.qty} pz · ${money(p.total)}</b></div>`).join(''); printHtml('Chiusura '+dateIT(c.date),`<div class="box"><div class="row"><span>Codice</span><b>${esc(c.id)}</b></div><div class="row"><span>Ordini</span><b>${c.orders}</b></div><div class="row"><span>Articoli</span><b>${c.items}</b></div><div class="row"><span>Totale</span><b class="total">${money(c.total)}</b></div></div><h2>Pagamenti</h2><div class="box">${pays}</div><h2>Prodotti più venduti</h2><div class="box">${top||'<div class="muted">Nessun prodotto.</div>'}</div>${c.notes?`<h2>Note</h2><div class="box">${esc(c.notes)}</div>`:''}`);};
+  window.printClosuresPeriod=function(){ensureClosures(); const {start,end}=filterRange(); const clos=[...db.closures].filter(c=>{const t=new Date(c.date+'T12:00:00').getTime();return t>=start.getTime()&&t<=end.getTime();}).sort((a,b)=>String(a.date).localeCompare(String(b.date))); const total=clos.reduce((n,c)=>n+Number(c.total||0),0); const rows=clos.map(c=>`<div class="row"><span>${dateIT(c.date)}<br><span class="muted">${c.orders} ordini · ${c.items} articoli</span></span><b>${money(c.total)}</b></div>`).join(''); printHtml('Report chiusure periodo',`<div class="box"><div class="row"><span>Periodo</span><b>${start.toLocaleDateString('it-IT')} - ${end.toLocaleDateString('it-IT')}</b></div><div class="row"><span>Chiusure</span><b>${clos.length}</b></div><div class="row"><span>Totale periodo</span><b class="total">${money(total)}</b></div></div><h2>Dettaglio giornaliero</h2><div class="box">${rows||'<div class="muted">Nessuna chiusura.</div>'}</div>`);};
+
   const oldRenderAll=window.renderAll;
   window.renderAll=function(){ if(typeof oldRenderAll==='function') oldRenderAll(); ensureClosures(); installMenu(); installSection(); renderClosures(); };
   const oldGo=window.go;
   window.go=function(id){ installMenu(); installSection(); if(typeof oldGo==='function')oldGo(id); if(id==='closures')renderClosures(); };
-  setTimeout(()=>{ensureClosures();installMenu();installSection();renderClosures();},350);
+
+  function boot(){ensureClosures();installMenu();installSection();renderClosures();initFirebaseClosures();}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+  setTimeout(boot,350);setTimeout(boot,1200);
 })();
 </script>
 
