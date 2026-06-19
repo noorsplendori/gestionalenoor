@@ -1393,6 +1393,9 @@ function printDocument(title,bodyHtml){
 </style></head><body><div class="sheet"><div class="no-print"><button onclick="window.print()" style="padding:10px 16px;border:0;border-radius:12px;background:#e86aa7;color:white;font-weight:900;cursor:pointer">Stampa / Salva PDF</button></div><div class="head"><div><div class="brand">Noor Profumi Pro</div><div class="sub">${escapePrint(title)} · ${now}</div></div><div class="badge">Documento PDF</div></div>${bodyHtml}<div class="footer">Documento generato dal gestionale Noor Profumi Pro.</div></div><script>setTimeout(()=>window.print(),350)<\/script>
 
 
+
+
+
 </body></html>`);
   w.document.close();
 }
@@ -3934,6 +3937,300 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
   }
   setTimeout(bootProductsOnline, 700);
   setTimeout(bootProductsOnline, 1800);
+})();
+</script>
+
+
+<script id="noor-orders-firestore-step1">
+/*
+  Noor Splendori - Ordini online Firestore STEP 1
+  Scrive gli ordini in Firestore, scala stock online e legge lo storico ordini da tutti i dispositivi.
+  Patch isolata: non modifica login, ruoli, dipendenti, sconti o prodotti online.
+*/
+(function(){
+  if(window.__NOOR_ORDERS_FIRESTORE_PATCH__) return;
+  window.__NOOR_ORDERS_FIRESTORE_PATCH__ = true;
+
+  const FIREBASE_CONFIG = {
+    apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+    authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+    projectId:"gestionalenoor-2fa61",
+    storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+    messagingSenderId:"66670691093",
+    appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+    measurementId:"G-0HSQB7XLJG"
+  };
+
+  let fbReady=false;
+  let fbAuth=null;
+  let fbDb=null;
+  let fbFns=null;
+  let unsubscribeOrders=null;
+  let installing=false;
+
+  function iso(){return new Date().toISOString()}
+  function localId(){return (typeof uid==='function'?uid():Date.now().toString(36)+Math.random().toString(36).slice(2,8))}
+  function currentProfile(){return window.currentFirebaseUserProfile || JSON.parse(localStorage.getItem('noor_firebase_current_user_v1')||'{}') || {}}
+  function normalizePayment(p){
+    p=String(p||'Contanti').trim();
+    if(p.toLowerCase()==='elettronico') return 'POS';
+    if(!['Contanti','POS','Bonifico'].includes(p)) return p || 'Contanti';
+    return p;
+  }
+  function saveLocalOnly(){
+    try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1', JSON.stringify(db));}catch(e){}
+    try{
+      if(typeof renderAll==='function') renderAll();
+      else { if(typeof renderStats==='function')renderStats(); if(typeof renderSales==='function')renderSales(); if(typeof renderProducts==='function')renderProducts(); if(typeof renderStock==='function')renderStock(); }
+    }catch(e){console.warn('Render ordini online:',e)}
+  }
+
+  async function initFirebaseOrders(){
+    if(fbReady) return true;
+    try{
+      const [appMod, authMod, fsMod] = await Promise.all([
+        import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js')
+      ]);
+      const app=appMod.getApps().length?appMod.getApps()[0]:appMod.initializeApp(FIREBASE_CONFIG);
+      fbAuth=authMod.getAuth(app);
+      fbDb=fsMod.getFirestore(app);
+      fbFns=fsMod;
+      fbReady=true;
+      authMod.onAuthStateChanged(fbAuth,function(user){ if(user) startOrdersListener(); else stopOrdersListener(); });
+      return true;
+    }catch(err){
+      console.error('Firebase ordini non inizializzato:',err);
+      try{toast('Errore collegamento ordini online: '+(err.message||err));}catch(e){}
+      return false;
+    }
+  }
+
+  function stopOrdersListener(){
+    if(unsubscribeOrders){ try{unsubscribeOrders()}catch(e){} unsubscribeOrders=null; }
+  }
+
+  function orderDocToSales(docId, data){
+    const orderId=data.id || docId;
+    const orderNumber=data.orderNumber || ('ORD-'+String(orderId).slice(-6).toUpperCase());
+    const date=data.createdAtClient || data.date || new Date().toISOString();
+    const payment=normalizePayment(data.paymentMethod || data.payment || 'Contanti');
+    const total=Number(data.total)||0;
+    const discountAmount=Number(data.discountAmount)||0;
+    const discountCode=data.discountCode||'';
+    const items=Array.isArray(data.items)?data.items:[];
+    return items.map(function(item,idx){
+      const qty=Number(item.qty)||0;
+      const price=Number(item.price)||0;
+      return {
+        id:item.lineId || (orderId+'_'+idx),
+        orderId:orderId,
+        orderNumber:orderNumber,
+        productId:item.productId||'',
+        productName:item.productName||item.name||'Prodotto',
+        barcode:item.barcode||'',
+        photo:item.photo||'',
+        qty:qty,
+        price:price,
+        payment:payment,
+        total:Number(item.total)||qty*price,
+        date:date,
+        discountCode:discountCode,
+        discountAmount:discountAmount,
+        manualDiscountCode:item.manualDiscountCode||'',
+        manualDiscountAmount:Number(item.manualDiscountAmount)||0,
+        productDiscountActive:!!item.productDiscountActive,
+        orderTotal:total,
+        cartFinalTotal:total,
+        employeeUid:data.employeeUid||'',
+        employeeName:data.employeeName||'',
+        employeeRole:data.employeeRole||'',
+        online:true
+      };
+    });
+  }
+
+  async function startOrdersListener(){
+    if(!fbReady||!fbDb||!fbFns||unsubscribeOrders) return;
+    try{
+      const ref=fbFns.collection(fbDb,'orders');
+      let q=ref;
+      try{ q=fbFns.query(ref, fbFns.orderBy('createdAtClient','desc')); }catch(e){}
+      unsubscribeOrders=fbFns.onSnapshot(q,function(snapshot){
+        const lines=[];
+        snapshot.forEach(function(s){
+          const d=s.data()||{};
+          if(d.test===true) return;
+          if(d.status && d.status!=='completed') return;
+          lines.push.apply(lines, orderDocToSales(s.id,d));
+        });
+        if(typeof db!=='undefined'){
+          db.sales=lines.sort(function(a,b){return new Date(b.date)-new Date(a.date)});
+          saveLocalOnly();
+        }
+        window.__NOOR_ORDERS_ONLINE_ACTIVE__=true;
+        console.log('Ordini online caricati da Firestore:', lines.length);
+      },function(err){
+        console.error('Errore listener ordini:',err);
+        try{toast('Errore caricamento ordini online: '+(err.message||err));}catch(e){}
+      });
+    }catch(err){console.error('Avvio listener ordini fallito:',err)}
+  }
+
+  function orderNumber(){
+    return 'ORD-'+new Date().toISOString().slice(2,10).replace(/-/g,'')+'-'+String(Math.floor(Math.random()*9000)+1000);
+  }
+
+  async function saveOrderOnline(data){
+    const ok=await initFirebaseOrders();
+    if(!ok||!fbAuth||!fbAuth.currentUser) throw new Error('Devi essere loggato per registrare ordini online.');
+    const profile=currentProfile();
+    const now=iso();
+    const payment=normalizePayment(data.payment||settings?.defaultPayment||'Contanti');
+    const orderRef=fbFns.doc(fbFns.collection(fbDb,'orders'));
+    const oid=orderRef.id;
+    const onum=orderNumber();
+    const items=(data.items||[]).map(function(item,idx){
+      const qty=Number(item.qty)||0;
+      const price=Number(item.price)||0;
+      const productId=String(item.productId||'');
+      return {
+        lineId:oid+'_'+idx,
+        productId:productId,
+        productName:item.productName||'Prodotto',
+        barcode:item.barcode||'',
+        photo:item.photo||'',
+        qty:qty,
+        price:price,
+        total:qty*price,
+        basePrice:Number(item.basePrice)||price,
+        manualDiscountCode:item.manualDiscountCode||'',
+        manualDiscountAmount:Number(item.manualDiscountAmount)||0,
+        productDiscountActive:!!item.productDiscountActive
+      };
+    });
+    const orderData={
+      id:oid,
+      orderNumber:onum,
+      status:'completed',
+      createdAtClient:now,
+      date:now,
+      paymentMethod:payment,
+      payment:payment,
+      subtotal:Number(data.subtotal)||0,
+      discountCode:data.discountCode||'',
+      discountAmount:Number(data.discountAmount)||0,
+      discountRule:data.discountRule||'',
+      total:Number(data.total)||0,
+      items:items,
+      employeeUid:fbAuth.currentUser.uid,
+      employeeEmail:fbAuth.currentUser.email||'',
+      employeeName:profile.name||fbAuth.currentUser.email||'',
+      employeeRole:profile.role||'',
+      createdAt:fbFns.serverTimestamp(),
+      updatedAt:fbFns.serverTimestamp()
+    };
+    const newQtyById={};
+    await fbFns.runTransaction(fbDb, async function(tx){
+      const productReads=[];
+      for(const item of items){
+        const ref=fbFns.doc(fbDb,'products',String(item.productId));
+        const snap=await tx.get(ref);
+        if(!snap.exists()) throw new Error('Prodotto non trovato online: '+(item.productName||item.productId));
+        productReads.push({ref,snap,item});
+      }
+      const requested={};
+      items.forEach(function(i){requested[i.productId]=(requested[i.productId]||0)+Number(i.qty||0)});
+      for(const r of productReads){
+        const pid=r.item.productId;
+        if(Object.prototype.hasOwnProperty.call(newQtyById,pid)) continue;
+        const current=Number(r.snap.data().qty)||0;
+        const needed=Number(requested[pid])||0;
+        if(current<needed) throw new Error('Quantità insufficiente online per '+(r.snap.data().name||r.item.productName));
+        const next=current-needed;
+        newQtyById[pid]=next;
+        tx.update(r.ref,{qty:next,updatedAt:fbFns.serverTimestamp(),updatedAtClient:now,updatedBy:fbAuth.currentUser.uid,updatedByEmail:fbAuth.currentUser.email||''});
+      }
+      tx.set(orderRef,orderData);
+    });
+    return {orderData,newQtyById};
+  }
+
+  function clearCartAfterOnlineSale(){
+    if(typeof activeDraftId!=='undefined' && activeDraftId){ db.drafts=(db.drafts||[]).filter(function(d){return d.id!==activeDraftId}); }
+    if(typeof saleCart!=='undefined') saleCart=[];
+    if(typeof appliedDiscountCode!=='undefined') appliedDiscountCode=null;
+    if(typeof cartDiscountEnabled!=='undefined') cartDiscountEnabled=false;
+    if(typeof selectedLineDiscountCode!=='undefined') selectedLineDiscountCode=null;
+    if(typeof selectedProduct!=='undefined') selectedProduct=null;
+    if(typeof activeDraftId!=='undefined') activeDraftId=null;
+    const barcode=document.getElementById('barcodeInput'); if(barcode)barcode.value='';
+    const search=document.getElementById('saleSearch'); if(search)search.value='';
+    const list=document.getElementById('saleProductList'); if(list)list.innerHTML='';
+    const preview=document.getElementById('salePreview'); if(preview){preview.className='sale-preview empty';preview.innerHTML='Vendita registrata online. Scansiona o cerca un altro prodotto.';}
+  }
+
+  function installPaymentOptions(){
+    try{
+      window.getPaymentMethods=function(){return ['Contanti','POS','Bonifico'];};
+      window.paymentOptions=function(selected=''){
+        selected=normalizePayment(selected||'Contanti');
+        return ['Contanti','POS','Bonifico'].map(function(p){return '<option '+(p===selected?'selected':'')+'>'+p+'</option>';}).join('');
+      };
+      const fp=document.getElementById('filterPayment');
+      if(fp){const cur=normalizePayment(fp.value||'');fp.innerHTML='<option value="">Tutti</option>'+['Contanti','POS','Bonifico'].map(function(p){return '<option '+(p===cur?'selected':'')+'>'+p+'</option>';}).join('');}
+    }catch(e){console.warn('Pagamento online patch:',e)}
+  }
+
+  function installFinalizeOverride(){
+    if(installing) return;
+    installing=true;
+    try{
+      window.finalizeSale = async function(){
+        try{
+          if(typeof ensureDb==='function') ensureDb();
+          const data=window.pendingSale;
+          if(!data||!Array.isArray(data.items)||!data.items.length){toast('Nessun carrello da confermare.');return false;}
+          const requestedByProduct={};
+          data.items.forEach(function(item){requestedByProduct[item.productId]=(requestedByProduct[item.productId]||0)+(Number(item.qty)||0)});
+          for(const productId of Object.keys(requestedByProduct)){
+            const p=db.products.find(function(x){return x.id===productId});
+            if(!p||Number(p.qty||0)<requestedByProduct[productId]){toast('Quantità insufficiente. Vendita non registrata.');if(typeof closeSaleConfirm==='function')closeSaleConfirm();return false;}
+          }
+          const result=await saveOrderOnline(data);
+          Object.keys(result.newQtyById||{}).forEach(function(pid){
+            const p=db.products.find(function(x){return x.id===pid});
+            if(p) p.qty=Number(result.newQtyById[pid])||0;
+          });
+          const newLines=orderDocToSales(result.orderData.id,result.orderData);
+          db.sales=[...newLines,...(db.sales||[]).filter(function(s){return (s.orderId||s.id)!==result.orderData.id})];
+          clearCartAfterOnlineSale();
+          if(typeof closeSaleConfirm==='function') closeSaleConfirm();
+          saveLocalOnly();
+          try{if(typeof renderCart==='function')renderCart(); if(typeof renderSales==='function')renderSales(); if(typeof showSuccessBadge==='function')showSuccessBadge();}catch(e){}
+          toast('Ordine registrato online. Stock aggiornato su Firebase.','success');
+          document.getElementById('barcodeInput')?.focus();
+          return false;
+        }catch(err){
+          console.error('Errore ordine online:',err);
+          toast('Errore ordine online: '+(err.message||err));
+          return false;
+        }
+      };
+    }catch(err){console.warn('Override ordine online non riuscito:',err)}
+    installing=false;
+  }
+
+  function bootOrdersOnline(){
+    installPaymentOptions();
+    installFinalizeOverride();
+    initFirebaseOrders().then(function(){ if(fbAuth&&fbAuth.currentUser) startOrdersListener(); });
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bootOrdersOnline); else bootOrdersOnline();
+  setTimeout(bootOrdersOnline,800);
+  setTimeout(bootOrdersOnline,2000);
 })();
 </script>
 
