@@ -3406,172 +3406,68 @@ setTimeout(()=>{
 </script>
 
 
-<style id="noor-role-dashboard-clean">
+
+<style id="noor-roles-menu-personal-final-css">
 #employeeRoleDashboard{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:14px 0 16px}
-.employee-role-card{border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(255,240,247,.88));border-radius:22px;padding:14px;box-shadow:0 10px 26px rgba(143,45,90,.08)}
-.employee-role-card .erc-title{font-size:12px;color:var(--muted);font-weight:950;text-transform:uppercase;letter-spacing:.45px}
-.employee-role-card .erc-number{font-size:30px;font-weight:950;margin-top:5px;color:var(--text)}
-.employee-role-card .erc-sub{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.3}
-body.dark .employee-role-card{background:rgba(255,255,255,.04)}
+.employee-role-card{border:1px solid var(--line);border-radius:22px;background:linear-gradient(180deg,rgba(255,255,255,.86),rgba(255,240,247,.9));padding:14px;box-shadow:0 10px 26px rgba(143,45,90,.08)}
+.employee-role-card .erc-title{font-size:12px;color:var(--muted);font-weight:950;text-transform:uppercase;letter-spacing:.45px}.employee-role-card .erc-number{font-size:30px;font-weight:950;margin-top:6px}.employee-role-card .erc-sub{font-size:12px;color:var(--muted);margin-top:3px}.employee-extra-row td{background:rgba(255,240,247,.62)!important}.employee-extra-panel{display:grid;gap:12px;border:1px solid var(--line);border-radius:18px;padding:14px;background:var(--panel)}.employee-extra-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:9px}.employee-extra-grid label{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--line);border-radius:14px;padding:10px;background:var(--panel2);text-transform:none;letter-spacing:0;font-size:13px;color:var(--text)}.employee-extra-grid input{width:auto;margin-top:2px}.menu-hidden-by-role,.nav-hidden-by-role{display:none!important}.profile-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.profile-info-card{border:1px solid var(--line);background:var(--panel2);border-radius:20px;padding:14px}.profile-info-card b{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}.profile-info-card span{font-size:18px;font-weight:950}.restricted-note{margin:16px 0;padding:16px;border:1px dashed var(--line);background:var(--panel2);border-radius:18px;color:var(--muted);font-weight:850;text-align:center}
 @media(max-width:980px){#employeeRoleDashboard{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:520px){#employeeRoleDashboard{grid-template-columns:1fr}}
+@media(max-width:520px){#employeeRoleDashboard{grid-template-columns:1fr}.employee-extra-grid{grid-template-columns:1fr}}
 </style>
-<script id="noor-role-dashboard-clean-script">
-(function(){
-  'use strict';
-  function byId(id){return document.getElementById(id)}
-  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-  var labels={owner:'Owner',manager:'Amministratore',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
-  var subs={owner:'Accesso completo',manager:'Gestione avanzata',warehouse:'Prodotti e stock',seller:'Vendita e chiusura',supervisor:'Controllo e chiusure'};
-  function employees(){
-    try{
-      if(window.db && Array.isArray(window.db.employees)) return window.db.employees;
-    }catch(e){}
-    return [];
-  }
-  function ensureSupervisor(){
-    var empRole=byId('empRole');
-    if(empRole && !Array.prototype.some.call(empRole.options,function(o){return o.value==='supervisor'})){
-      var opt=document.createElement('option'); opt.value='supervisor'; opt.textContent='Supervisore'; empRole.appendChild(opt);
-    }
-    var permRole=byId('permRoleSelect');
-    if(permRole && !Array.prototype.some.call(permRole.options,function(o){return o.value==='supervisor'})){
-      var opt2=document.createElement('option'); opt2.value='supervisor'; opt2.textContent='Supervisore'; permRole.appendChild(opt2);
-    }
-  }
-  function renderDashboard(){
-    var section=byId('employees'); if(!section) return;
-    var panel=section.querySelector('.card.panel'); if(!panel) return;
-    var dash=byId('employeeRoleDashboard');
-    if(!dash){
-      dash=document.createElement('div'); dash.id='employeeRoleDashboard';
-      var title=panel.querySelector('.panel-title');
-      if(title) title.insertAdjacentElement('afterend',dash); else panel.insertBefore(dash,panel.firstChild);
-    }
-    var list=employees();
-    var roles=['owner','manager','warehouse','seller','supervisor'];
-    dash.innerHTML=roles.map(function(role){
-      var count=list.filter(function(e){return (e.role||'seller')===role && e.active!==false}).length;
-      return '<div class="employee-role-card"><div class="erc-title">'+esc(labels[role])+'</div><div class="erc-number">'+count+'</div><div class="erc-sub">'+esc(subs[role])+'</div></div>';
-    }).join('');
-  }
-  function update(){ensureSupervisor(); renderDashboard();}
-  function patchRenderEmployees(){
-    if(typeof window.renderEmployees==='function' && !window.renderEmployees.__dashboardPatched){
-      var original=window.renderEmployees;
-      var wrapped=function(){var result=original.apply(this,arguments); setTimeout(update,0); return result;};
-      wrapped.__dashboardPatched=true;
-      window.renderEmployees=wrapped;
-    }
-  }
-  function boot(){patchRenderEmployees(); update();}
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
-  setTimeout(boot,400); setTimeout(boot,1200); setTimeout(boot,2500);
-})();
+<script type="module" id="noor-roles-menu-personal-final-script">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+const firebaseConfig={apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",authDomain:"gestionalenoor-2fa61.firebaseapp.com",projectId:"gestionalenoor-2fa61",storageBucket:"gestionalenoor-2fa61.firebasestorage.app",messagingSenderId:"66670691093",appId:"1:66670691093:web:82d0b2122e600bf5885f1c",measurementId:"G-0HSQB7XLJG"};
+const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const firestore=getFirestore(app);
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const labels={owner:'Owner',manager:'Amministratore',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
+const roleOrder=['owner','manager','warehouse','seller','supervisor'];
+const roleSubs={owner:'Accesso completo',manager:'Gestione avanzata',warehouse:'Prodotti e stock',seller:'Vendita e chiusure',supervisor:'Vendita e controllo'};
+const extraDefs=[
+ ['viewProducts','Vedere prodotti'],['manageProducts','Modificare prodotti'],['viewStock','Vedere stock'],['manageStock','Modificare stock'],['viewDiscounts','Vedere sconti'],['manageDiscounts','Creare/modificare sconti'],['viewOrders','Vedere storico ordini'],['cancelOrders','Annullare ordini'],['editPayment','Modificare pagamento'],['createClosure','Fare chiusura'],['editClosure','Modificare chiusura'],['viewRevenue','Vedere incasso'],['viewCosts','Vedere costi/valore'],['viewAccessLogs','Vedere controllo accessi']
+];
+const basePerms={
+ owner:{all:true},
+ manager:{sell:true,viewProducts:true,manageProducts:true,viewStock:true,manageStock:true,viewDiscounts:true,manageDiscounts:true,viewOrders:true,cancelOrders:true,editPayment:true,createClosure:true,editClosure:true,viewRevenue:true,viewCosts:true,manageEmployees:true,settings:true,backup:true,viewAccessLogs:true},
+ warehouse:{viewProducts:true,manageProducts:true,viewStock:true,manageStock:true,viewDiscounts:true},
+ seller:{sell:true,viewProducts:true,viewStock:true,viewDiscounts:true,viewOrders:true,createClosure:true,viewRevenue:true},
+ supervisor:{sell:true,viewProducts:true,viewStock:true,viewDiscounts:true,viewOrders:true,cancelOrders:true,editPayment:true,createClosure:true,editClosure:true,viewRevenue:true}
+};
+let users=[];
+let openedExtra=null;
+function roleOf(u){return (u&&u.role)||'seller'}
+function currentProfile(){return window.currentFirebaseUserProfile||{};}
+function currentPerms(){const p=currentProfile();const base=basePerms[roleOf(p)]||basePerms.seller;if(base.all)return {...base,all:true};return {...base,...(p.extraPermissions||{})};}
+function can(perm){const p=currentPerms();return !!(p.all||p[perm]);}
+function toLocalEmployee(u){return {id:u.uid||u.id||u.firebaseUid,email:u.email||'',name:u.name||u.displayName||u.email||'Dipendente',role:roleOf(u),active:u.active!==false,createdAt:u.createdAtClient||u.createdAt||'',firebaseUid:u.uid||u.firebaseUid||u.id,uid:u.uid||u.firebaseUid||u.id,extraPermissions:u.extraPermissions||{}};}
+function syncLocal(){try{window.db=window.db||{};window.db.employees=users.map(toLocalEmployee);try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(window.db));}catch(e){}}catch(e){}}
+async function loadUsers(){try{const snap=await getDocs(collection(firestore,'users'));users=[];snap.forEach(d=>users.push({uid:d.id,...d.data()}));syncLocal();renderEmployeesFinal();applyMenuByRole();renderProfile();return users;}catch(e){console.warn('Lettura users Firestore:',e);return users;}}
+async function refreshCurrentProfile(){try{const u=auth.currentUser||window.currentFirebaseUser;if(!u)return;const s=await getDoc(doc(firestore,'users',u.uid));if(s.exists()){window.currentFirebaseUserProfile={uid:u.uid,email:u.email,...s.data()};}}catch(e){console.warn('Profilo corrente:',e)}}
+function ensureSupervisorOptions(){['empRole','permRoleSelect'].forEach(id=>{const sel=$(id);if(sel&&!Array.from(sel.options).some(o=>o.value==='supervisor')){const opt=document.createElement('option');opt.value='supervisor';opt.textContent='Supervisore';sel.appendChild(opt);}})}
+function ensureDashboard(){const section=$('employees');if(!section)return null;const panel=section.querySelector('.card.panel');if(!panel)return null;let dash=$('employeeRoleDashboard');if(!dash){dash=document.createElement('div');dash.id='employeeRoleDashboard';const title=panel.querySelector('.panel-title');if(title)title.insertAdjacentElement('afterend',dash);else panel.insertBefore(dash,panel.firstChild);}return dash;}
+function renderDashboard(){const dash=ensureDashboard();if(!dash)return;dash.innerHTML=roleOrder.map(r=>{const count=users.filter(u=>roleOf(u)===r&&u.active!==false).length;return `<div class="employee-role-card"><div class="erc-title">${esc(labels[r])}</div><div class="erc-number">${count}</div><div class="erc-sub">${esc(roleSubs[r])}</div></div>`}).join('');}
+function statusBadge(active){return active!==false?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Disattivato</span>'}
+function permSummary(u){const p={...(basePerms[roleOf(u)]||{}),...(u.extraPermissions||{})};if(p.all)return 'Accesso completo';return Object.entries(p).filter(([,v])=>v===true||v===1).slice(0,6).map(([k])=>extraDefs.find(x=>x[0]===k)?.[1]||k).join(', ')||'Permessi base';}
+function renderExtraPanel(u){const p=u.extraPermissions||{};return `<tr class="employee-extra-row"><td colspan="5"><div class="employee-extra-panel"><b>Permessi personali per ${esc(u.name||u.email||'Dipendente')}</b><div class="hint">Questi permessi si aggiungono al ruolo principale senza cambiare il ruolo di tutti gli altri dipendenti.</div><div class="employee-extra-grid">${extraDefs.map(([key,label])=>`<label><input type="checkbox" data-extra-uid="${esc(u.uid)}" data-extra-key="${esc(key)}" ${p[key]?'checked':''}> <span>${esc(label)}</span></label>`).join('')}</div><div class="action-row"><button class="btn small gold" type="button" data-save-extra="${esc(u.uid)}">Salva permessi personali</button></div></div></td></tr>`}
+function renderEmployeesFinal(){ensureSupervisorOptions();renderDashboard();try{if(typeof window.renderRoleLegend==='function')window.renderRoleLegend();}catch(e){}const tb=$('employeesTable');if(!tb)return;const rows=users.map(u=>{const id=u.uid||u.id||u.firebaseUid;return `<tr><td><button class="btn small secondary" type="button" data-toggle-extra="${esc(id)}">${openedExtra===id?'▴':'▾'}</button> <b>${esc(u.name||u.email||'Dipendente')}</b><br><span class="hint">${esc(u.email||'—')}</span></td><td><span class="badge">${esc(labels[roleOf(u)]||'Venditore')}</span></td><td>${statusBadge(u.active)}</td><td>${esc(permSummary(u))}</td><td><div class="action-row"><button class="btn small secondary" onclick="editEmployee('${esc(id)}')">Modifica</button><button class="btn small red" onclick="deleteEmployee('${esc(id)}')">Elimina</button></div></td></tr>${openedExtra===id?renderExtraPanel(u):''}`}).join('');tb.innerHTML=rows||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';tb.querySelectorAll('[data-toggle-extra]').forEach(b=>b.onclick=()=>{openedExtra=openedExtra===b.dataset.toggleExtra?null:b.dataset.toggleExtra;renderEmployeesFinal();});tb.querySelectorAll('[data-save-extra]').forEach(b=>b.onclick=()=>saveExtraPermissions(b.dataset.saveExtra));}
+async function saveExtraPermissions(uid){try{const u=users.find(x=>(x.uid||x.id||x.firebaseUid)===uid);if(!u)return;const extra={};document.querySelectorAll(`[data-extra-uid="${CSS.escape(uid)}"]`).forEach(ch=>{if(ch.checked)extra[ch.dataset.extraKey]=true;});const token=await (auth.currentUser||window.currentFirebaseUser).getIdToken(true);const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'update',uid:uid,name:u.name||u.email,email:u.email,role:roleOf(u),active:u.active!==false,extraPermissions:extra})});const data=await res.json().catch(()=>({}));if(!res.ok||!data.ok)throw new Error(data.error||'Errore salvataggio permessi');u.extraPermissions=extra;syncLocal();renderEmployeesFinal();if(uid===(auth.currentUser?.uid||'')){await refreshCurrentProfile();applyMenuByRole();}toast('Permessi personali salvati.','success');}catch(e){console.error(e);toast(e.message||'Errore salvataggio permessi.')}}
+function sectionForButton(btn){const oc=btn.getAttribute('onclick')||'';const m=oc.match(/go\(['\"]([^'\"]+)['\"]\)/);return m?m[1]:'';}
+const sectionPerm={home:'home',products:'viewProducts',productDetail:'viewProducts',sell:'sell',history:'viewOrders',drafts:'viewOrders',stock:'viewStock',discounts:'viewDiscounts',closures:'createClosure',settings:'settings',employees:'manageEmployees',accessLogs:'viewAccessLogs',profile:'profile'};
+function canSection(id){if(!id||id==='home'||id==='profile')return true;const perm=sectionPerm[id];return perm?can(perm):true;}
+function ensureProfile(){if($('profile'))return;const main=document.querySelector('main.app');if(!main)return;const sec=document.createElement('section');sec.id='profile';sec.className='section';sec.innerHTML='<div class="card panel"><div class="panel-title"><div><h2>Profilo</h2><p class="hint">Dati dell’utente collegato.</p></div></div><div id="profileContent" class="profile-card-grid"></div></div>';main.appendChild(sec);}
+function renderProfile(){ensureProfile();const p=currentProfile();const fmt=v=>{try{let d=v&&v.toDate?v.toDate():v?new Date(v):null;return d&&!isNaN(d)?d.toLocaleString('it-IT'): '—'}catch(e){return '—'}};const box=$('profileContent');if(box)box.innerHTML=`<div class="profile-info-card"><b>Nome e cognome</b><span>${esc(p.name||p.displayName||'—')}</span></div><div class="profile-info-card"><b>Email</b><span>${esc(p.email||auth.currentUser?.email||'—')}</span></div><div class="profile-info-card"><b>Ruolo</b><span>${esc(labels[roleOf(p)]||'Venditore')}</span></div><div class="profile-info-card"><b>Data creazione</b><span>${esc(fmt(p.createdAt||p.createdAtClient))}</span></div>`;}
+function ensureProfileButton(){const menu=$('topMenu');if(menu&&!$('profileMenuButton')){const btn=document.createElement('button');btn.id='profileMenuButton';btn.className='btn secondary';btn.type='button';btn.textContent='Profilo';btn.onclick=function(){try{go('profile')}catch(e){};try{closeTopMenu()}catch(e){};};const logout=$('logoutMenuButton');if(logout)menu.insertBefore(btn,logout);else menu.appendChild(btn);} }
+function applyMenuByRole(){ensureProfile();ensureProfileButton();document.querySelectorAll('#topMenu button,.nav button').forEach(btn=>{const id=sectionForButton(btn);if(!id){return;}const allowed=canSection(id);btn.classList.toggle(btn.closest('.nav')?'nav-hidden-by-role':'menu-hidden-by-role',!allowed);});const addProduct=[...document.querySelectorAll('button')].filter(b=>/\+ Prodotto|Aggiungi prodotto/i.test(b.textContent||''));addProduct.forEach(b=>b.style.display=can('manageProducts')?'':'none');}
+function patchGo(){if(window.__noorRoleGoPatched)return;window.__noorRoleGoPatched=true;const old=window.go;window.go=function(id){if(!canSection(id)){toast('Non hai il permesso per accedere a questa sezione.');id='home';}return old.apply(this,[id]);};}
+function patchRender(){const old=window.renderEmployees;if(typeof old==='function'&&!old.__fireRolePatched){const wrapped=function(){const r=old.apply(this,arguments);setTimeout(renderEmployeesFinal,0);return r;};wrapped.__fireRolePatched=true;window.renderEmployees=wrapped;}}
+async function boot(){ensureSupervisorOptions();patchGo();patchRender();await refreshCurrentProfile();await loadUsers();applyMenuByRole();renderProfile();}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+setTimeout(boot,700);setTimeout(boot,2000);setInterval(()=>{applyMenuByRole();},2500);
 </script>
 
-
-<style id="noor-safe-menu-role-style">
-.noor-role-hidden{display:none!important}
-.noor-profile-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:14px}
-.noor-profile-item{border:1px solid var(--line);background:var(--panel2);border-radius:18px;padding:14px}
-.noor-profile-item b{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
-</style>
-<script id="noor-safe-menu-role-script">
-(function(){
-  'use strict';
-  const ROLE_LABELS={owner:'Owner',manager:'Amministratore',admin:'Amministratore',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
-  function $(id){return document.getElementById(id)}
-  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-  function getCached(){try{return JSON.parse(localStorage.getItem('noor_firebase_current_user_v1')||sessionStorage.getItem('noor_firebase_current_user_v1')||'{}')}catch(e){return {}}}
-  function profile(){return window.currentFirebaseUserProfile||getCached()||{}}
-  function role(){let r=String(profile().role||'seller').toLowerCase(); if(r==='admin')r='manager'; return r}
-  function extra(){let e=profile().extraPermissions||{}; return e&&typeof e==='object'?e:{}}
-  function yes(k){return !!extra()[k]}
-  function can(section){
-    const r=role();
-    if(r==='owner'||r==='manager')return true;
-    if(section==='home'||section==='profile')return true;
-    if(r==='warehouse')return ['products','stock','productDetail'].includes(section)||yes('viewProducts')||yes('viewStock');
-    if(r==='supervisor')return ['sell','history','drafts','products','stock','productDetail','discounts','closures'].includes(section)||yesForSection(section);
-    if(r==='seller')return ['sell','history','drafts','products','stock','productDetail','discounts','closures'].includes(section)||yesForSection(section);
-    return yesForSection(section);
-  }
-  function yesForSection(section){
-    if(section==='products'||section==='productDetail')return yes('viewProducts')||yes('manageProducts');
-    if(section==='stock')return yes('viewStock')||yes('manageStock');
-    if(section==='discounts')return yes('viewDiscounts')||yes('manageDiscounts');
-    if(section==='closures')return yes('createClosure')||yes('editClosure');
-    if(section==='accessLogs')return yes('viewAccessLogs');
-    if(section==='history'||section==='drafts')return yes('viewOrders')||yes('sell');
-    if(section==='sell')return yes('sell');
-    if(section==='employees')return yes('manageEmployees');
-    if(section==='settings')return yes('manageSettings');
-    return false;
-  }
-  function toggle(el,show){if(el)el.classList.toggle('noor-role-hidden',!show)}
-  function ensureProfileSection(){
-    if($('profile'))return;
-    const main=document.querySelector('main.app')||document.querySelector('main'); if(!main)return;
-    const sec=document.createElement('section'); sec.id='profile'; sec.className='section';
-    sec.innerHTML='<div class="card panel"><div class="panel-title"><div><h2>Profilo</h2><p class="hint">Dati del tuo accesso al gestionale.</p></div></div><div id="profileContent" class="noor-profile-grid"></div></div>';
-    main.appendChild(sec);
-  }
-  function renderProfile(){
-    ensureProfileSection();
-    const p=profile(); const box=$('profileContent'); if(!box)return;
-    let created='—';
-    try{let c=p.createdAt; if(c&&c.toDate)c=c.toDate(); else if(c)c=new Date(c); if(c&&!isNaN(c))created=c.toLocaleString('it-IT')}catch(e){}
-    box.innerHTML='<div class="noor-profile-item"><b>Nome</b>'+esc(p.name||p.displayName||'—')+'</div>'+
-      '<div class="noor-profile-item"><b>Email</b>'+esc(p.email||'—')+'</div>'+
-      '<div class="noor-profile-item"><b>Ruolo</b>'+esc(ROLE_LABELS[role()]||role())+'</div>'+
-      '<div class="noor-profile-item"><b>Data creazione</b>'+esc(created)+'</div>';
-  }
-  function ensureProfileButton(){
-    const menu=$('topMenu'); if(!menu)return;
-    let btn=$('menuProfileButton');
-    if(!btn){btn=document.createElement('button');btn.id='menuProfileButton';btn.className='btn secondary';btn.type='button';btn.textContent='Profilo';btn.onclick=function(){try{renderProfile();go('profile');closeTopMenu()}catch(e){};return false};
-      const logout=$('logoutMenuButton'); if(logout)menu.insertBefore(btn,logout); else menu.appendChild(btn);
-    }
-  }
-  function applyTopMenu(){
-    ensureProfileButton(); renderProfile();
-    const r=role(); const menu=$('topMenu'); if(!menu)return;
-    [...menu.querySelectorAll('button')].forEach(function(b){
-      const txt=(b.textContent||'').toLowerCase(); const oc=(b.getAttribute('onclick')||'').toLowerCase(); let show=true;
-      if(txt.includes('esci')||b.id==='logoutMenuButton'||txt.includes('profilo')) show=true;
-      else if(txt.includes('importa')||txt.includes('backup')) show=(r==='owner'||r==='manager');
-      else if(txt.includes('impostazioni')||oc.includes("go('settings')")) show=(r==='owner'||r==='manager'||yes('manageSettings'));
-      else if(txt.includes('dipendenti')||oc.includes("go('employees')")) show=(r==='owner'||r==='manager'||yes('manageEmployees'));
-      else if(txt.includes('access')||oc.includes("go('accesslogs')")) show=(r==='owner'||r==='manager'||yes('viewAccessLogs'));
-      else if(txt.includes('sconti')||oc.includes("go('discounts')")) show=(r==='owner'||r==='manager'||r==='seller'||r==='supervisor'||r==='warehouse'||yes('viewDiscounts')||yes('manageDiscounts'));
-      else if(txt.includes('chiusure')||oc.includes("go('closures')")) show=(r==='owner'||r==='manager'||r==='seller'||r==='supervisor'||yes('createClosure')||yes('editClosure'));
-      toggle(b,show);
-    });
-    const addBtn=[...document.querySelectorAll('.top-actions .btn.gold')].find(b=>(b.getAttribute('onclick')||'').includes('openAddProduct'));
-    toggle(addBtn,(r==='owner'||r==='manager'||r==='warehouse'||yes('manageProducts')));
-  }
-  function applyNav(){
-    document.querySelectorAll('.nav [data-target]').forEach(function(btn){toggle(btn,can(btn.dataset.target));});
-  }
-  function guardCurrent(){
-    const active=document.querySelector('.section.active'); if(active&&active.id&&!can(active.id)&&typeof window.go==='function'){window.go('home');}
-  }
-  function apply(){applyTopMenu();applyNav();guardCurrent();}
-  function patchGo(){
-    if(typeof window.go!=='function'||window.go.__noorSafeRoleMenu)return;
-    const old=window.go;
-    window.go=function(id){
-      if(id&&!can(id)){try{if(typeof toast==='function')toast('Non hai i permessi per aprire questa sezione.');}catch(e){} id='home';}
-      const res=old.apply(this,arguments.length?[id].concat([].slice.call(arguments,1)):arguments);
-      setTimeout(apply,40); return res;
-    };
-    window.go.__noorSafeRoleMenu=true;
-  }
-  function boot(){ensureProfileSection();patchGo();apply();}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot); else boot();
-  setTimeout(boot,400);setTimeout(boot,1200);setTimeout(boot,2500);setInterval(apply,3000);
-})();
-</script>
 </body>
 </html>
