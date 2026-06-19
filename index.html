@@ -4346,5 +4346,142 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
 })();
 </script>
 
+
+<script id="noor-discounts-firestore-safe-final">
+/* Noor Splendori - Sconti online Firestore SAFE FINAL */
+(function(){
+  if(window.__NOOR_DISCOUNTS_FIRESTORE_SAFE_FINAL__) return;
+  window.__NOOR_DISCOUNTS_FIRESTORE_SAFE_FINAL__=true;
+
+  const FIREBASE_CONFIG={
+    apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+    authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+    projectId:"gestionalenoor-2fa61",
+    storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+    messagingSenderId:"66670691093",
+    appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+    measurementId:"G-0HSQB7XLJG"
+  };
+
+  let fApp=null,fAuth=null,fDb=null,fns=null,unsub=null,loadingDiscounts=false;
+  const notify=(m,t)=>{try{typeof toast==='function'?toast(m,t||''):console.log(m)}catch(e){console.log(m)}};
+  const cleanId=v=>String(v||'').trim().replace(/[^a-zA-Z0-9_-]/g,'').slice(0,90)||('DISC_'+Date.now());
+  const norm=(d,id)=>({
+    id:cleanId(id||d?.id||('DISC_'+String(d?.code||'CODE')+'_'+Date.now())),
+    code:String(d?.code||'').trim().toUpperCase(),
+    type:(d?.type==='fixed')?'fixed':'percent',
+    value:Number(d?.value||0)||0,
+    active:d?.active!==false,
+    rule:d?.rule||'only_clean',
+    note:String(d?.note||'')
+  });
+
+  async function initDiscountsFirebase(){
+    if(fDb&&fAuth&&fns) return true;
+    const [appMod,authMod,fsMod]=await Promise.all([
+      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js'),
+      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js')
+    ]);
+    fApp=appMod.getApps().length?appMod.getApps()[0]:appMod.initializeApp(FIREBASE_CONFIG);
+    fAuth=authMod.getAuth(fApp);
+    fDb=fsMod.getFirestore(fApp);
+    fns={...authMod,...fsMod};
+    if(!window.__NOOR_DISCOUNTS_AUTH_WATCH__){
+      window.__NOOR_DISCOUNTS_AUTH_WATCH__=true;
+      authMod.onAuthStateChanged(fAuth,u=>{ if(u) startDiscountsFirestoreListener(); });
+    }
+    return true;
+  }
+
+  async function startDiscountsFirestoreListener(){
+    await initDiscountsFirebase();
+    if(unsub||!fAuth.currentUser) return;
+    loadingDiscounts=true;
+    try{ if(typeof renderDiscounts==='function') renderDiscounts(); }catch(e){}
+    unsub=fns.onSnapshot(fns.collection(fDb,'discounts'),snap=>{
+      const list=[];
+      snap.forEach(d=>list.push(norm(d.data(),d.id)));
+      list.sort((a,b)=>String(a.code||'').localeCompare(String(b.code||'')));
+      if(typeof db==='object') db.discounts=list;
+      loadingDiscounts=false;
+      try{ if(typeof renderDiscounts==='function') renderDiscounts(); }catch(e){}
+      try{ if(typeof renderSaleCart==='function') renderSaleCart(); }catch(e){}
+    },err=>{loadingDiscounts=false;console.error('Sconti Firestore:',err);notify('Errore caricamento sconti online: '+(err.message||err));});
+  }
+
+  async function saveDiscountFirestore(discount){
+    await initDiscountsFirebase();
+    if(!fAuth.currentUser) throw new Error('Accesso richiesto');
+    const d=norm(discount,discount.id);
+    if(!d.code) throw new Error('Codice sconto mancante');
+    await fns.setDoc(fns.doc(fDb,'discounts',d.id),{
+      ...d,
+      updatedAt:fns.serverTimestamp(),
+      updatedAtClient:new Date().toISOString(),
+      updatedByUid:fAuth.currentUser.uid,
+      updatedByEmail:fAuth.currentUser.email||''
+    },{merge:true});
+    return d;
+  }
+
+  window.saveDiscount=async function(e){
+    if(e&&e.preventDefault)e.preventDefault();
+    try{
+      if(typeof db==='object'&&!db.discounts) db.discounts=[];
+      const id=(document.getElementById('discountId')?.value)||'';
+      const code=String((document.getElementById('dCode')?.value)||'').trim().toUpperCase();
+      if(!code){notify('Inserisci un codice sconto.');return false;}
+      const data={
+        id:id||cleanId('DISC_'+code+'_'+Date.now()),
+        code,
+        type:(document.getElementById('dType')?.value)||'percent',
+        value:Number((document.getElementById('dValue')?.value)||0)||0,
+        active:((document.getElementById('dActive')?.value)||'true')==='true',
+        rule:(document.getElementById('dRule')?.value)||'only_clean',
+        note:(document.getElementById('dNote')?.value)||''
+      };
+      const exists=(db.discounts||[]).some(x=>String(x.code||'').toUpperCase()===code&&String(x.id)!==String(data.id));
+      if(exists){notify('Questo codice sconto esiste già.');return false;}
+      const saved=await saveDiscountFirestore(data);
+      if(typeof db==='object'){
+        db.discounts=(db.discounts||[]).filter(x=>String(x.id)!==String(saved.id));
+        db.discounts.push(saved);
+      }
+      try{ if(typeof resetDiscountForm==='function') resetDiscountForm(); }catch(e){}
+      try{ if(typeof renderDiscounts==='function') renderDiscounts(); }catch(e){}
+      notify('Codice sconto salvato online.','success');
+    }catch(err){console.error(err);notify('Errore salvataggio sconto online: '+(err.message||err));}
+    return false;
+  };
+
+  window.deleteDiscount=async function(id){
+    if(!confirm('Eliminare questo codice sconto?')) return;
+    try{
+      await initDiscountsFirebase();
+      if(!fAuth.currentUser) throw new Error('Accesso richiesto');
+      await fns.deleteDoc(fns.doc(fDb,'discounts',cleanId(id)));
+      if(typeof db==='object') db.discounts=(db.discounts||[]).filter(x=>String(x.id)!==String(id));
+      try{ if(typeof renderDiscounts==='function') renderDiscounts(); }catch(e){}
+      notify('Codice sconto eliminato online.','success');
+    }catch(err){console.error(err);notify('Errore eliminazione sconto online: '+(err.message||err));}
+  };
+
+  const localRender=window.renderDiscounts;
+  window.renderDiscounts=function(){
+    const tb=document.getElementById('discountsTable');
+    if(!tb){ if(typeof localRender==='function')return localRender(); return; }
+    if(loadingDiscounts){tb.innerHTML='<tr><td colspan="7" class="empty">Caricamento sconti online...</td></tr>';return;}
+    const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const money=v=>{try{return typeof eur==='function'?eur(v):('€'+(Number(v)||0).toFixed(2).replace('.',','));}catch(e){return '€'+(Number(v)||0).toFixed(2).replace('.',',');}};
+    const rule=r=>{try{return typeof discountRuleLabel==='function'?discountRuleLabel(r):(r==='cumulative'?'Cumulativo':(r==='also_discounted'?'Anche su prodotti scontati':'Solo non scontati'));}catch(e){return r||'';}};
+    const rows=(db.discounts||[]).map(d=>'<tr><td><b>'+esc(d.code)+'</b></td><td>'+(d.type==='percent'?'Percentuale':'Importo fisso')+'</td><td>'+(d.type==='percent'?(Number(d.value)||0)+'%':money(d.value||0))+'</td><td><span class="discount-pill">'+esc(rule(d.rule))+'</span></td><td>'+(d.active?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Non attivo</span>')+'</td><td>'+esc(d.note||'—')+'</td><td><div class="action-row"><button class="btn small secondary" onclick="editDiscount(\''+esc(d.id)+'\')">Modifica</button><button class="btn small red" onclick="deleteDiscount(\''+esc(d.id)+'\')">Elimina</button></div></td></tr>').join('');
+    tb.innerHTML=rows||'<tr><td colspan="7" class="empty">Nessun codice sconto creato.</td></tr>';
+  };
+
+  initDiscountsFirebase().then(()=>{ if(fAuth&&fAuth.currentUser) startDiscountsFirestoreListener(); setTimeout(()=>{try{renderDiscounts()}catch(e){}},700); });
+})();
+</script>
+
 </body>
 </html>
