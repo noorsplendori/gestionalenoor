@@ -3470,248 +3470,146 @@ body.dark .employee-role-card{background:rgba(255,255,255,.04)}
 })();
 </script>
 
-<style id="noor-roles-personal-permissions-final-css">
-.employee-role-dashboard-final{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:14px 0 16px}
-.employee-role-card-final{border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(255,240,247,.88));border-radius:22px;padding:14px;box-shadow:0 10px 26px rgba(143,45,90,.08)}
-.employee-role-card-final .title{font-size:12px;color:var(--muted);font-weight:950;text-transform:uppercase;letter-spacing:.45px}
-.employee-role-card-final .num{font-size:30px;font-weight:950;margin-top:5px;color:var(--text)}
-.employee-role-card-final .sub{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.3}
-.employee-extra-row{background:rgba(255,240,247,.62)!important}
-.employee-extra-box{padding:14px;border:1px solid var(--line);border-radius:18px;background:var(--panel2)}
-.extra-permission-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:10px}
-.extra-permission-grid label{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--line);background:var(--panel);border-radius:14px;padding:10px;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);cursor:pointer}
-.extra-permission-grid input{width:auto;margin-top:2px}
-.role-row-toggle{min-width:38px}
+
+<style id="noor-roles-menu-profile-final-css">
+#employeeRoleDashboard.noor-final-dashboard{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:14px 0 16px}
+.employee-role-card{border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(255,240,247,.88));border-radius:22px;padding:14px;box-shadow:0 10px 26px rgba(143,45,90,.08)}
+.employee-role-card .erc-title{font-size:12px;color:var(--muted);font-weight:950;text-transform:uppercase;letter-spacing:.45px}
+.employee-role-card .erc-number{font-size:30px;font-weight:950;margin-top:5px;color:var(--text)}
+.employee-role-card .erc-sub{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.3}
+.employee-extra-row td{background:rgba(255,240,247,.55)!important;padding:0!important}
+.employee-extra-box{padding:14px;border-top:1px solid var(--line);display:none}
+.employee-extra-box.show{display:block}
+.employee-extra-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:10px}
+.employee-extra-check{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);background:var(--panel);border-radius:16px;padding:10px;cursor:pointer}
+.employee-extra-check input{width:auto;margin-top:3px}
+.profile-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.profile-item{border:1px solid var(--line);background:var(--panel2);border-radius:18px;padding:14px}
+.profile-item b{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
 .noor-hidden-by-role{display:none!important}
-body.dark .employee-role-card-final{background:rgba(255,255,255,.04)}
-@media(max-width:980px){.employee-role-dashboard-final{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:520px){.employee-role-dashboard-final{grid-template-columns:1fr}}
+body.dark .employee-role-card, body.dark .employee-extra-row td{background:rgba(255,255,255,.04)!important}
+@media(max-width:980px){#employeeRoleDashboard.noor-final-dashboard{grid-template-columns:repeat(2,minmax(0,1fr))}.profile-grid{grid-template-columns:1fr}}
+@media(max-width:520px){#employeeRoleDashboard.noor-final-dashboard{grid-template-columns:1fr}}
 </style>
-<script id="noor-roles-personal-permissions-final-script">
+<script id="noor-roles-menu-profile-final-script">
 (function(){
   'use strict';
-  const ROLE_LABELS_FINAL={owner:'Owner',manager:'Amministratore',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
-  const ROLE_SUB_FINAL={owner:'Accesso completo',manager:'Gestione avanzata',warehouse:'Prodotti e stock',seller:'Vendita e chiusura',supervisor:'Controllo e chiusure'};
-  const PERM_LABELS_FINAL={
-    viewProducts:'Vede prodotti',manageProducts:'Modifica prodotti',
-    viewStock:'Vede stock',manageStock:'Modifica stock',
-    viewDiscounts:'Vede sconti',manageDiscounts:'Modifica sconti',
-    viewOrders:'Vede storico ordini',cancelOrders:'Modifica/annulla ordini',
-    createClosure:'Fa chiusura',editClosure:'Modifica chiusura',
-    viewRevenue:'Vede incassi',viewCosts:'Vede costi',
-    settings:'Impostazioni',manageEmployees:'Dipendenti'
+  var ROLE_LABELS={owner:'Owner',manager:'Amministratore',admin:'Amministratore',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
+  var ROLE_SUBS={owner:'Accesso completo',manager:'Gestione avanzata',admin:'Gestione avanzata',warehouse:'Prodotti e stock',seller:'Vendita e consultazione',supervisor:'Controllo e chiusure'};
+  var PERM_LABELS={
+    viewProducts:'Vedere prodotti',manageProducts:'Modificare prodotti',viewStock:'Vedere stock',manageStock:'Modificare stock',viewDiscounts:'Vedere sconti',manageDiscounts:'Modificare sconti',viewOrders:'Vedere storico',sell:'Vendere',cancelOrders:'Modificare ordini',editPayment:'Modificare pagamento',createClosure:'Fare chiusura',editClosure:'Modificare chiusura',viewRevenue:'Vedere incasso',viewCosts:'Vedere costi',settings:'Impostazioni',manageEmployees:'Dipendenti',backup:'Backup/Importa',viewAccessLogs:'Controllo accessi'
   };
-  const DEFAULT_PERMS_FINAL={
-    owner:{sell:1,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,backup:1,settings:1,manageEmployees:1,deleteProducts:1,editPrices:1},
-    manager:{sell:1,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,backup:1,settings:0,manageEmployees:1,deleteProducts:1,editPrices:1},
-    warehouse:{sell:0,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:0,viewOrders:0,cancelOrders:0,editPayment:0,createClosure:0,editClosure:0,viewRevenue:0,viewCosts:0,backup:0,settings:0,manageEmployees:0,deleteProducts:0,editPrices:0},
-    seller:{sell:1,viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,cancelOrders:0,editPayment:0,createClosure:1,editClosure:0,viewRevenue:0,viewCosts:0,backup:0,settings:0,manageEmployees:0,deleteProducts:0,editPrices:0},
-    supervisor:{sell:1,viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:0,backup:0,settings:0,manageEmployees:0,deleteProducts:0,editPrices:0}
+  var BASE={
+    owner:{viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,sell:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,settings:1,manageEmployees:1,backup:1,viewAccessLogs:1,deleteProducts:1,editPrices:1},
+    manager:{viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,sell:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,settings:0,manageEmployees:1,backup:1,viewAccessLogs:1,deleteProducts:1,editPrices:1},
+    admin:{viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,sell:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,settings:0,manageEmployees:1,backup:1,viewAccessLogs:1,deleteProducts:1,editPrices:1},
+    warehouse:{viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:0,viewOrders:0,sell:0,cancelOrders:0,editPayment:0,createClosure:0,editClosure:0,viewRevenue:0,viewCosts:0,settings:0,manageEmployees:0,backup:0,viewAccessLogs:0,deleteProducts:0,editPrices:0},
+    seller:{viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,sell:1,cancelOrders:0,editPayment:0,createClosure:1,editClosure:0,viewRevenue:1,viewCosts:0,settings:0,manageEmployees:0,backup:0,viewAccessLogs:0,deleteProducts:0,editPrices:0},
+    supervisor:{viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,sell:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:0,settings:0,manageEmployees:0,backup:0,viewAccessLogs:0,deleteProducts:0,editPrices:0}
   };
-  const EXTRA_KEYS_FINAL=['viewProducts','manageProducts','viewStock','manageStock','viewDiscounts','manageDiscounts','viewOrders','cancelOrders','createClosure','editClosure','viewRevenue','viewCosts','settings','manageEmployees'];
-
   function $(id){return document.getElementById(id)}
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-  function toastOk(msg,type){try{if(typeof toast==='function')toast(msg,type||'');else if(typeof safeToast==='function')safeToast(msg,type||'');else alert(msg)}catch(e){alert(msg)}}
-  function syncWindowDb(){try{if(typeof db!=='undefined'&&db){window.db=db;if(!Array.isArray(db.employees))db.employees=[];return db}}catch(e){} if(!window.db)window.db={employees:[]}; return window.db;}
-  function employees(){const d=syncWindowDb();return Array.isArray(d.employees)?d.employees:[]}
-  function saveLocal(){try{if(typeof LS_KEY!=='undefined')localStorage.setItem(LS_KEY,JSON.stringify(syncWindowDb()))}catch(e){}}
-  function normRole(r){if(r==='admin')return 'manager';if(r==='venditore')return 'seller';if(r==='magazziniere')return 'warehouse';return r||'seller'}
-  function empUid(e){return e&&(e.firebaseUid||e.uid||e.firebaseId||(!String(e.id||'').startsWith('emp_')?e.id:''))||''}
-  function currentProfile(){try{return window.currentFirebaseUserProfile||JSON.parse(localStorage.getItem('noor_firebase_current_user_v1')||sessionStorage.getItem('noor_firebase_current_user_v1')||'null')||{}}catch(e){return {}}}
-  function activeEmployeeFinal(){
-    const list=employees();
-    const p=currentProfile();
-    return list.find(e=>String(empUid(e))===String(p.uid))||
-           list.find(e=>String(e.email||'').toLowerCase()===String(p.email||'').toLowerCase())||
-           list.find(e=>String(e.id)===String((typeof settings!=='undefined'&&settings)?settings.activeEmployeeId:''))||
-           list[0]||null;
+  function employees(){try{return (window.db&&Array.isArray(db.employees))?db.employees:[]}catch(e){return []}}
+  function roleOf(e){var r=String((e&&e.role)||'seller'); return r==='admin'?'manager':r;}
+  function roleLabel(r){return ROLE_LABELS[roleOf({role:r})]||'Venditore'}
+  function currentProfile(){return window.currentFirebaseUserProfile||{};}
+  function currentEmployee(){
+    var p=currentProfile(); var uid=p.uid||(window.currentFirebaseUser&&window.currentFirebaseUser.uid)||''; var email=String(p.email||(window.currentFirebaseUser&&window.currentFirebaseUser.email)||'').toLowerCase();
+    var list=employees();
+    var found=list.find(function(e){return String(e.firebaseUid||e.uid||e.id)===String(uid)})||list.find(function(e){return String(e.email||'').toLowerCase()===email});
+    if(found) return found;
+    if(p&&p.role) return {id:uid,uid:uid,firebaseUid:uid,name:p.name||email,email:email,role:p.role,active:p.active!==false,extraPermissions:p.extraPermissions||{},createdAt:p.createdAt||p.createdAtClient||''};
+    try{return list.find(function(e){return String(e.id)===String(settings.activeEmployeeId)})||list[0]||null}catch(e){return list[0]||null}
   }
-  function permsForEmployee(e){
-    const role=normRole(e&&e.role);
-    const base=Object.assign({},DEFAULT_PERMS_FINAL[role]||DEFAULT_PERMS_FINAL.seller);
-    const extra=(e&&e.extraPermissions&&typeof e.extraPermissions==='object')?e.extraPermissions:{};
-    Object.keys(extra).forEach(k=>{if(extra[k]===true||extra[k]===1)base[k]=1;});
-    if(base.manageProducts)base.viewProducts=1;
-    if(base.manageStock)base.viewStock=1;
-    if(base.manageDiscounts)base.viewDiscounts=1;
-    return base;
+  function basePerms(role){role=roleOf({role:role}); return Object.assign({},BASE[role]||BASE.seller);}
+  function mergedPerms(emp){var p=basePerms(emp&&emp.role); var extras=(emp&&emp.extraPermissions)||{}; Object.keys(extras).forEach(function(k){if(extras[k]===true||extras[k]===1)p[k]=1;}); return p;}
+  window.noorCurrentEmployee=currentEmployee;
+  window.noorCurrentPermissions=function(){return mergedPerms(currentEmployee())};
+  window.canAccess=function(perm){var emp=currentEmployee(); if(!emp||emp.active===false)return false; if(roleOf(emp)==='owner')return true; var p=mergedPerms(emp); if(perm==='manageProducts')return !!p.manageProducts; if(perm==='viewProducts')return !!(p.viewProducts||p.manageProducts); if(perm==='viewStock')return !!(p.viewStock||p.manageStock); if(perm==='manageStock')return !!p.manageStock; if(perm==='editPrices')return !!p.editPrices; if(perm==='deleteProducts')return !!p.deleteProducts; return !!p[perm];};
+  function toastMsg(m,t){try{toast(m,t||'')}catch(e){alert(m)}}
+  function ensureSupervisorOptions(){['empRole','permRoleSelect'].forEach(function(id){var s=$(id);if(s&&!Array.prototype.some.call(s.options,function(o){return o.value==='supervisor'})){var o=document.createElement('option');o.value='supervisor';o.textContent='Supervisore';s.appendChild(o);}})}
+  function renderRoleDashboard(){
+    var section=$('employees'); if(!section)return; var panel=section.querySelector('.card.panel'); if(!panel)return;
+    var existing=[].slice.call(section.querySelectorAll('#employeeRoleDashboard'));
+    existing.slice(1).forEach(function(x){x.remove()});
+    var dash=existing[0];
+    if(!dash){dash=document.createElement('div');dash.id='employeeRoleDashboard';var title=panel.querySelector('.panel-title'); if(title)title.insertAdjacentElement('afterend',dash); else panel.insertBefore(dash,panel.firstChild);}
+    dash.className='noor-final-dashboard';
+    var roles=['owner','manager','warehouse','seller','supervisor']; var list=employees();
+    dash.innerHTML=roles.map(function(role){var n=list.filter(function(e){return roleOf(e)===role&&e.active!==false}).length; return '<div class="employee-role-card"><div class="erc-title">'+esc(ROLE_LABELS[role])+'</div><div class="erc-number">'+n+'</div><div class="erc-sub">'+esc(ROLE_SUBS[role])+'</div></div>';}).join('');
   }
-  window.noorCurrentEmployee=activeEmployeeFinal;
-  window.noorCanAccess=function(key){const e=activeEmployeeFinal();if(!e||e.active===false)return false;if(normRole(e.role)==='owner')return true;return !!permsForEmployee(e)[key];};
-  window.canAccess=function(key){
-    if(key==='manageProducts')return window.noorCanAccess('manageProducts')||window.noorCanAccess('manageStock');
-    if(key==='viewProducts')return window.noorCanAccess('viewProducts')||window.noorCanAccess('manageProducts');
-    if(key==='viewStock')return window.noorCanAccess('viewStock')||window.noorCanAccess('manageStock')||window.noorCanAccess('manageProducts');
-    if(key==='manageDiscounts')return window.noorCanAccess('manageDiscounts');
-    if(key==='viewDiscounts')return window.noorCanAccess('viewDiscounts')||window.noorCanAccess('manageDiscounts');
-    return window.noorCanAccess(key);
-  };
-
-  function ensureSupervisorOptions(){
-    [['empRole','Supervisore'],['permRoleSelect','Supervisore']].forEach(([id,label])=>{
-      const s=$(id); if(s&&!Array.from(s.options).some(o=>o.value==='supervisor')){
-        const o=document.createElement('option');o.value='supervisor';o.textContent=label;s.appendChild(o);
-      }
-    });
+  function permSummary(emp){var p=mergedPerms(emp);return Object.keys(PERM_LABELS).filter(function(k){return p[k]}).slice(0,6).map(function(k){return PERM_LABELS[k]}).join(', ')||'solo consultazione'}
+  function renderExtraBox(e){
+    var uid=e.firebaseUid||e.uid||e.id||''; var extras=e.extraPermissions||{};
+    var keys=['viewProducts','manageProducts','viewStock','manageStock','viewDiscounts','manageDiscounts','viewOrders','sell','cancelOrders','editPayment','createClosure','editClosure','viewRevenue','viewCosts','viewAccessLogs','backup','settings','manageEmployees'];
+    return '<div id="extra_'+esc(e.id)+'" class="employee-extra-box"><b>Permessi extra personali</b><p class="hint">Questi permessi valgono solo per questo dipendente, senza cambiare il ruolo a tutti gli altri.</p><div class="employee-extra-grid">'+keys.map(function(k){return '<label class="employee-extra-check"><input type="checkbox" data-extra="'+esc(k)+'" '+(extras[k]?'checked':'')+'><span><b>'+esc(PERM_LABELS[k])+'</b></span></label>';}).join('')+'</div><div class="action-row" style="margin-top:12px"><button class="btn small gold" onclick="saveEmployeeExtras(\''+esc(e.id)+'\')">Salva permessi personali</button>'+(uid?'':'<span class="hint">Questo record non ha UID Firebase.</span>')+'</div></div>';
   }
-  function roleLabel(r){return ROLE_LABELS_FINAL[normRole(r)]||'Venditore'}
-  function permSummary(e){const p=permsForEmployee(e);return Object.keys(PERM_LABELS_FINAL).filter(k=>p[k]).map(k=>PERM_LABELS_FINAL[k]).slice(0,5).join(', ')||'solo consultazione'}
-
-  function renderDashboard(){
-    const section=$('employees'); if(!section)return;
-    const panel=section.querySelector('.card.panel'); if(!panel)return;
-    let dash=$('employeeRoleDashboardFinal')||$('employeeRoleDashboard');
-    if(!dash){dash=document.createElement('div');dash.id='employeeRoleDashboardFinal';dash.className='employee-role-dashboard-final'; const title=panel.querySelector('.panel-title'); if(title)title.insertAdjacentElement('afterend',dash);else panel.prepend(dash);}
-    dash.id='employeeRoleDashboardFinal'; dash.className='employee-role-dashboard-final';
-    const list=employees().filter(e=>e.active!==false);
-    dash.innerHTML=['owner','manager','warehouse','seller','supervisor'].map(role=>{
-      const count=list.filter(e=>normRole(e.role)===role).length;
-      return `<div class="employee-role-card-final"><div class="title">${esc(ROLE_LABELS_FINAL[role])}</div><div class="num">${count}</div><div class="sub">${esc(ROLE_SUB_FINAL[role])}</div></div>`;
-    }).join('');
-  }
-
-  function renderEmployeeRows(){
-    ensureSupervisorOptions();
-    renderDashboard();
-    const tb=$('employeesTable'); if(!tb)return;
-    const list=employees();
-    const canManage=window.canAccess('manageEmployees');
-    tb.innerHTML=list.map(e=>{
-      const id=String(e.id||empUid(e)||e.email||'');
-      const uid=empUid(e);
-      const extra=e.extraPermissions||{};
-      const checked=k=>extra[k]?'checked':'';
-      const disabled=canManage&&uid?'':'disabled';
-      return `<tr>
-        <td><button class="btn small secondary role-row-toggle" type="button" onclick="toggleEmployeeExtra('${esc(id)}')">▾</button> <b>${esc(e.name||'Dipendente')}</b><br><span class="hint">${esc(e.email||'—')}</span></td>
-        <td><span class="badge">${esc(roleLabel(e.role))}</span></td>
-        <td>${e.active!==false?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Disattivato</span>'}</td>
-        <td>${esc(permSummary(e))}</td>
-        <td><div class="action-row"><button class="btn small secondary" onclick="editEmployee('${esc(id)}')">Modifica</button><button class="btn small red" onclick="deleteEmployee('${esc(id)}')">Elimina</button></div></td>
-      </tr>
-      <tr id="employeeExtra_${esc(id)}" class="employee-extra-row" style="display:none"><td colspan="5">
-        <div class="employee-extra-box">
-          <b>Permessi extra personali</b>
-          <p class="hint">Aggiungi permessi solo a questo dipendente, senza cambiare il ruolo di tutti gli altri.</p>
-          <div class="extra-permission-grid">
-            ${EXTRA_KEYS_FINAL.map(k=>`<label><input type="checkbox" data-extra-uid="${esc(uid)}" data-extra-key="${k}" ${checked(k)} ${disabled}> <span>${esc(PERM_LABELS_FINAL[k]||k)}</span></label>`).join('')}
-          </div>
-          <div class="action-row" style="margin-top:12px">
-            <button class="btn gold small" type="button" onclick="saveEmployeeExtraPermissions('${esc(id)}')" ${disabled}>Salva permessi extra</button>
-            ${!uid?'<span class="hint">Questo dipendente non ha ancora UID Firebase: ricrealo dal gestionale per poter salvare i permessi online.</span>':''}
-          </div>
-        </div>
-      </td></tr>`;
-    }).join('')||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';
-  }
-  window.toggleEmployeeExtra=function(id){const row=$('employeeExtra_'+id); if(row)row.style.display=row.style.display==='none'?'table-row':'none';};
-
-  async function token(){const u=window.currentFirebaseUser;if(u&&u.getIdToken)return await u.getIdToken(true);throw new Error('Sessione non trovata. Esci e rientra.')}
-  window.saveEmployeeExtraPermissions=async function(id){
-    const e=employees().find(x=>String(x.id)===String(id)||String(empUid(x))===String(id)||String(x.email)===String(id));
-    if(!e){toastOk('Dipendente non trovato.');return}
-    const uid=empUid(e); if(!uid){toastOk('Dipendente senza UID Firebase.');return}
-    const extra={};
-    document.querySelectorAll(`#employeeExtra_${CSS.escape(String(id))} input[data-extra-key]`).forEach(ch=>{if(ch.checked)extra[ch.dataset.extraKey]=true;});
+  window.toggleEmployeeExtras=function(id){var el=$('extra_'+id); if(el)el.classList.toggle('show');};
+  window.saveEmployeeExtras=async function(id){
+    var e=employees().find(function(x){return String(x.id)===String(id)}); if(!e)return;
+    var uid=e.firebaseUid||e.uid||e.id; if(!uid){toastMsg('Questo dipendente non ha un UID valido.');return}
+    var extras={}; var box=$('extra_'+id); if(box){box.querySelectorAll('input[data-extra]').forEach(function(ch){if(ch.checked)extras[ch.dataset.extra]=true;});}
     try{
-      const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+await token()},body:JSON.stringify({action:'update',uid:uid,name:e.name||'',email:e.email||'',role:normRole(e.role),active:e.active!==false,extraPermissions:extra})});
-      const data=await res.json().catch(()=>({error:'Risposta non valida'}));
-      if(!res.ok||!data.ok)throw new Error(data.error||'Errore salvataggio permessi');
-      e.extraPermissions=extra; saveLocal(); renderEmployeeRows(); applyRoleVisibility(); toastOk('Permessi extra salvati.','success');
-    }catch(err){toastOk(err.message||'Errore salvataggio permessi');}
+      var u=window.currentFirebaseUser; if(!u||typeof u.getIdToken!=='function')throw new Error('Sessione non valida. Esci e rientra.');
+      var token=await u.getIdToken(true);
+      var res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'update',uid:uid,name:e.name||'',email:e.email||'',role:roleOf(e),active:e.active!==false,extraPermissions:extras})});
+      var data=await res.json().catch(function(){return {error:'Risposta non valida'}}); if(!res.ok||!data.ok)throw new Error(data.error||'Errore salvataggio permessi');
+      e.extraPermissions=extras; try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db))}catch(err){}
+      if(window.currentFirebaseUser && String(uid)===String(window.currentFirebaseUser.uid)){window.currentFirebaseUserProfile=Object.assign({},window.currentFirebaseUserProfile||{},data.user||{}, {extraPermissions:extras});}
+      renderEmployeesFinal(); applyRoleVisibility(); toastMsg('Permessi personali salvati.','success');
+    }catch(err){console.error(err);toastMsg(err.message||'Errore salvataggio permessi');}
   };
-
-  const oldEdit=window.editEmployee;
-  window.editEmployee=function(id){
-    if(typeof oldEdit==='function')oldEdit.apply(this,arguments);
-    setTimeout(()=>{
-      const e=employees().find(x=>String(x.id)===String(id)||String(empUid(x))===String(id)||String(x.email)===String(id));
-      if(e){
-        if($('employeeId'))$('employeeId').value=e.id||empUid(e)||'';
-        if($('empFirebaseUid'))$('empFirebaseUid').value=empUid(e);
-        if($('empRole'))$('empRole').value=normRole(e.role);
-      }
-    },80);
+  function renderEmployeesFinal(){
+    ensureSupervisorOptions(); renderRoleDashboard();
+    try{if(typeof window.renderRoleLegend==='function')window.renderRoleLegend()}catch(e){}
+    var sel=$('activeEmployeeSelect'); if(sel){sel.innerHTML=employees().filter(function(e){return e.active!==false}).map(function(e){return '<option value="'+esc(e.id)+'" '+(String(e.id)===String((settings||{}).activeEmployeeId)?'selected':'')+'>'+esc(e.name||e.email||'Dipendente')+' · '+esc(roleLabel(e.role))+'</option>';}).join('');}
+    var ae=currentEmployee(); var roleInput=$('activeEmployeeRole'); if(roleInput)roleInput.value=ae?roleLabel(ae.role):''; var badge=$('activeEmployeeBadge'); if(badge&&ae)badge.textContent=(ae.name||ae.email||'Profilo')+' · '+roleLabel(ae.role);
+    var tb=$('employeesTable'); if(tb){tb.innerHTML=employees().map(function(e){return '<tr><td><b>'+esc(e.name||'Dipendente')+'</b><br><span class="hint">'+esc(e.email||'—')+'</span></td><td><span class="badge">'+esc(roleLabel(e.role))+'</span></td><td>'+(e.active!==false?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Disattivato</span>')+'</td><td>'+esc(permSummary(e))+'</td><td><div class="action-row"><button class="btn small secondary" onclick="toggleEmployeeExtras(\''+esc(e.id)+'\')">▾ Permessi</button><button class="btn small secondary" onclick="editEmployee(\''+esc(e.id)+'\')">Modifica</button><button class="btn small red" onclick="deleteEmployee(\''+esc(e.id)+'\')">Elimina</button></div></td></tr><tr class="employee-extra-row"><td colspan="5">'+renderExtraBox(e)+'</td></tr>';}).join('')||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';}
+    var isManager=canAccess('manageEmployees'); var form=$('employeeForm'); if(form)form.style.display=isManager?'grid':'none'; var panel=$('superAdminPermissionPanel'); if(panel)panel.style.display=isManager?'block':'none';
+  }
+  window.renderEmployees=renderEmployeesFinal;
+  function ensureProfileSection(){
+    if(!$('profile')){var s=document.createElement('section');s.id='profile';s.className='section';s.innerHTML='<div class="card panel"><div class="panel-title"><div><h2>Profilo</h2><p class="hint">I dati del tuo accesso al gestionale.</p></div></div><div id="profileContent" class="profile-grid"></div></div>';(document.querySelector('main.app')||document.body).appendChild(s)}
+    var menu=$('topMenu'); if(menu&&!$('profileMenuButton')){var b=document.createElement('button');b.id='profileMenuButton';b.className='btn secondary';b.type='button';b.textContent='Profilo';b.onclick=function(ev){ev.preventDefault();try{go('profile')}catch(e){};try{closeTopMenu()}catch(e){};return false}; menu.insertBefore(b,menu.firstChild)}
+  }
+  function fmtDate(v){try{var d=v&&v.toDate?v.toDate():new Date(v||'');if(!d||isNaN(d))return '—';return d.toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return '—'}}
+  function renderProfile(){ensureProfileSection(); var e=currentEmployee()||{}; var p=currentProfile()||{}; var c=$('profileContent'); if(!c)return; c.innerHTML='<div class="profile-item"><b>Nome e cognome</b>'+esc(e.name||p.name||'—')+'</div><div class="profile-item"><b>Email</b>'+esc(e.email||p.email||'—')+'</div><div class="profile-item"><b>Ruolo</b>'+esc(roleLabel(e.role||p.role))+'</div><div class="profile-item"><b>Data creazione</b>'+fmtDate(e.createdAt||p.createdAt||p.createdAtClient)+'</div>';}
+  function hideTopMenuByRole(){
+    var items=[
+      {sel:'#topMenu button[onclick*="importFile"],#topMenu button[onclick*="importData"]',perm:'backup'},
+      {sel:'#topMenu button[onclick*="exportData"]',perm:'backup'},
+      {sel:'#topMenu button[onclick*="settings"]',perm:'settings'},
+      {sel:'#topMenu button[onclick*="employees"]',perm:'manageEmployees'},
+      {sel:'#topMenu button[onclick*="discounts"]',perm:'viewDiscounts'},
+      {sel:'#accessLogsMenuButton',perm:'viewAccessLogs'}
+    ];
+    items.forEach(function(it){document.querySelectorAll(it.sel).forEach(function(el){el.classList.toggle('noor-hidden-by-role',!canAccess(it.perm));});});
+    var addBtn=document.querySelector('.top-actions .btn.gold[onclick*="openAddProduct"]'); if(addBtn)addBtn.classList.toggle('noor-hidden-by-role',!canAccess('manageProducts'));
+    document.querySelectorAll('.nav button[data-target="products"]').forEach(function(b){b.classList.toggle('noor-hidden-by-role',!canAccess('viewProducts'))});
+    document.querySelectorAll('.nav button[data-target="stock"]').forEach(function(b){b.classList.toggle('noor-hidden-by-role',!canAccess('viewStock'))});
+    document.querySelectorAll('.nav button[data-target="history"]').forEach(function(b){b.classList.toggle('noor-hidden-by-role',!canAccess('viewOrders'))});
+    document.querySelectorAll('.nav button[data-target="sell"]').forEach(function(b){b.classList.toggle('noor-hidden-by-role',!canAccess('sell'))});
+  }
+  window.applyRoleVisibility=function(){ensureProfileSection(); hideTopMenuByRole(); renderRoleDashboard(); renderProfile();
+    var noRev=!canAccess('viewRevenue'), noCosts=!canAccess('viewCosts');
+    var tr=$('todayRevenue'); if(tr&&noRev)tr.innerHTML='<span class="hidden-money">••••</span>';
+    ['stockValue','stockCostValue'].forEach(function(id){var el=$(id); if(el&&noCosts)el.innerHTML='<span class="hidden-money">••••</span>';});
+    var readOnlyDiscounts=!canAccess('manageDiscounts'); document.querySelectorAll('#discounts form input,#discounts form select,#discounts form button').forEach(function(el){el.disabled=readOnlyDiscounts;}); document.querySelectorAll('#discountsTable button').forEach(function(b){b.style.display=readOnlyDiscounts?'none':'';});
   };
-
-  window.saveEmployee=function(ev){
-    if(ev){ev.preventDefault();ev.stopPropagation();}
-    if(!window.canAccess('manageEmployees')){toastOk('Non hai il permesso di gestire i dipendenti.');return false;}
-    const id=$('employeeId')?.value||'';
-    const old=employees().find(x=>String(x.id)===String(id)||String(empUid(x))===String(id)||String(x.email||'').toLowerCase()===String($('empEmail')?.value||'').toLowerCase());
-    const uid=$('empFirebaseUid')?.value||empUid(old)||'';
-    const name=($('empName')?.value||'').trim();
-    const email=($('empEmail')?.value||'').trim().toLowerCase();
-    const password=$('empPassword')?.value||'';
-    const role=normRole($('empRole')?.value||'seller');
-    const active=($('empActive')?.value||'true')==='true';
-    const action=uid?'update':'create';
-    if(!name){toastOk('Inserisci nome e cognome.');return false;}
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toastOk('Inserisci una email valida.');return false;}
-    if(action==='create'&&password.length<6){toastOk('Inserisci una password iniziale di almeno 6 caratteri.');return false;}
-    token().then(t=>fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+t},body:JSON.stringify({action,uid,name,email,password,role,active,extraPermissions:(old&&old.extraPermissions)||{}})}))
-    .then(r=>r.json().then(d=>({ok:r.ok,data:d}))).then(({ok,data})=>{
-      if(!ok||!data.ok)throw new Error(data.error||'Errore salvataggio dipendente');
-      const u=data.user||{uid,name,email,role,active};
-      const existing=old||employees().find(x=>String(empUid(x))===String(u.uid));
-      const row=Object.assign(existing||{}, {id:(existing&&existing.id)||u.uid,uid:u.uid,firebaseUid:u.uid,name:u.name||name,email:u.email||email,role:u.role||role,active:u.active!==false,extraPermissions:u.extraPermissions||(old&&old.extraPermissions)||{}});
-      if(!existing)employees().push(row);
-      saveLocal();
-      if($('employeeForm'))$('employeeForm').reset();
-      if($('employeeId'))$('employeeId').value='';
-      if($('empFirebaseUid'))$('empFirebaseUid').value='';
-      if($('empPassword'))$('empPassword').value='';
-      renderEmployeeRows(); applyRoleVisibility(); toastOk('Dipendente salvato.','success');
-    }).catch(err=>toastOk(err.message||'Errore salvataggio dipendente.'));
-    return false;
-  };
-
-  function showEl(el,show){if(!el)return;el.classList.toggle('noor-hidden-by-role',!show);}
-  function applyRoleVisibility(){
-    const can=window.canAccess;
-    document.querySelectorAll('.nav button[data-target="products"]').forEach(el=>showEl(el,can('viewProducts')||can('manageProducts')));
-    document.querySelectorAll('.nav button[data-target="sell"]').forEach(el=>showEl(el,can('sell')));
-    document.querySelectorAll('.nav button[data-target="history"]').forEach(el=>showEl(el,can('viewOrders')));
-    document.querySelectorAll('.nav button[data-target="stock"]').forEach(el=>showEl(el,can('viewStock')||can('manageStock')||can('manageProducts')));
-    document.querySelectorAll('[onclick*="openAddProduct"]').forEach(el=>showEl(el,can('manageProducts')));
-    document.querySelectorAll('#topMenu button').forEach(btn=>{
-      const txt=(btn.textContent||'').toLowerCase();
-      const onclick=btn.getAttribute('onclick')||'';
-      let visible=true;
-      if(onclick.includes("go('settings')")||txt.includes('impostazioni'))visible=can('settings');
-      if(onclick.includes("go('employees')")||txt.includes('dipendenti'))visible=can('manageEmployees');
-      if(onclick.includes("go('discounts')")||txt.includes('sconti'))visible=can('viewDiscounts')||can('manageDiscounts');
-      if(txt.includes('importa')||txt.includes('backup'))visible=can('backup');
-      if(txt.includes('esci'))visible=true;
-      showEl(btn,visible);
-    });
-    const readOnlyDiscounts=!can('manageDiscounts');
-    document.querySelectorAll('#discounts form input,#discounts form select,#discounts form button').forEach(el=>{el.disabled=readOnlyDiscounts;});
-    document.querySelectorAll('#discountsTable button').forEach(b=>{b.style.display=readOnlyDiscounts?'none':'';});
-  }
-
-  const oldGo=window.go;
-  if(typeof oldGo==='function'&&!oldGo.__rolesFinal){
-    const wrapped=function(id){
-      if(id==='settings'&&!window.canAccess('settings')){toastOk('Non hai il permesso di accedere alle impostazioni.');return;}
-      if(id==='employees'&&!window.canAccess('manageEmployees')){toastOk('Non hai il permesso di accedere ai dipendenti.');return;}
-      if(id==='discounts'&&!(window.canAccess('viewDiscounts')||window.canAccess('manageDiscounts'))){toastOk('Non hai il permesso di vedere gli sconti.');return;}
-      if(id==='products'&&!(window.canAccess('viewProducts')||window.canAccess('manageProducts'))){toastOk('Non hai il permesso di vedere i prodotti.');return;}
-      if(id==='stock'&&!(window.canAccess('viewStock')||window.canAccess('manageStock')||window.canAccess('manageProducts'))){toastOk('Non hai il permesso di vedere lo stock.');return;}
-      if(id==='sell'&&!window.canAccess('sell')){toastOk('Non hai il permesso di vendere.');return;}
-      if(id==='history'&&!window.canAccess('viewOrders')){toastOk('Non hai il permesso di vedere lo storico.');return;}
-      const r=oldGo.apply(this,arguments); setTimeout(()=>{if(id==='employees')renderEmployeeRows(); applyRoleVisibility();},80); return r;
-    };
-    wrapped.__rolesFinal=true; window.go=wrapped;
-  }
-  function boot(){
-    syncWindowDb(); ensureSupervisorOptions();
-    const form=$('employeeForm'); if(form){form.onsubmit=window.saveEmployee; form.addEventListener('submit',window.saveEmployee,true);}
-    renderEmployeeRows(); applyRoleVisibility();
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot); else boot();
-  setTimeout(boot,400);setTimeout(boot,1200);setTimeout(boot,2500);setInterval(applyRoleVisibility,2500);
+  var originalGo=window.go;
+  if(typeof originalGo==='function'&&!originalGo.__roleFinalWrapped){var wrapped=function(id){
+      if(id==='settings'&&!canAccess('settings')){toastMsg('Questo ruolo non può accedere alle impostazioni.');return}
+      if(id==='employees'&&!canAccess('manageEmployees')){toastMsg('Questo ruolo non può gestire i dipendenti.');return}
+      if(id==='discounts'&&!canAccess('viewDiscounts')){toastMsg('Questo ruolo non può vedere gli sconti.');return}
+      if(id==='accessLogs'&&!canAccess('viewAccessLogs')){toastMsg('Questo ruolo non può vedere il controllo accessi.');return}
+      if(id==='products'&&!canAccess('viewProducts')){toastMsg('Questo ruolo non può vedere i prodotti.');return}
+      if(id==='stock'&&!canAccess('viewStock')){toastMsg('Questo ruolo non può vedere lo stock.');return}
+      if(id==='history'&&!canAccess('viewOrders')){toastMsg('Questo ruolo non può vedere lo storico.');return}
+      if(id==='sell'&&!canAccess('sell')){toastMsg('Questo ruolo non può vendere.');return}
+      var r=originalGo.apply(this,arguments); if(id==='employees')setTimeout(renderEmployeesFinal,80); if(id==='profile')setTimeout(renderProfile,80); setTimeout(applyRoleVisibility,100); return r;
+    }; wrapped.__roleFinalWrapped=true; window.go=wrapped;}
+  function boot(){ensureSupervisorOptions(); ensureProfileSection(); renderEmployeesFinal(); applyRoleVisibility();}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot); else boot(); setTimeout(boot,600); setTimeout(boot,1600); setInterval(applyRoleVisibility,2500);
 })();
 </script>
 
