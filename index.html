@@ -3406,249 +3406,68 @@ setTimeout(()=>{
 </script>
 
 
-<style id="role-extra-permissions-final-style">
-  .employee-permissions-row td{background:rgba(255,240,247,.72)!important;padding:0!important}
-  .employee-permissions-panel{padding:14px;border-top:1px solid var(--line);display:grid;gap:12px}
-  .employee-permissions-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
-  .extra-perm-check{display:flex;align-items:flex-start;gap:10px;border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:11px;cursor:pointer}
-  .extra-perm-check input{width:auto;margin-top:3px}
-  .extra-perm-check small{display:block;color:var(--muted);line-height:1.35;margin-top:3px}
-  .role-readonly-note{padding:10px 12px;border-radius:16px;background:rgba(242,184,75,.14);border:1px solid rgba(242,184,75,.28);font-size:12px;font-weight:850;color:var(--text)}
-  .role-hidden{display:none!important}
-  .permission-disabled{opacity:.45!important;pointer-events:none!important;filter:grayscale(.3)}
-  body.dark .employee-permissions-row td{background:rgba(255,255,255,.04)!important}
+<style id="noor-role-dashboard-clean">
+#employeeRoleDashboard{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:14px 0 16px}
+.employee-role-card{border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(255,240,247,.88));border-radius:22px;padding:14px;box-shadow:0 10px 26px rgba(143,45,90,.08)}
+.employee-role-card .erc-title{font-size:12px;color:var(--muted);font-weight:950;text-transform:uppercase;letter-spacing:.45px}
+.employee-role-card .erc-number{font-size:30px;font-weight:950;margin-top:5px;color:var(--text)}
+.employee-role-card .erc-sub{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.3}
+body.dark .employee-role-card{background:rgba(255,255,255,.04)}
+@media(max-width:980px){#employeeRoleDashboard{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){#employeeRoleDashboard{grid-template-columns:1fr}}
 </style>
-<script id="role-extra-permissions-final-script">
+<script id="noor-role-dashboard-clean-script">
 (function(){
   'use strict';
-  const ROLE_LABELS={owner:'Owner',manager:'Admin',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
-  const PERM_INFO={
-    sell:{label:'Vendere',desc:'Può usare carrello, scanner e registrare vendite.'},
-    viewProducts:{label:'Vedere prodotti',desc:'Può consultare lista prodotti e dettagli.'},
-    manageProducts:{label:'Modificare prodotti',desc:'Può aggiungere/modificare prodotti, foto e barcode.'},
-    viewStock:{label:'Vedere stock',desc:'Può consultare giacenze e disponibilità.'},
-    manageStock:{label:'Modificare stock',desc:'Può modificare quantità e movimenti di magazzino.'},
-    viewDiscounts:{label:'Vedere sconti',desc:'Può consultare i codici sconto senza modificarli.'},
-    manageDiscounts:{label:'Gestire sconti',desc:'Può creare, modificare ed eliminare sconti.'},
-    viewOrders:{label:'Vedere storico',desc:'Può consultare ordini e storico vendite.'},
-    cancelOrders:{label:'Correggere ordini',desc:'Può annullare/correggere ordini e articoli.'},
-    editPayment:{label:'Modificare pagamento',desc:'Può cambiare metodo di pagamento sugli ordini.'},
-    createClosure:{label:'Fare chiusura',desc:'Può eseguire la chiusura giornaliera.'},
-    editClosure:{label:'Modificare chiusura',desc:'Può aggiornare una chiusura già esistente.'},
-    viewRevenue:{label:'Vedere incassi',desc:'Può vedere incasso oggi e riepiloghi economici.'},
-    viewCosts:{label:'Vedere costi',desc:'Può vedere valore costo e margini.'},
-    viewAccessLogs:{label:'Vedere accessi',desc:'Può aprire il controllo accessi.'},
-    manageEmployees:{label:'Gestire dipendenti',desc:'Può creare dipendenti, ruoli e permessi.'},
-    settings:{label:'Impostazioni',desc:'Può modificare impostazioni critiche.'},
-    backup:{label:'Backup/import',desc:'Può importare/esportare dati.'}
-  };
-  const DEFAULTS={
-    owner:{sell:1,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,viewAccessLogs:1,manageEmployees:1,settings:1,backup:1},
-    manager:{sell:1,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:1,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:1,viewAccessLogs:1,manageEmployees:1,settings:0,backup:1},
-    warehouse:{sell:0,viewProducts:1,manageProducts:1,viewStock:1,manageStock:1,viewDiscounts:1,manageDiscounts:0,viewOrders:0,cancelOrders:0,editPayment:0,createClosure:0,editClosure:0,viewRevenue:0,viewCosts:0,viewAccessLogs:0,manageEmployees:0,settings:0,backup:0},
-    seller:{sell:1,viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,cancelOrders:0,editPayment:0,createClosure:1,editClosure:0,viewRevenue:1,viewCosts:0,viewAccessLogs:0,manageEmployees:0,settings:0,backup:0},
-    supervisor:{sell:1,viewProducts:1,manageProducts:0,viewStock:1,manageStock:0,viewDiscounts:1,manageDiscounts:0,viewOrders:1,cancelOrders:1,editPayment:1,createClosure:1,editClosure:1,viewRevenue:1,viewCosts:0,viewAccessLogs:0,manageEmployees:0,settings:0,backup:0}
-  };
-  const SECTION_PERMS={home:null,products:'viewProducts',productDetail:'viewProducts',stock:'viewStock',sell:'sell',history:'viewOrders',drafts:'viewOrders',discounts:'viewDiscounts',closures:'createClosure',employees:'manageEmployees',settings:'settings',accessLogs:'viewAccessLogs'};
-  function $(id){return document.getElementById(id)}
-  function esc(v){return String(v??'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-  function toastRole(msg,type){try{ if(typeof toast==='function') return toast(msg,type||''); }catch(e){} try{alert(msg)}catch(e){}}
-  function roleLabel(role){return ROLE_LABELS[role]||ROLE_LABELS.seller}
-  function normalizeRole(role){return DEFAULTS[role]?role:'seller'}
-  function currentProfile(){
-    const fp=window.currentFirebaseUserProfile||{};
-    if(fp.role) return fp;
-    try{const cached=JSON.parse(localStorage.getItem('noor_firebase_current_user_v1')||sessionStorage.getItem('noor_firebase_current_user_v1')||'null'); if(cached&&cached.role)return cached;}catch(e){}
-    try{const id=window.settings?.activeEmployeeId; const emp=(window.db?.employees||[]).find(function(x){return String(x.id)===String(id)||String(x.uid)===String(id)||String(x.firebaseUid)===String(id)}); if(emp)return emp;}catch(e){}
-    return {role:'seller',extraPermissions:{}};
-  }
-  function combinedPerms(profile){
-    profile=profile||currentProfile();
-    const role=normalizeRole(profile.role);
-    const base=Object.assign({},DEFAULTS[role]||DEFAULTS.seller);
-    const extra=profile.extraPermissions||{};
-    Object.keys(extra).forEach(function(k){ if(extra[k]===true||extra[k]===1) base[k]=1; });
-    if(role==='owner') return Object.assign({},DEFAULTS.owner);
-    return base;
-  }
-  function can(perm){ if(!perm) return true; const p=currentProfile(); if(p.active===false) return false; return !!combinedPerms(p)[perm]; }
-  window.canAccess=function(perm){return can(perm)};
-  function findEmployeeById(id){return (window.db?.employees||[]).find(function(e){return String(e.id)===String(id)||String(e.uid)===String(id)||String(e.firebaseUid)===String(id)})}
-  function employeeUid(e){return e?.firebaseUid||e?.uid||e?.id||''}
-  function employeeExtra(e){return e?.extraPermissions||{}}
-  function ensureSupervisorOption(){
-    const sel=$('empRole'); if(sel&&!Array.from(sel.options).some(function(o){return o.value==='supervisor'})){ const op=document.createElement('option');op.value='supervisor';op.textContent='Supervisore';sel.appendChild(op); }
-    const perm=$('permRoleSelect'); if(perm&&!Array.from(perm.options).some(function(o){return o.value==='supervisor'})){ const op=document.createElement('option');op.value='supervisor';op.textContent='Supervisore';perm.appendChild(op); }
-  }
-  function permSummaryFor(e){const p=combinedPerms(e);return Object.keys(PERM_INFO).filter(function(k){return p[k]}).slice(0,6).map(function(k){return PERM_INFO[k].label}).join(', ')||'solo consultazione'}
-  function roleCardsHtml(){
-    const desc={
-      owner:'Accesso completo a tutto il gestionale.',
-      manager:'Quasi completo: vendite, prodotti, stock, sconti, chiusure, dipendenti e accessi. Impostazioni critiche limitate.',
-      warehouse:'Prodotti e stock completi. Sconti solo in lettura. Niente incassi, vendite o chiusure.',
-      seller:'Vende, vede prodotti/stock, vede sconti in lettura e può fare chiusura. Non modifica chiusure già fatte.',
-      supervisor:'Come venditore, ma può anche correggere ordini/pagamenti e modificare chiusure.'
-    };
-    return Object.keys(desc).map(function(role){const p=combinedPerms({role:role,extraPermissions:{},active:true});return '<div class="role-perm"><b>'+roleLabel(role)+'</b><div class="hint">'+esc(desc[role])+'</div><div style="margin-top:8px;font-size:12px;line-height:1.7">Prodotti '+(p.viewProducts?'✓':'×')+' · Stock '+(p.viewStock?'✓':'×')+' · Sconti '+(p.viewDiscounts?'✓':'×')+' · Vendite '+(p.sell?'✓':'×')+' · Chiusura '+(p.createClosure?'✓':'×')+' · Modifica chiusura '+(p.editClosure?'✓':'×')+' · Costi '+(p.viewCosts?'✓':'×')+'</div></div>'}).join('');
-  }
-  function extraPanelHtml(e){
-    const uid=employeeUid(e); const extra=employeeExtra(e); const keys=Object.keys(PERM_INFO).filter(function(k){return !['manageEmployees','settings'].includes(k) || currentProfile().role==='owner'});
-    return '<tr class="employee-permissions-row role-hidden" data-extra-row="'+esc(uid)+'"><td colspan="5"><div class="employee-permissions-panel"><div><b>Permessi extra personali</b><p class="hint">Questi permessi valgono solo per '+esc(e.name||e.email||'dipendente')+', senza modificare tutti gli utenti con ruolo '+esc(roleLabel(e.role))+'.</p></div><div class="employee-permissions-grid">'+keys.map(function(k){return '<label class="extra-perm-check"><input type="checkbox" data-extra-uid="'+esc(uid)+'" data-extra-key="'+esc(k)+'" '+(extra[k]?'checked':'')+'><span><b>'+esc(PERM_INFO[k].label)+'</b><small>'+esc(PERM_INFO[k].desc)+'</small></span></label>'}).join('')+'</div><div class="action-row"><button class="btn small gold" type="button" onclick="saveEmployeeExtraPermissions(\''+esc(uid)+'\')">Salva permessi personali</button><button class="btn small secondary" type="button" onclick="resetEmployeeExtraPermissions(\''+esc(uid)+'\')">Rimuovi extra</button></div></div></td></tr>';
-  }
-  window.toggleEmployeePermissions=function(uid){ const row=document.querySelector('[data-extra-row="'+CSS.escape(String(uid))+'"]'); if(row)row.classList.toggle('role-hidden'); };
-  window.renderRoleLegend=function(){ const box=$('roleLegend'); if(box) box.innerHTML=roleCardsHtml(); };
-  const oldRenderEmployees=window.renderEmployees;
-  window.renderEmployees=function(){
-    ensureSupervisorOption();
-    try{ if(typeof oldRenderEmployees==='function') oldRenderEmployees(); }catch(e){console.warn('renderEmployees base:',e)}
-    try{ window.renderRoleLegend(); }catch(e){}
-    const tb=$('employeesTable'); if(!tb||!can('manageEmployees')){ applyRoleVisibility(); return; }
-    const employees=Array.isArray(window.db?.employees)?window.db.employees:[];
-    tb.innerHTML=employees.map(function(e){const uid=employeeUid(e);return '<tr><td><b>'+esc(e.name||'—')+'</b><br><span class="hint">'+esc(e.email||'—')+'</span></td><td><span class="badge">'+esc(roleLabel(e.role))+'</span></td><td>'+(e.active!==false?'<span class="badge status-ok">Attivo</span>':'<span class="badge status-danger">Disattivato</span>')+'</td><td>'+esc(permSummaryFor(e))+'</td><td><div class="action-row"><button class="btn small secondary" type="button" onclick="editEmployee(\''+esc(e.id||uid)+'\')">Modifica</button><button class="btn small secondary" type="button" onclick="toggleEmployeePermissions(\''+esc(uid)+'\')">Permessi ▾</button><button class="btn small red" type="button" onclick="deleteEmployee(\''+esc(e.id||uid)+'\')">Elimina</button></div></td></tr>'+extraPanelHtml(e)}).join('')||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';
-    applyRoleVisibility();
-  };
-  async function postEmployeeUpdate(e,extra){
-    const token=await (window.currentFirebaseUser&&window.currentFirebaseUser.getIdToken?window.currentFirebaseUser.getIdToken(true):Promise.reject(new Error('Sessione non valida')));
-    const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'update',uid:employeeUid(e),name:e.name,email:e.email,password:'',role:normalizeRole(e.role),active:e.active!==false,extraPermissions:extra||{}})});
-    const data=await res.json().catch(function(){return {error:'Risposta non valida'}}); if(!res.ok||!data.ok) throw new Error(data.error||'Errore salvataggio permessi'); return data;
-  }
-  window.saveEmployeeExtraPermissions=async function(uid){
+  function byId(id){return document.getElementById(id)}
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+  var labels={owner:'Owner',manager:'Amministratore',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore'};
+  var subs={owner:'Accesso completo',manager:'Gestione avanzata',warehouse:'Prodotti e stock',seller:'Vendita e chiusura',supervisor:'Controllo e chiusure'};
+  function employees(){
     try{
-      if(!can('manageEmployees')){toastRole('Non hai permessi per modificare i dipendenti.');return;}
-      const e=(window.db?.employees||[]).find(function(x){return String(employeeUid(x))===String(uid)}); if(!e){toastRole('Dipendente non trovato.');return;}
-      const extra={}; document.querySelectorAll('input[data-extra-uid="'+CSS.escape(String(uid))+'"]').forEach(function(ch){ if(ch.checked) extra[ch.dataset.extraKey]=true; });
-      await postEmployeeUpdate(e,extra); e.extraPermissions=extra; try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db));}catch(err){}
-      window.renderEmployees(); toastRole('Permessi personali salvati.','success');
-    }catch(err){console.error(err);toastRole(err.message||'Errore salvataggio permessi.');}
-  };
-  window.resetEmployeeExtraPermissions=async function(uid){
-    document.querySelectorAll('input[data-extra-uid="'+CSS.escape(String(uid))+'"]').forEach(function(ch){ch.checked=false;});
-    await window.saveEmployeeExtraPermissions(uid);
-  };
-  function sectionAllowed(id){return can(SECTION_PERMS[id]);}
-  function hideBySelector(sel,hide){document.querySelectorAll(sel).forEach(function(el){el.classList.toggle('role-hidden',!!hide);});}
-  function disableBySelector(sel,disable){document.querySelectorAll(sel).forEach(function(el){el.disabled=!!disable;el.classList.toggle('permission-disabled',!!disable);});}
-  window.applyRoleVisibility=function(){
-    ensureSupervisorOption();
-    Object.keys(SECTION_PERMS).forEach(function(id){ const sec=$(id); if(sec)sec.classList.toggle('role-hidden',!sectionAllowed(id)); });
-    document.querySelectorAll('#topMenu button').forEach(function(btn){ const txt=(btn.textContent||'').toLowerCase(); let allowed=true; if(txt.includes('impost'))allowed=can('settings'); if(txt.includes('dipendent'))allowed=can('manageEmployees'); if(txt.includes('scont'))allowed=can('viewDiscounts'); if(txt.includes('backup')||txt.includes('importa'))allowed=can('backup'); btn.classList.toggle('role-hidden',!allowed); });
-    document.querySelectorAll('.nav button').forEach(function(btn){ const oc=btn.getAttribute('onclick')||''; const m=oc.match(/go\(['\"]([^'\"]+)/); if(m)btn.classList.toggle('role-hidden',!sectionAllowed(m[1])); });
-    hideBySelector('button[onclick*="openAddProduct"], button[onclick*="editProduct"], button[onclick*="deleteProduct"]',!can('manageProducts'));
-    disableBySelector('#productModal input,#productModal select,#productModal textarea,#productModal button[type="submit"]',!can('manageProducts'));
-    hideBySelector('#discounts form',!can('manageDiscounts'));
-    disableBySelector('#discounts form input,#discounts form select,#discounts form button',!can('manageDiscounts'));
-    hideBySelector('#discounts .btn.red,#discounts button[onclick*="deleteDiscount"],#discounts button[onclick*="editDiscount"]',!can('manageDiscounts'));
-    hideBySelector('#closures button[onclick*="openDailyClosureConfirm"]',!can('createClosure'));
-    hideBySelector('#employees #employeeForm,#superAdminPermissionPanel',!can('manageEmployees'));
-    hideBySelector('[data-cost-card="1"]',!can('viewCosts'));
-    if(!can('viewCosts')){ ['stockValue','stockCostValue'].forEach(function(id){const el=$(id); if(el)el.innerHTML='<span class="hidden-money">••••</span>';}); }
-    if(!can('viewRevenue')){ const el=$('todayRevenue'); if(el)el.innerHTML='<span class="hidden-money">••••</span>'; }
-  };
-  const oldGo=window.go;
-  window.go=function(id){ if(!sectionAllowed(id)){toastRole('Questa sezione non è disponibile per il tuo ruolo.'); id='home';} if(typeof oldGo==='function') return oldGo(id); };
-  const oldOpenClosure=window.openDailyClosureConfirm;
-  window.openDailyClosureConfirm=function(){
-    try{ const today=new Date().toISOString().slice(0,10); const exists=(window.db?.closures||[]).some(function(c){return c.date===today}); if(exists&&!can('editClosure')){toastRole('Puoi fare la chiusura, ma non modificare una chiusura già esistente.');return;} }catch(e){}
-    if(!can('createClosure')){toastRole('Non hai permessi per fare la chiusura.');return;}
-    return oldOpenClosure&&oldOpenClosure.apply(this,arguments);
-  };
-  function boot(){ensureSupervisorOption();try{window.renderEmployees()}catch(e){}try{window.applyRoleVisibility()}catch(e){} }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot); else boot();
-  setTimeout(boot,500);setTimeout(boot,1500);setTimeout(boot,3000);setInterval(function(){try{window.applyRoleVisibility()}catch(e){}},2500);
-})();
-</script>
-
-
-<!-- FIX DIPENDENTI FIREBASE: sincronizza la lista dipendenti da Firestore senza mostrare codice in Home -->
-<script type="module" id="noor-firestore-employees-list-sync-fix">
-import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
-const firebaseConfig={
-  apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
-  authDomain:"gestionalenoor-2fa61.firebaseapp.com",
-  projectId:"gestionalenoor-2fa61",
-  storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
-  messagingSenderId:"66670691093",
-  appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
-  measurementId:"G-0HSQB7XLJG"
-};
-
-const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
-const auth=getAuth(app);
-const firestore=getFirestore(app);
-
-function $(id){return document.getElementById(id)}
-function saveLocalEmployees(){
-  try{
-    if(typeof window.LS_KEY!=='undefined') localStorage.setItem(window.LS_KEY,JSON.stringify(window.db));
-    else localStorage.setItem('noor_profumi_pro_v1',JSON.stringify(window.db));
-  }catch(e){console.warn('Dipendenti: salvataggio locale non riuscito',e)}
-}
-function normalizeRole(role){
-  return ['owner','manager','warehouse','seller','supervisor'].includes(String(role||'')) ? String(role) : 'seller';
-}
-function mergeEmployee(remote){
-  if(!window.db) return;
-  window.db.employees=Array.isArray(window.db.employees)?window.db.employees:[];
-  const uid=String(remote.uid||remote.firebaseUid||remote.id||'');
-  if(!uid) return;
-  let existing=window.db.employees.find(e=>String(e.firebaseUid||e.uid||e.id)===uid || (remote.email && String(e.email||'').toLowerCase()===String(remote.email).toLowerCase()));
-  const clean={
-    id: existing?.id || uid,
-    firebaseUid: uid,
-    uid: uid,
-    name: remote.name || remote.displayName || remote.email || 'Dipendente',
-    email: remote.email || '',
-    loginEmail: remote.email || '',
-    role: normalizeRole(remote.role),
-    active: remote.active !== false,
-    extraPermissions: remote.extraPermissions || {},
-    createdAt: existing?.createdAt || remote.createdAt || remote.createdAtClient || new Date().toISOString(),
-    updatedAt: remote.updatedAt || new Date().toISOString()
-  };
-  if(existing) Object.assign(existing,clean);
-  else window.db.employees.push(clean);
-}
-async function loadEmployeesFromFirestore(){
-  try{
-    if(!auth.currentUser) return;
-    const snap=await getDocs(collection(firestore,'users'));
-    if(!window.db) window.db={};
-    window.db.employees=Array.isArray(window.db.employees)?window.db.employees:[];
-    snap.docs.forEach(d=>mergeEmployee({uid:d.id,...(d.data()||{})}));
-    window.db.employees.sort((a,b)=>{
-      const ar=a.role==='owner'?0:a.role==='manager'?1:a.role==='supervisor'?2:a.role==='warehouse'?3:4;
-      const br=b.role==='owner'?0:b.role==='manager'?1:b.role==='supervisor'?2:b.role==='warehouse'?3:4;
-      return ar-br || String(a.name||a.email||'').localeCompare(String(b.name||b.email||''),'it');
-    });
-    saveLocalEmployees();
-    if(typeof window.renderEmployees==='function') window.renderEmployees();
-    if(typeof window.applyRoleVisibility==='function') window.applyRoleVisibility();
-  }catch(e){
-    console.error('Errore caricamento dipendenti da Firestore:',e);
-    const tbody=$('employeesTable');
-    if(tbody && (!tbody.textContent || tbody.textContent.includes('Nessun dipendente'))){
-      tbody.innerHTML='<tr><td colspan="5" class="empty">Errore caricamento dipendenti. Controlla connessione e regole Firestore sulla raccolta users.</td></tr>';
+      if(window.db && Array.isArray(window.db.employees)) return window.db.employees;
+    }catch(e){}
+    return [];
+  }
+  function ensureSupervisor(){
+    var empRole=byId('empRole');
+    if(empRole && !Array.prototype.some.call(empRole.options,function(o){return o.value==='supervisor'})){
+      var opt=document.createElement('option'); opt.value='supervisor'; opt.textContent='Supervisore'; empRole.appendChild(opt);
+    }
+    var permRole=byId('permRoleSelect');
+    if(permRole && !Array.prototype.some.call(permRole.options,function(o){return o.value==='supervisor'})){
+      var opt2=document.createElement('option'); opt2.value='supervisor'; opt2.textContent='Supervisore'; permRole.appendChild(opt2);
     }
   }
-}
-
-window.loadEmployeesFromFirestore=loadEmployeesFromFirestore;
-
-const previousGo=window.go;
-window.go=function(id){
-  const result=typeof previousGo==='function' ? previousGo.apply(this,arguments) : undefined;
-  if(id==='employees') setTimeout(loadEmployeesFromFirestore,150);
-  return result;
-};
-
-onAuthStateChanged(auth,(user)=>{ if(user) setTimeout(loadEmployeesFromFirestore,600); });
-if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(loadEmployeesFromFirestore,900));
-else setTimeout(loadEmployeesFromFirestore,900);
-setTimeout(loadEmployeesFromFirestore,2500);
+  function renderDashboard(){
+    var section=byId('employees'); if(!section) return;
+    var panel=section.querySelector('.card.panel'); if(!panel) return;
+    var dash=byId('employeeRoleDashboard');
+    if(!dash){
+      dash=document.createElement('div'); dash.id='employeeRoleDashboard';
+      var title=panel.querySelector('.panel-title');
+      if(title) title.insertAdjacentElement('afterend',dash); else panel.insertBefore(dash,panel.firstChild);
+    }
+    var list=employees();
+    var roles=['owner','manager','warehouse','seller','supervisor'];
+    dash.innerHTML=roles.map(function(role){
+      var count=list.filter(function(e){return (e.role||'seller')===role && e.active!==false}).length;
+      return '<div class="employee-role-card"><div class="erc-title">'+esc(labels[role])+'</div><div class="erc-number">'+count+'</div><div class="erc-sub">'+esc(subs[role])+'</div></div>';
+    }).join('');
+  }
+  function update(){ensureSupervisor(); renderDashboard();}
+  function patchRenderEmployees(){
+    if(typeof window.renderEmployees==='function' && !window.renderEmployees.__dashboardPatched){
+      var original=window.renderEmployees;
+      var wrapped=function(){var result=original.apply(this,arguments); setTimeout(update,0); return result;};
+      wrapped.__dashboardPatched=true;
+      window.renderEmployees=wrapped;
+    }
+  }
+  function boot(){patchRenderEmployees(); update();}
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
+  setTimeout(boot,400); setTimeout(boot,1200); setTimeout(boot,2500);
+})();
 </script>
-
 </body>
 </html>
