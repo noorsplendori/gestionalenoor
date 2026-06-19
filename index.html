@@ -3601,5 +3601,341 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
   setTimeout(boot,300);setTimeout(boot,1000);setTimeout(boot,2500);setInterval(function(){applyMenu();applyDiscountReadonly();},1200);
 })();
 </script>
+
+<script id="noor-products-firestore-safe">
+/*
+  Noor Splendori - Prodotti online Firestore
+  Patch inserita in fondo al documento per non rompere Home, login, ruoli e dipendenti.
+*/
+(function(){
+  if(window.__NOOR_PRODUCTS_FIRESTORE_PATCH__) return;
+  window.__NOOR_PRODUCTS_FIRESTORE_PATCH__ = true;
+
+  const FIREBASE_CONFIG = {
+    apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+    authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+    projectId:"gestionalenoor-2fa61",
+    storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+    messagingSenderId:"66670691093",
+    appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+    measurementId:"G-0HSQB7XLJG"
+  };
+
+  let fbReady=false;
+  let fbAuth=null;
+  let fbDb=null;
+  let fbFns=null;
+  let unsubscribeProducts=null;
+  let syncingFromFirestore=false;
+  let syncTimer=null;
+
+  function getEl(id){return document.getElementById(id)}
+  function nowIso(){return new Date().toISOString()}
+
+  function cleanProductForFirestore(p){
+    const out = {...(p||{})};
+    out.id = String(out.id || (typeof uid === 'function' ? uid() : Date.now().toString(36)));
+    out.name = String(out.name || '').trim();
+    out.brand = String(out.brand || '').trim();
+    out.size = String(out.size || '').trim();
+    out.barcode = String(out.barcode || '').trim();
+    out.category = String(out.category || '').trim();
+    out.season = String(out.season || '').trim();
+    out.description = String(out.description || '').trim();
+    out.pyramid = String(out.pyramid || '').trim();
+    out.notes = String(out.notes || '').trim();
+    out.photo = String(out.photo || '');
+    out.price = Number(out.price)||0;
+    out.cost = Number(out.cost)||0;
+    out.qty = Number(out.qty)||0;
+    out.initialPrice = Number(out.initialPrice)||0;
+    out.finalPrice = Number(out.finalPrice)||0;
+    out.discountAmount = Number(out.discountAmount)||0;
+    out.discountPercent = Number(out.discountPercent)||0;
+    out.discountActive = !!out.discountActive;
+    out.updatedAtClient = nowIso();
+    return out;
+  }
+
+  function normalizeProductFromFirestore(data, id){
+    const p = cleanProductForFirestore({...data, id:(data && data.id) || id});
+    return p;
+  }
+
+  function localRender(){
+    try{
+      localStorage.setItem(typeof LS_KEY !== 'undefined' ? LS_KEY : 'noor_profumi_pro_v1', JSON.stringify(db));
+    }catch(e){}
+    try{
+      if(typeof renderAll === 'function') renderAll();
+      else if(typeof renderEverything === 'function') renderEverything();
+      else {
+        if(typeof renderProducts === 'function') renderProducts();
+        if(typeof renderStats === 'function') renderStats();
+        if(typeof renderStock === 'function') renderStock();
+      }
+    }catch(e){console.warn('Render prodotti:', e)}
+  }
+
+  async function initFirebaseProducts(){
+    if(fbReady) return true;
+    try{
+      const [appMod, authMod, fsMod] = await Promise.all([
+        import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
+        import("https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js"),
+        import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js")
+      ]);
+
+      const app = appMod.getApps().length ? appMod.getApps()[0] : appMod.initializeApp(FIREBASE_CONFIG);
+      fbAuth = authMod.getAuth(app);
+      fbDb = fsMod.getFirestore(app);
+      fbFns = fsMod;
+      fbReady = true;
+
+      authMod.onAuthStateChanged(fbAuth, function(user){
+        if(user){
+          startProductsOnlineListener();
+        }else{
+          stopProductsOnlineListener();
+        }
+      });
+
+      return true;
+    }catch(err){
+      console.error('Firebase prodotti non inizializzato:', err);
+      try{ toast('Errore collegamento prodotti online: '+(err.message||err)); }catch(_e){}
+      return false;
+    }
+  }
+
+  function stopProductsOnlineListener(){
+    if(unsubscribeProducts){
+      try{unsubscribeProducts()}catch(e){}
+      unsubscribeProducts=null;
+    }
+  }
+
+  async function startProductsOnlineListener(){
+    if(!fbReady || !fbDb || !fbFns) return;
+    if(unsubscribeProducts) return;
+
+    try{
+      const productsRef = fbFns.collection(fbDb, 'products');
+      unsubscribeProducts = fbFns.onSnapshot(productsRef, function(snapshot){
+        syncingFromFirestore = true;
+        const list=[];
+        snapshot.forEach(function(docSnap){
+          const data = docSnap.data() || {};
+          if(data.test === true) return;
+          list.push(normalizeProductFromFirestore(data, docSnap.id));
+        });
+        list.sort(function(a,b){return String(a.name||'').localeCompare(String(b.name||''),'it')});
+        if(typeof db !== 'undefined'){
+          db.products = list;
+          localRender();
+        }
+        syncingFromFirestore = false;
+        window.__NOOR_PRODUCTS_ONLINE_ACTIVE__ = true;
+        console.log('Prodotti online caricati da Firestore:', list.length);
+      }, function(err){
+        syncingFromFirestore = false;
+        console.error('Errore listener prodotti:', err);
+        try{ toast('Errore caricamento prodotti online: '+(err.message||err)); }catch(_e){}
+      });
+    }catch(err){
+      console.error('Avvio listener prodotti fallito:', err);
+    }
+  }
+
+  async function saveProductOnline(product){
+    const ok = await initFirebaseProducts();
+    if(!ok || !fbAuth || !fbAuth.currentUser){
+      throw new Error('Devi essere loggato per salvare prodotti online.');
+    }
+    const clean = cleanProductForFirestore(product);
+    const ref = fbFns.doc(fbDb, 'products', clean.id);
+    await fbFns.setDoc(ref, {
+      ...clean,
+      updatedAt: fbFns.serverTimestamp(),
+      updatedBy: fbAuth.currentUser.uid,
+      updatedByEmail: fbAuth.currentUser.email || ''
+    }, {merge:true});
+    return clean;
+  }
+
+  async function deleteProductOnline(id){
+    const ok = await initFirebaseProducts();
+    if(!ok || !fbAuth || !fbAuth.currentUser){
+      throw new Error('Devi essere loggato per eliminare prodotti online.');
+    }
+    await fbFns.deleteDoc(fbFns.doc(fbDb, 'products', String(id)));
+  }
+
+  function collectProductFromForm(){
+    const id = (getEl('productId')?.value || '').trim();
+    const price = Number(getEl('pPrice')?.value)||0;
+    const discountActive = !!getEl('pDiscountActive')?.checked;
+    const initial = discountActive ? price : 0;
+    const finalPrice = discountActive ? (Number(getEl('pFinalPrice')?.value)||0) : 0;
+    const amount = discountActive ? Math.max(0, initial - finalPrice) : 0;
+    const existing = id && typeof db !== 'undefined' && Array.isArray(db.products) ? db.products.find(p=>p.id===id) : null;
+
+    const data = {
+      id: id || (typeof uid === 'function' ? uid() : Date.now().toString(36)),
+      name: (getEl('pName')?.value || '').trim(),
+      brand: (getEl('pBrand')?.value || '').trim(),
+      size: (getEl('pSize')?.value || '').trim(),
+      price: price,
+      cost: Number(getEl('pCost')?.value)||0,
+      qty: Number(getEl('pQty')?.value)||0,
+      barcode: (getEl('pBarcode')?.value || '').trim(),
+      category: getEl('pCategory')?.value || '',
+      season: getEl('pSeason')?.value || '',
+      description: (getEl('pDescription')?.value || '').trim(),
+      pyramid: (getEl('pPyramid')?.value || '').trim(),
+      discountActive: discountActive,
+      initialPrice: initial,
+      finalPrice: finalPrice,
+      discountAmount: amount,
+      discountPercent: discountActive && initial > 0 && finalPrice > 0 ? Math.max(0, (amount / initial) * 100) : 0,
+      photo: getEl('pPhotoData')?.value || (existing?.photo || ''),
+      notes: (getEl('pNotes')?.value || '').trim()
+    };
+    return cleanProductForFirestore(data);
+  }
+
+  function installProductOverrides(){
+    try{
+      saveProduct = async function(e){
+        if(e && e.preventDefault) e.preventDefault();
+
+        const data = collectProductFromForm();
+
+        if(!data.name){
+          try{toast('Inserisci il nome del prodotto.')}catch(_e){}
+          return false;
+        }
+
+        if(data.barcode && typeof isValidEAN13 === 'function' && !isValidEAN13(data.barcode)){
+          try{toast('Codice non valido: serve un EAN13 corretto da 13 numeri.')}catch(_e){}
+          return false;
+        }
+
+        if(data.barcode && typeof db !== 'undefined' && Array.isArray(db.products) && db.products.some(p=>p.barcode===data.barcode && p.id!==data.id)){
+          try{toast('Questo barcode è già associato a un altro prodotto.')}catch(_e){}
+          return false;
+        }
+
+        try{
+          await saveProductOnline(data);
+
+          if(typeof db !== 'undefined' && Array.isArray(db.products)){
+            const exists = db.products.some(p=>p.id===data.id);
+            db.products = exists ? db.products.map(p=>p.id===data.id ? data : p) : [...db.products, data];
+            localRender();
+          }
+
+          if(typeof closeModal === 'function') closeModal();
+          try{toast('Prodotto salvato online su Firebase.', 'success')}catch(_e){}
+        }catch(err){
+          console.error('Salvataggio prodotto online fallito:', err);
+          try{toast('Errore salvataggio online: '+(err.message||err))}catch(_e){}
+        }
+        return false;
+      };
+    }catch(err){console.warn('Override saveProduct non riuscito:', err)}
+
+    try{
+      deleteProduct = async function(id){
+        const p = typeof db !== 'undefined' && Array.isArray(db.products) ? db.products.find(x=>x.id===id) : null;
+        const label = p ? (p.name || p.barcode || 'questo prodotto') : 'questo prodotto';
+        if(!confirm('Eliminare '+label+'?')) return false;
+
+        try{
+          await deleteProductOnline(id);
+          if(typeof db !== 'undefined' && Array.isArray(db.products)){
+            db.products = db.products.filter(p=>p.id!==id);
+            localRender();
+          }
+          try{toast('Prodotto eliminato online.', 'success')}catch(_e){}
+        }catch(err){
+          console.error('Eliminazione prodotto online fallita:', err);
+          try{toast('Errore eliminazione online: '+(err.message||err))}catch(_e){}
+        }
+        return false;
+      };
+    }catch(err){console.warn('Override deleteProduct non riuscito:', err)}
+
+    try{
+      duplicateProduct = async function(id){
+        const p = typeof db !== 'undefined' && Array.isArray(db.products) ? db.products.find(x=>x.id===id) : null;
+        if(!p) return false;
+        const copy = cleanProductForFirestore({...p, id:(typeof uid==='function'?uid():Date.now().toString(36)), name:(p.name||'Prodotto')+' - copia', barcode:'', qty:Number(p.qty)||0});
+        try{
+          await saveProductOnline(copy);
+          if(typeof db !== 'undefined' && Array.isArray(db.products)){
+            db.products.push(copy);
+            localRender();
+          }
+          try{toast('Prodotto duplicato online. Inserisci un nuovo EAN13 nella copia.', 'success')}catch(_e){}
+          if(typeof editProduct === 'function') editProduct(copy.id);
+        }catch(err){
+          console.error('Duplicazione prodotto online fallita:', err);
+          try{toast('Errore duplicazione online: '+(err.message||err))}catch(_e){}
+        }
+        return false;
+      };
+    }catch(err){console.warn('Override duplicateProduct non riuscito:', err)}
+  }
+
+  function syncProductsOnlineDebounced(){
+    if(syncingFromFirestore || !fbReady || !fbAuth || !fbAuth.currentUser) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(async function(){
+      if(syncingFromFirestore || typeof db === 'undefined' || !Array.isArray(db.products)) return;
+      try{
+        for(const p of db.products){
+          if(!p || !p.id) continue;
+          await saveProductOnline(p);
+        }
+      }catch(err){
+        console.warn('Sync prodotti online non completato:', err);
+      }
+    }, 900);
+  }
+
+  function installSaveSync(){
+    try{
+      if(window.__NOOR_SAVE_SYNC_INSTALLED__) return;
+      window.__NOOR_SAVE_SYNC_INSTALLED__ = true;
+      const oldSave = save;
+      save = function(){
+        const result = oldSave.apply(this, arguments);
+        syncProductsOnlineDebounced();
+        return result;
+      };
+    }catch(err){
+      console.warn('Sync save prodotti non installato:', err);
+    }
+  }
+
+  function bootProductsOnline(){
+    installProductOverrides();
+    installSaveSync();
+    initFirebaseProducts().then(function(){
+      if(fbAuth && fbAuth.currentUser) startProductsOnlineListener();
+    });
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', bootProductsOnline);
+  }else{
+    bootProductsOnline();
+  }
+  setTimeout(bootProductsOnline, 700);
+  setTimeout(bootProductsOnline, 1800);
+})();
+</script>
+
 </body>
 </html>
