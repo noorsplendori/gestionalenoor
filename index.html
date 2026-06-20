@@ -978,14 +978,38 @@ function renderRevenue(from,to,label){const sales=(db.sales||[]).filter(s=>{cons
 function resetSalesFilters(){['filterFrom','filterTo','filterSearch'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});const p=document.getElementById('filterPayment');if(p)p.value='';renderSales()}
 function renderStock(){const sorted=[...db.products].sort((a,b)=>a.qty-b.qty);document.getElementById('stockList').innerHTML=sorted.map(p=>`<div class="card panel stock-card" onclick="viewProduct('${p.id}')" style="box-shadow:none"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div style="display:flex;gap:12px;align-items:center">${img(p)}<div><b>${p.name}</b><div class="hint">${p.brand||''} · Barcode ${p.barcode||'—'}</div><div style="margin:8px 0">${discountBadge(p)}</div><div class="hint">Valore vendita: ${money((p.price||0)*(p.qty||0))} · Valore costo: ${money((p.cost||0)*(p.qty||0))}</div><div class="hint">Tocca per aprire la scheda prodotto completa.</div></div></div><div style="text-align:right"><div style="font-size:24px;font-weight:950">${p.qty}</div>${statusBadge(p.qty)}</div></div></div>`).join('')||'<div class="empty">Nessun prodotto in magazzino.</div>'}
 function renderHomeAlerts(){
-  const lowMax=getLowStockMax();
-  const low=db.products.filter(p=>Number(p.qty)<=lowMax).sort((a,b)=>Number(a.qty)-Number(b.qty)).slice(0,6);
-  const last=[...db.sales].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
-  const lastTotal=last.reduce((a,s)=>a+Number(s.total||0),0);
-  let html='<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">';
-  html+=`<div class="card panel home-stock-card"><div class="home-stock-head"><div><h2>📦 Scorte basse</h2><p class="hint">Esauriti e prodotti sotto soglia</p></div><span class="home-stock-total">Soglia ${lowMax} pz</span></div>${low.length?`<div class="home-stock-list">${low.map(p=>{const name=p.name||'Prodotto';const initial=(name.trim()[0]||'N').toUpperCase();const visual=p.photo?`<img src="${p.photo}" alt="${name}">`:initial;return `<div class="home-stock-item"><div class="home-stock-photo">${visual}</div><div><div class="home-stock-name">${name}</div><div class="home-stock-meta">${p.brand||'Noor Profumi'} · ${p.size||'Formato —'}</div><div style="margin-top:6px">${statusBadge(p.qty)}</div><div class="home-stock-actions"><button class="btn small secondary" onclick="event.stopPropagation();viewProduct('${p.id}')">Apri</button><button class="btn small secondary" onclick="event.stopPropagation();editProduct('${p.id}')">Modifica</button></div></div><div class="home-stock-qty">${Number(p.qty)||0}<span>pezzi</span></div></div>`}).join('')}</div>`:`<div class="home-empty-stock">Tutto ok: nessun prodotto sotto la soglia impostata.</div>`}</div>`;
-  html+=`<div class="card panel home-sales-card"><div class="home-sales-head"><div><h2>🧾 Ultime vendite</h2><p class="hint">Movimenti recenti registrati</p></div><span class="home-sales-total">Totale ${eur(lastTotal)}</span></div>${last.length?`<div class="home-sales-list">${last.map(s=>{const d=new Date(s.date);const name=s.productName||'Prodotto';const product=db.products.find(p=>p.id===s.productId||p.barcode===s.barcode);const initial=(name.trim()[0]||'N').toUpperCase();const visual=product&&product.photo?`<img src="${product.photo}" alt="${name}">`:initial;return `<div class="home-sale-item"><div class="home-sale-icon">${visual}</div><div><div class="home-sale-name">${name}</div><div class="home-sale-meta">${d.toLocaleDateString('it-IT')} · ${d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})} · Quantità ${s.qty||1}</div></div><div class="home-sale-total">${eur(s.total||0)}<br><span class="home-sale-pay">${s.payment||'Pagamento —'}</span></div></div>`}).join('')}</div>`:'<div class="home-empty-sales">Nessuna vendita recente. Quando registri un ordine, lo vedrai qui in modo elegante.</div>'}</div>`;
-  html+='</div>';document.getElementById('homeAlerts').innerHTML=html
+  // HOME DEFINITIVA: solo scorte basse e ultime vendite. Mai codici/sconti/barcode/ID.
+  try{
+    const box=document.getElementById('homeAlerts');
+    if(!box)return;
+    const products=Array.isArray(window.db&&db.products)?db.products:[];
+    const sales=Array.isArray(window.db&&db.sales)?db.sales:[];
+    const esc=(v)=>String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    const money=(v)=>{try{return typeof eur==='function'?eur(v):Number(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'})}catch(e){return '€ '+Number(v||0).toFixed(2)}};
+    const thumb=(photo,name)=>photo?'<img src="'+esc(photo)+'" alt="'+esc(name||'Prodotto')+'">':esc((String(name||'N').trim()[0]||'N').toUpperCase());
+    const max=typeof getLowStockMax==='function'?getLowStockMax():5;
+    const low=products.filter(p=>Number(p.qty)<=Number(max)).sort((a,b)=>Number(a.qty)-Number(b.qty)).slice(0,6);
+    const last=sales.slice().filter(s=>String(s.status||'')!=='cancelled' && !s.cancelled).sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)).slice(0,5);
+    const total=last.reduce((a,s)=>a+Number(s.total||0),0);
+    let html='<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">';
+    html+='<div class="card panel home-stock-card"><div class="home-stock-head"><div><h2>📦 Scorte basse</h2><p class="hint">Esauriti e prodotti sotto soglia</p></div><span class="home-stock-total">Soglia '+esc(max)+' pz</span></div>';
+    if(low.length){
+      html+='<div class="home-stock-list">'+low.map(p=>{
+        const n=p.name||'Prodotto';
+        return '<div class="home-stock-item"><div class="home-stock-photo">'+thumb(p.photo,n)+'</div><div><div class="home-stock-name">'+esc(n)+'</div><div class="home-stock-meta">'+esc(p.brand||p.line||'Noor Profumi')+' · '+esc(p.size||p.format||'Formato —')+'</div><div style="margin-top:6px">'+(typeof statusBadge==='function'?statusBadge(p.qty):'<span class="badge">'+esc(p.qty)+' pz</span>')+'</div><div class="home-stock-actions"><button class="btn small secondary" onclick="event.stopPropagation();viewProduct(\''+esc(p.id)+'\')">Apri</button><button class="btn small secondary" onclick="event.stopPropagation();editProduct(\''+esc(p.id)+'\')">Modifica</button></div></div><div class="home-stock-qty">'+esc(Number(p.qty)||0)+'<span>pezzi</span></div></div>';
+      }).join('')+'</div>';
+    }else html+='<div class="home-empty-stock">Tutto ok: nessun prodotto sotto la soglia impostata.</div>';
+    html+='</div>';
+    html+='<div class="card panel home-sales-card"><div class="home-sales-head"><div><h2>🧾 Ultime vendite</h2><p class="hint">Movimenti recenti registrati</p></div><span class="home-sales-total">Totale '+money(total)+'</span></div>';
+    if(last.length){
+      html+='<div class="home-sales-list">'+last.map(s=>{
+        const n=s.productName||'Prodotto'; const p=products.find(x=>String(x.id)===String(s.productId)||String(x.barcode)===String(s.barcode)); const d=new Date(s.date||Date.now());
+        return '<div class="home-sale-item"><div class="home-sale-icon">'+thumb(p&&p.photo,n)+'</div><div><div class="home-sale-name">'+esc(n)+'</div><div class="home-sale-meta">'+esc(d.toLocaleDateString('it-IT'))+' · '+esc(d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}))+' · Quantità '+esc(s.qty||1)+'</div></div><div class="home-sale-total">'+money(s.total||0)+'<br><span class="home-sale-pay">'+esc(s.payment||'Pagamento —')+'</span></div></div>';
+      }).join('')+'</div>';
+    }else html+='<div class="home-empty-sales">Nessuna vendita recente.</div>';
+    html+='</div></div>';
+    box.innerHTML=html;
+  }catch(e){console.warn('Home definitiva senza codici:',e)}
 }
 function openAddProduct(){stopProductBarcodeScan();document.getElementById('modalTitle').textContent='Nuovo prodotto';document.getElementById('productForm').reset();document.getElementById('productId').value='';document.getElementById('pPhotoData').value='';document.getElementById('pDiscountActive').checked=false;toggleDiscount();renderDynamicOptions();document.getElementById('productModal').classList.add('show');setTimeout(()=>document.getElementById('pName').focus(),100)}
 function closeModal(){stopProductBarcodeScan();document.getElementById('productModal').classList.remove('show')}
@@ -5938,6 +5962,93 @@ import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){setTimeout(cleanHome,300)}); else setTimeout(cleanHome,300);
   setTimeout(cleanHome,1000); setTimeout(cleanHome,2500); setInterval(function(){if($('home')&&$('home').classList.contains('active')) cleanHome()},1200);
 })();
+</script>
+
+
+<!-- PATCH FINALE NOOR: Home senza codici + foto profilo stabile + annullati sync online -->
+<script type="module" id="noor-final-home-photo-cancelled-sync">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFirestore, collection, getDocs, deleteDoc, onSnapshot, doc, onSnapshot as onDocSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+const FIREBASE_CONFIG={apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",authDomain:"gestionalenoor-2fa61.firebaseapp.com",projectId:"gestionalenoor-2fa61",storageBucket:"gestionalenoor-2fa61.firebasestorage.app",messagingSenderId:"66670691093",appId:"1:66670691093:web:82d0b2122e600bf5885f1c",measurementId:"G-0HSQB7XLJG"};
+const app=getApps().length?getApps()[0]:initializeApp(FIREBASE_CONFIG);
+const auth=getAuth(app);
+const fs=getFirestore(app);
+const LS_CANCEL='noor_cancelled_orders_log_v2';
+const $=id=>document.getElementById(id);
+const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function safeRole(){try{if(typeof activeEmployee==='function'){const e=activeEmployee()||{};if(e.role)return String(e.role).toLowerCase();}}catch(e){}const p=window.currentFirebaseUserProfile||{};return String(p.role||p.claimRole||p.type||'seller').toLowerCase();}
+function isAdmin(){const r=safeRole();return ['owner','superadmin','super_admin','admin','manager'].includes(r);}
+function setLocalCancelled(arr){try{localStorage.setItem(LS_CANCEL,JSON.stringify(Array.isArray(arr)?arr:[]));}catch(e){}}
+function getLocalCancelled(){try{return JSON.parse(localStorage.getItem(LS_CANCEL)||'[]')}catch(e){return []}}
+function renderCancelled(records){try{if(typeof window.renderCancelledOrders==='function')window.renderCancelledOrders(Array.isArray(records)?records:getLocalCancelled());}catch(e){console.warn('render cancelled final',e)}}
+function notifyCenter(title,text){
+  try{
+    let m=$('noorCenterPopup'); if(!m){m=document.createElement('div');m.id='noorCenterPopup';m.className='noor-center-popup';document.body.appendChild(m)}
+    m.innerHTML='<div class="noor-center-card"><div class="noor-center-icon">✓</div><div class="noor-center-title">'+esc(title)+'</div><div class="noor-center-text">'+esc(text||'')+'</div><button class="btn gold" type="button" onclick="document.getElementById(\'noorCenterPopup\')?.classList.remove(\'show\')">OK</button></div>';
+    m.classList.add('show');setTimeout(()=>{try{m.classList.remove('show')}catch(e){}},2200);
+  }catch(e){try{alert(title)}catch(_){}}
+}
+// Sync live degli annullati: quando Owner/Admin svuota, tutti vedono lista vuota.
+try{
+  onSnapshot(collection(fs,'cancelledOrders'),snap=>{
+    const arr=[];snap.forEach(d=>arr.push({id:d.id,...(d.data()||{})}));
+    arr.sort((a,b)=>new Date(b.cancelledAt||0)-new Date(a.cancelledAt||0));
+    setLocalCancelled(arr);
+    if($('cancelledOrders')?.classList.contains('active')) renderCancelled(arr);
+  });
+}catch(e){console.warn('listener annullati finale',e)}
+function installClearOverride(){
+  window.clearCancelledOrdersList=async function(){
+    if(!isAdmin()){notifyCenter('Permesso non disponibile','Solo amministratore o super admin può svuotare la lista.');return;}
+    if(!confirm('Svuotare completamente la lista degli ordini annullati?'))return;
+    try{
+      const snap=await getDocs(collection(fs,'cancelledOrders'));
+      await Promise.all(snap.docs.map(d=>deleteDoc(d.ref)));
+      setLocalCancelled([]);
+      renderCancelled([]);
+      notifyCenter('Lista svuotata','Gli ordini annullati sono stati rimossi online per tutti gli utenti.');
+    }catch(e){console.error(e);notifyCenter('Errore','Non sono riuscito a svuotare la lista online.');}
+  };
+}
+installClearOverride();
+setTimeout(installClearOverride,800);setTimeout(installClearOverride,2500);
+// Foto profilo stabile nella Home: niente lampeggio e immagine letta da Firebase.
+let lastAvatarKey=''; let unsubUser=null;
+function readProfile(){try{return window.currentFirebaseUserProfile||window.currentUserProfile||JSON.parse(localStorage.getItem('noor_firebase_current_user_v1')||'{}')||{}}catch(e){return window.currentFirebaseUserProfile||window.currentUserProfile||{}}}
+function profilePhoto(){const p=readProfile();return p.photo||p.photoURL||p.avatar||'';}
+function profileName(){try{if(typeof fullName==='function')return fullName();}catch(e){}const p=readProfile();return p.name||p.displayName||p.email||'Utente';}
+function profileRole(){try{if(typeof role==='function'&&typeof roleLabels!=='undefined')return roleLabels[role()]||role();}catch(e){}const r=safeRole();return ({owner:'Super Admin',manager:'Admin',admin:'Admin',warehouse:'Magazziniere',seller:'Venditore'}[r]||r);}
+function profileAccess(){try{if(typeof lastAccess==='function')return lastAccess();}catch(e){}return new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});}
+function renderStableHomeWelcome(){
+  const home=$('home'); if(!home)return;
+  let box=$('homeWelcomeAccessBox'); if(!box){box=document.createElement('div');box.id='homeWelcomeAccessBox';home.insertBefore(box,home.firstElementChild);}
+  const name=profileName(); const photo=profilePhoto(); const initial=(String(name).trim()[0]||'N').toUpperCase(); const access=profileAccess(); const m=String(access).match(/(\d{1,2}:\d{2})/); const time=m?m[1]:access; const r=profileRole();
+  const key=[name,photo,time,r].join('|'); if(box.dataset.renderKey===key)return; box.dataset.renderKey=key;
+  const avatar=photo?'<img src="'+esc(photo)+'" alt="Foto profilo" loading="eager">':esc(initial);
+  box.innerHTML='<div class="noor-welcome-head"><div class="noor-welcome-left"><div class="noor-welcome-avatar">'+avatar+'</div><div style="min-width:0"><div class="noor-welcome-title">Benvenuto, '+esc(name)+'</div><div class="noor-welcome-sub">Buon lavoro</div></div></div><div class="noor-welcome-right"><span class="noor-welcome-badge">'+esc(r)+'</span><span class="noor-welcome-time">🕒 Accesso '+esc(time)+'</span></div></div>';
+}
+window.renderHomeBox=renderStableHomeWelcome;
+window.ensureHomeBox=function(){renderStableHomeWelcome();};
+function mergeProfile(data,user){
+  const current=readProfile(); const merged=Object.assign({},current,data||{},user?{uid:user.uid,email:user.email||data?.email||current.email}:{});
+  window.currentFirebaseUserProfile=merged;
+  try{localStorage.setItem('noor_firebase_current_user_v1',JSON.stringify(merged));}catch(e){}
+  renderStableHomeWelcome();
+}
+onAuthStateChanged(auth,user=>{
+  if(unsubUser){try{unsubUser()}catch(e){}unsubUser=null;}
+  if(user){
+    try{unsubUser=onDocSnapshot(doc(fs,'users',user.uid),snap=>{mergeProfile(snap.exists()?snap.data():{},user);});}catch(e){console.warn('foto profile listener',e)}
+    mergeProfile({},user);
+  }
+});
+const oldRenderAll=window.renderAll;
+if(typeof oldRenderAll==='function'){
+  window.renderAll=function(){const r=oldRenderAll.apply(this,arguments);setTimeout(()=>{try{renderStableHomeWelcome(); if(typeof window.renderHomeAlerts==='function')window.renderHomeAlerts();}catch(e){}},30);return r;};
+}
+window.addEventListener('load',()=>{setTimeout(()=>{renderStableHomeWelcome(); if(typeof window.renderHomeAlerts==='function')window.renderHomeAlerts();},300);});
+document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{renderStableHomeWelcome();},150));
 </script>
 </body>
 </html>
