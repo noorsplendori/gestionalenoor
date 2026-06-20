@@ -4544,216 +4544,264 @@ auth.onAuthStateChanged(()=>setTimeout(boot,200));setTimeout(boot,600);setTimeou
 </script>
 
 
-<!-- PATCH LOGHI ONLINE FIREBASE ISOLATA - NON TOCCA HOME / SCONTI / ORDINI -->
-<style id="noor-online-logos-isolated-css">
+<!-- PATCH NOOR DEFINITIVA: Loghi online persistenti + annullo ordine online + Home sempre senza codici -->
+<style id="noor-online-logo-final-css">
   .login-logo.has-image{background:transparent!important;padding:0;overflow:hidden}
   .login-logo.has-image img{width:100%;height:100%;object-fit:contain;display:block}
-  .online-logo-row{margin-top:14px;border-top:1px solid var(--line);padding-top:14px}
-  .online-logo-note{font-size:12px;color:var(--muted);font-weight:800;margin-top:6px;line-height:1.35}
+  .noor-logo-online-box{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:20px;background:var(--panel2)}
+  .noor-logo-online-preview{width:120px;height:82px;border-radius:18px;background:var(--panel);border:1px solid var(--line);display:grid;place-items:center;overflow:hidden;font-weight:950;color:var(--muted)}
+  .noor-logo-online-preview img{max-width:100%;max-height:100%;object-fit:contain;display:block}
 </style>
-<script type="module" id="noor-online-logos-isolated-js">
+<script type="module" id="noor-logo-cancel-online-final-patch">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 (function(){
-  if(window.__NOOR_ONLINE_LOGOS_ISOLATED__) return;
-  window.__NOOR_ONLINE_LOGOS_ISOLATED__=true;
+  if(window.__NOOR_LOGO_CANCEL_FINAL_PATCH__) return;
+  window.__NOOR_LOGO_CANCEL_FINAL_PATCH__=true;
 
-  const firebaseConfig={apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",authDomain:"gestionalenoor-2fa61.firebaseapp.com",projectId:"gestionalenoor-2fa61",storageBucket:"gestionalenoor-2fa61.firebasestorage.app",messagingSenderId:"66670691093",appId:"1:66670691093:web:82d0b2122e600bf5885f1c",measurementId:"G-0HSQB7XLJG"};
-  const app=getApps().length?getApps()[0]:initializeApp(firebaseConfig);
+  const FIREBASE_CONFIG={
+    apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+    authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+    projectId:"gestionalenoor-2fa61",
+    storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+    messagingSenderId:"66670691093",
+    appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+    measurementId:"G-0HSQB7XLJG"
+  };
+  const app=getApps().length?getApps()[0]:initializeApp(FIREBASE_CONFIG);
   const auth=getAuth(app);
   const fs=getFirestore(app);
-  const settingsRef=doc(fs,'appSettings','identity');
-  let applyingRemote=false;
-  let unsub=null;
+  const identityRef=doc(fs,'settings','identity');
   const $=id=>document.getElementById(id);
+  const notify=(m,t)=>{try{toast(m,t||'')}catch(e){console.log(m)}};
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const euro=v=>{try{return typeof eur==='function'?eur(v):Number(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'})}catch(e){return '€ '+Number(v||0).toFixed(2)}};
+  let identityCache={};
+  let loginLogoData='';
 
-  function notify(msg,type){try{typeof toast==='function'?toast(msg,type||''):console.log(msg)}catch(e){console.log(msg)}}
-  function safeSet(id,val){const el=$(id); if(el) el.value=val||'';}
-
-  function resizeImageFile(file,maxSide=700,quality=.82){
+  function applyLogoToElement(el,src,fallback){
+    if(!el) return;
+    if(src){ el.classList.add('has-image'); el.innerHTML='<img src="'+String(src).replace(/"/g,'&quot;')+'" alt="Logo">'; }
+    else{ el.classList.remove('has-image'); el.innerHTML=fallback||'N'; }
+  }
+  function applyOnlineIdentity(data){
+    identityCache={...(identityCache||{}),...(data||{})};
+    if(data.appName){ try{settings.appName=data.appName}catch(e){} }
+    if(data.appSubtitle){ try{settings.appSubtitle=data.appSubtitle}catch(e){} }
+    if(data.appLogo){ try{settings.appLogo=data.appLogo}catch(e){} }
+    if(data.logoBoxBg){ try{settings.logoBoxBg=data.logoBoxBg}catch(e){} }
+    if(data.logoWidth){ try{settings.logoWidth=Number(data.logoWidth)||48}catch(e){} }
+    if(data.logoHeight){ try{settings.logoHeight=Number(data.logoHeight)||48}catch(e){} }
+    loginLogoData=data.loginLogo||loginLogoData||'';
+    try{ if(typeof applyIdentity==='function') applyIdentity(); }catch(e){}
+    applyLogoToElement($('appLogo'), data.appLogo || (window.settings&&settings.appLogo), 'N');
+    applyLogoToElement(document.querySelector('.login-logo'), loginLogoData || data.appLogo || (window.settings&&settings.appLogo), 'N');
+    const lp=$('loginLogoPreview'); if(lp) lp.innerHTML=loginLogoData?'<img src="'+loginLogoData.replace(/"/g,'&quot;')+'" alt="Logo accesso">':'N';
+    const ip=$('identityLogoPreview'); if(ip && (data.appLogo || (window.settings&&settings.appLogo))) ip.innerHTML='<img src="'+String(data.appLogo||settings.appLogo).replace(/"/g,'&quot;')+'" alt="Logo gestionale">';
+  }
+  function resizeImage(file,max=700,quality=.86){
     return new Promise((resolve,reject)=>{
-      const reader=new FileReader();
-      reader.onerror=()=>reject(new Error('Lettura immagine non riuscita'));
-      reader.onload=()=>{
+      const r=new FileReader();
+      r.onerror=()=>reject(new Error('Errore lettura immagine'));
+      r.onload=()=>{
         const img=new Image();
-        img.onerror=()=>resolve(reader.result);
+        img.onerror=()=>reject(new Error('Immagine non valida'));
         img.onload=()=>{
-          try{
-            let w=img.width||maxSide,h=img.height||maxSide;
-            const scale=Math.min(1,maxSide/Math.max(w,h));
-            w=Math.round(w*scale);h=Math.round(h*scale);
-            const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
-            const ctx=canvas.getContext('2d');ctx.clearRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);
-            resolve(canvas.toDataURL('image/png',quality));
-          }catch(e){resolve(reader.result)}
+          let w=img.width,h=img.height;
+          const scale=Math.min(1,max/Math.max(w,h)); w=Math.round(w*scale); h=Math.round(h*scale);
+          const c=document.createElement('canvas'); c.width=w; c.height=h;
+          c.getContext('2d').drawImage(img,0,0,w,h);
+          resolve(c.toDataURL('image/png',quality));
         };
-        img.src=reader.result;
+        img.src=r.result;
       };
-      reader.readAsDataURL(file);
+      r.readAsDataURL(file);
     });
   }
-
-  function applyLoginLogo(){
-    const el=document.querySelector('.login-logo'); if(!el) return;
-    const logo=(window.settings&&window.settings.loginLogo)||'';
-    const name=(window.settings&&window.settings.appName)||'N';
-    if(logo){el.classList.add('has-image');el.innerHTML='<img src="'+logo+'" alt="Logo accesso">';}
-    else{el.classList.remove('has-image');el.textContent=(String(name).trim().charAt(0)||'N').toUpperCase();}
+  function addLoginLogoControls(){
+    const tools=document.querySelector('.identity-logo-tools'); if(!tools || $('setLoginLogoFile')) return;
+    const box=document.createElement('div'); box.className='noor-logo-online-box'; box.innerHTML=`
+      <div class="panel-title" style="margin-bottom:10px"><div><h2>Logo pagina accesso</h2><p class="hint">Questo logo viene salvato online e viene visto anche dagli altri PC.</p></div></div>
+      <div class="identity-logo-tools">
+        <div><label>Anteprima accesso</label><div id="loginLogoPreview" class="noor-logo-online-preview">N</div></div>
+        <div class="form" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+          <div class="field full"><label>Carica logo pagina accesso</label><input id="setLoginLogoFile" type="file" accept="image/*"></div>
+          <div class="field"><label>Azioni</label><button id="removeLoginLogoBtn" class="btn secondary" type="button">Rimuovi logo accesso</button></div>
+          <div class="field"><label>Salvataggio</label><button id="saveOnlineLogosBtn" class="btn gold" type="button">Salva loghi online</button></div>
+        </div>
+      </div>`;
+    tools.insertAdjacentElement('afterend',box);
+    $('setLoginLogoFile').addEventListener('change',async ev=>{const f=ev.target.files&&ev.target.files[0]; if(!f)return; loginLogoData=await resizeImage(f,700,.86); applyOnlineIdentity({loginLogo:loginLogoData});});
+    $('removeLoginLogoBtn').addEventListener('click',()=>{loginLogoData=''; applyOnlineIdentity({loginLogo:''});});
+    $('saveOnlineLogosBtn').addEventListener('click',()=>saveIdentityOnline(true));
+    applyOnlineIdentity(identityCache);
   }
-
-  const oldApplyIdentity=window.applyIdentity;
-  window.applyIdentity=function(){
-    if(typeof oldApplyIdentity==='function') oldApplyIdentity.apply(this,arguments);
-    applyLoginLogo();
-  };
-
-  window.handleIdentityLogoUpload=async function(event){
-    const file=event&&event.target&&event.target.files&&event.target.files[0]; if(!file) return;
+  async function saveIdentityOnline(showToast){
     try{
-      const data=await resizeImageFile(file,700,.86);
-      safeSet('setAppLogoData',data);
-      if(typeof previewIdentityLogo==='function') previewIdentityLogo();
-      notify('Logo gestionale caricato. Ricordati di salvare identità.','success');
-    }catch(e){notify('Errore durante il caricamento del logo gestionale.');}
-  };
-
-  window.handleLoginLogoUpload=async function(event){
-    const file=event&&event.target&&event.target.files&&event.target.files[0]; if(!file) return;
-    try{
-      const data=await resizeImageFile(file,700,.86);
-      safeSet('setLoginLogoData',data);
-      if(!window.settings) window.settings={};
-      window.settings.loginLogo=data;
-      applyLoginLogo();
-      notify('Logo pagina accesso caricato. Ricordati di salvare identità.','success');
-    }catch(e){notify('Errore durante il caricamento del logo accesso.');}
-  };
-
-  window.removeLoginLogo=function(){
-    safeSet('setLoginLogoData','');
-    const f=$('setLoginLogoFile'); if(f) f.value='';
-    if(!window.settings) window.settings={}; window.settings.loginLogo='';
-    applyLoginLogo();
-    notify('Logo accesso rimosso. Salva identità per confermare.','success');
-  };
-
-  function ensureLoginLogoControls(){
-    const manager=document.querySelector('#settings .settings-manager');
-    if(!manager || $('loginLogoOnlineBox')) return;
-    const row=document.createElement('div');
-    row.id='loginLogoOnlineBox';
-    row.className='online-logo-row';
-    row.innerHTML='<div class="form" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="field full"><label>Logo pagina accesso online</label><input id="setLoginLogoFile" type="file" accept="image/*" onchange="handleLoginLogoUpload(event)"><input id="setLoginLogoData" type="hidden"></div><div class="field"><label>Azioni logo accesso</label><button class="btn secondary" type="button" onclick="removeLoginLogo()">Rimuovi logo accesso</button></div><div class="field two"><label>Sincronizzazione</label><div class="online-logo-note">Salvando l’identità, il logo interno e il logo della pagina accesso vengono salvati online e caricati da tutti i dispositivi.</div></div></div>';
-    const action=manager.querySelector('.action-row:last-child');
-    if(action) manager.insertBefore(row,action); else manager.appendChild(row);
-    safeSet('setLoginLogoData',(window.settings&&window.settings.loginLogo)||'');
+      const data={
+        appName:$('setAppName')?.value || (window.settings&&settings.appName) || 'Noor Splendori',
+        appSubtitle:$('setAppSubtitle')?.value || (window.settings&&settings.appSubtitle) || 'Gestionale vendita e magazzino',
+        companyName:$('setCompanyName')?.value || (window.settings&&settings.companyName) || 'Noor Splendori',
+        companyPhone:$('setCompanyPhone')?.value || (window.settings&&settings.companyPhone) || '',
+        companyEmail:$('setCompanyEmail')?.value || (window.settings&&settings.companyEmail) || '',
+        companyVat:$('setCompanyVat')?.value || (window.settings&&settings.companyVat) || '',
+        appLogo:$('setAppLogoData')?.value || (window.settings&&settings.appLogo) || identityCache.appLogo || '',
+        loginLogo:loginLogoData || identityCache.loginLogo || '',
+        logoBoxBg:$('setLogoBoxBg')?.value || (window.settings&&settings.logoBoxBg) || '#ffd3e6',
+        logoWidth:Number($('setLogoWidth')?.value || (window.settings&&settings.logoWidth) || 48),
+        logoHeight:Number($('setLogoHeight')?.value || (window.settings&&settings.logoHeight) || 48),
+        updatedAt:serverTimestamp(),
+        updatedAtClient:new Date().toISOString(),
+        updatedBy:auth.currentUser?.uid || '',
+        updatedByEmail:auth.currentUser?.email || ''
+      };
+      if(data.appLogo && data.appLogo.length>850000){ notify('Logo gestionale troppo grande. Carica un’immagine più leggera.'); return; }
+      if(data.loginLogo && data.loginLogo.length>850000){ notify('Logo accesso troppo grande. Carica un’immagine più leggera.'); return; }
+      await setDoc(identityRef,data,{merge:true});
+      applyOnlineIdentity(data);
+      if(showToast) notify('Loghi salvati online. Ora restano anche dopo refresh e sugli altri PC.','success');
+    }catch(err){ console.error('Salvataggio loghi online:',err); notify('Errore salvataggio loghi online: '+(err.message||err)); }
   }
-
-  const oldRenderSettingsPanel=window.renderSettingsPanel;
-  window.renderSettingsPanel=function(){
-    if(typeof oldRenderSettingsPanel==='function') oldRenderSettingsPanel.apply(this,arguments);
-    ensureLoginLogoControls();
-    safeSet('setLoginLogoData',(window.settings&&window.settings.loginLogo)||'');
-    applyLoginLogo();
+  const oldSaveIdentity=window.saveIdentitySettings;
+  window.saveIdentitySettings=function(){
+    try{ if(typeof oldSaveIdentity==='function') oldSaveIdentity.apply(this,arguments); }catch(e){console.warn(e)}
+    setTimeout(()=>saveIdentityOnline(false),80);
   };
-
-  async function saveIdentityOnline(){
-    if(!auth.currentUser) return;
-    const s=window.settings||{};
-    await setDoc(settingsRef,{
-      appName:s.appName||'Noor Splendori',
-      appSubtitle:s.appSubtitle||'Gestionale vendita e magazzino',
-      companyName:s.companyName||'',
-      companyPhone:s.companyPhone||'',
-      companyEmail:s.companyEmail||'',
-      companyVat:s.companyVat||'',
-      appLogo:s.appLogo||'',
-      loginLogo:s.loginLogo||'',
-      logoBoxBg:s.logoBoxBg||'#ffd3e6',
-      logoWidth:Number(s.logoWidth||48),
-      logoHeight:Number(s.logoHeight||48),
-      logoSize:Number(s.logoSize||48),
-      updatedAt:serverTimestamp(),
-      updatedAtClient:new Date().toISOString(),
-      updatedByUid:auth.currentUser.uid,
-      updatedByEmail:auth.currentUser.email||''
-    },{merge:true});
+  async function loadIdentityOnce(){
+    try{ const snap=await getDoc(identityRef); if(snap.exists()) applyOnlineIdentity(snap.data()||{}); }catch(e){ console.warn('Logo online non leggibile prima del login:',e.message||e); }
   }
+  function bootIdentity(){ addLoginLogoControls(); loadIdentityOnce(); try{onSnapshot(identityRef,s=>{ if(s.exists()) applyOnlineIdentity(s.data()||{}); });}catch(e){} }
 
-  const oldSaveIdentitySettings=window.saveIdentitySettings;
-  window.saveIdentitySettings=async function(){
-    if(!window.settings) window.settings={};
-    window.settings.loginLogo=$('setLoginLogoData')?.value||window.settings.loginLogo||'';
-    if(typeof oldSaveIdentitySettings==='function') oldSaveIdentitySettings.apply(this,arguments);
-    applyLoginLogo();
-    try{await saveIdentityOnline();notify('Identità e loghi salvati online per tutti i dispositivi.','success');}
-    catch(e){console.error(e);notify('Identità salvata in locale, ma non online: '+(e.message||e));}
-  };
-
-  const oldResetIdentitySettings=window.resetIdentitySettings;
-  window.resetIdentitySettings=function(){
-    if(typeof oldResetIdentitySettings==='function') oldResetIdentitySettings.apply(this,arguments);
-    if(!window.settings) window.settings={}; window.settings.loginLogo='';
-    safeSet('setLoginLogoData',''); applyLoginLogo();
-  };
-
-  function applyRemote(data){
-    if(!data) return;
-    applyingRemote=true;
-    try{
-      if(!window.settings) window.settings={};
-      Object.assign(window.settings,{
-        appName:data.appName||window.settings.appName||'Noor Splendori',
-        appSubtitle:data.appSubtitle||window.settings.appSubtitle||'Gestionale vendita e magazzino',
-        companyName:data.companyName||'',
-        companyPhone:data.companyPhone||'',
-        companyEmail:data.companyEmail||'',
-        companyVat:data.companyVat||'',
-        appLogo:data.appLogo||'',
-        loginLogo:data.loginLogo||'',
-        logoBoxBg:data.logoBoxBg||window.settings.logoBoxBg||'#ffd3e6',
-        logoWidth:Number(data.logoWidth||window.settings.logoWidth||48),
-        logoHeight:Number(data.logoHeight||window.settings.logoHeight||48),
-        logoSize:Number(data.logoSize||window.settings.logoSize||48)
-      });
-      try{localStorage.setItem(typeof SETTINGS_KEY!=='undefined'?SETTINGS_KEY:'noor_profumi_settings_v2',JSON.stringify(window.settings));}catch(e){}
-      if(typeof oldApplyIdentity==='function') oldApplyIdentity();
-      applyLoginLogo();
-      ensureLoginLogoControls();
-      if(typeof oldRenderSettingsPanel==='function'){
-        // Non richiamiamo renderAll e non tocchiamo la Home: aggiorniamo solo i campi quando il pannello esiste.
-        safeSet('setAppName',window.settings.appName||'');
-        safeSet('setAppSubtitle',window.settings.appSubtitle||'');
-        safeSet('setCompanyName',window.settings.companyName||'');
-        safeSet('setCompanyPhone',window.settings.companyPhone||'');
-        safeSet('setCompanyEmail',window.settings.companyEmail||'');
-        safeSet('setCompanyVat',window.settings.companyVat||'');
-        safeSet('setAppLogoData',window.settings.appLogo||'');
-        safeSet('setLoginLogoData',window.settings.loginLogo||'');
-        safeSet('setLogoBoxBg',window.settings.logoBoxBg||'#ffd3e6');
-        safeSet('setLogoWidth',window.settings.logoWidth||48);
-        safeSet('setLogoHeight',window.settings.logoHeight||48);
-        safeSet('setLogoSize',window.settings.logoSize||48);
-        try{typeof previewIdentityLogo==='function'&&previewIdentityLogo();}catch(e){}
+  function saveLocalRender(){
+    try{ localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db)); }catch(e){}
+    try{ if(typeof renderAll==='function') renderAll(); }catch(e){}
+  }
+  function getOrderLocal(orderId){
+    const lines=(window.db?.sales||[]).filter(s=>String(s.orderId||s.id)===String(orderId));
+    if(!lines.length) return null;
+    return {id:String(orderId),orderNumber:lines[0].orderNumber||String(orderId),lines,total:Number(lines[0].orderTotal||lines[0].cartFinalTotal)||lines.reduce((a,l)=>a+Number(l.total||0),0)};
+  }
+  async function cancelOrderOnline(orderId){
+    if(!auth.currentUser) throw new Error('Accesso Firebase richiesto');
+    const orderRef=doc(fs,'orders',String(orderId));
+    await runTransaction(fs,async tx=>{
+      const os=await tx.get(orderRef);
+      if(!os.exists()) throw new Error('Ordine non trovato online');
+      const od=os.data()||{};
+      if(od.status==='cancelled') return;
+      const items=Array.isArray(od.items)?od.items:[];
+      for(const it of items){
+        const pid=String(it.productId||''); if(!pid) continue;
+        const pref=doc(fs,'products',pid); const ps=await tx.get(pref);
+        if(ps.exists()) tx.update(pref,{qty:(Number(ps.data().qty)||0)+(Number(it.qty)||0),updatedAt:serverTimestamp(),updatedAtClient:new Date().toISOString(),updatedBy:auth.currentUser.uid,updatedByEmail:auth.currentUser.email||''});
       }
-    }finally{applyingRemote=false;}
+      tx.update(orderRef,{status:'cancelled',cancelledAt:serverTimestamp(),cancelledAtClient:new Date().toISOString(),cancelledBy:auth.currentUser.uid,cancelledByEmail:auth.currentUser.email||'',updatedAt:serverTimestamp()});
+    });
   }
-
-  async function startLogoSync(){
-    if(unsub || !auth.currentUser) return;
+  window.finalizeCancelOrder=async function(orderId){
+    const o=getOrderLocal(orderId);
     try{
-      const snap=await getDoc(settingsRef);
-      if(snap.exists()) applyRemote(snap.data());
-      unsub=onSnapshot(settingsRef,s=>{if(s.exists()&&!applyingRemote)applyRemote(s.data());},e=>console.warn('Loghi online:',e));
-    }catch(e){console.warn('Avvio loghi online:',e);}
-  }
+      await cancelOrderOnline(orderId);
+      if(o){
+        (o.lines||[]).forEach(l=>{const p=(db.products||[]).find(x=>String(x.id)===String(l.productId)); if(p)p.qty=Number(p.qty||0)+(Number(l.qty)||0);});
+        db.sales=(db.sales||[]).filter(s=>String(s.orderId||s.id)!==String(orderId));
+        saveLocalRender();
+      }
+      $('cancelReturnMsg')?.classList.add('show');
+      notify('Ordine annullato online. Dopo refresh non ritorna più.','success');
+      setTimeout(()=>{try{closeCancelSale()}catch(e){}},700);
+    }catch(err){ console.error('Annulla ordine online:',err); notify('Errore annullamento online: '+(err.message||err)); }
+  };
 
-  function bootLogos(){ensureLoginLogoControls();applyLoginLogo();startLogoSync();}
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bootLogos); else bootLogos();
-  onAuthStateChanged(auth,u=>{if(u)setTimeout(bootLogos,400);});
-  setTimeout(bootLogos,1200);
+  window.finalizePartialCancelOrderItems=async function(){
+    const data=window.pendingPartialCancel;
+    if(!data||!Array.isArray(data.ids)||!data.ids.length){ notify('Nessun articolo selezionato.'); return; }
+    const orderId=String(data.orderId);
+    const localOrder=getOrderLocal(orderId);
+    let removedQty=0, removedTotal=0;
+    const updates=[];
+    for(const id of data.ids){
+      const s=(db.sales||[]).find(x=>String(x.id)===String(id)); if(!s) continue;
+      const maxQty=Math.max(1,Number(s.qty)||1);
+      const input=document.querySelector(`.cancelQtyInput[data-line="${CSS.escape(String(id))}"]`);
+      let q=Math.max(1,Number(input?.value)||1); q=Math.min(q,maxQty);
+      const unitTotal=(Number(s.total)||0)/maxQty;
+      updates.push({lineId:String(id),productId:String(s.productId||''),qty:q,total:unitTotal*q,maxQty});
+      removedQty+=q; removedTotal+=unitTotal*q;
+    }
+    try{
+      await runTransaction(fs,async tx=>{
+        const orderRef=doc(fs,'orders',orderId); const os=await tx.get(orderRef);
+        if(!os.exists()) throw new Error('Ordine non trovato online');
+        const od=os.data()||{}; let items=Array.isArray(od.items)?od.items.map(x=>({...x})):[];
+        for(const u of updates){
+          const idx=items.findIndex(it=>String(it.lineId)===String(u.lineId));
+          if(idx>-1){
+            const currentQty=Number(items[idx].qty)||0; const q=Math.min(u.qty,currentQty);
+            const lineTotal=Number(items[idx].total)||0; const unit=currentQty?lineTotal/currentQty:0;
+            if(u.productId){ const pref=doc(fs,'products',u.productId); const ps=await tx.get(pref); if(ps.exists()) tx.update(pref,{qty:(Number(ps.data().qty)||0)+q,updatedAt:serverTimestamp(),updatedAtClient:new Date().toISOString()}); }
+            if(q>=currentQty) items.splice(idx,1); else { items[idx].qty=currentQty-q; items[idx].total=Math.max(0,lineTotal-(unit*q)); }
+          }
+        }
+        const newTotal=items.reduce((a,it)=>a+Number(it.total||0),0);
+        tx.update(orderRef,{items,total:newTotal,subtotal:newTotal,status:items.length?'completed':'cancelled',updatedAt:serverTimestamp(),updatedAtClient:new Date().toISOString(),updatedBy:auth.currentUser?.uid||'',updatedByEmail:auth.currentUser?.email||''});
+      });
+      // Aggiornamento locale immediato
+      if(localOrder){
+        for(const u of updates){
+          const p=(db.products||[]).find(x=>String(x.id)===String(u.productId)); if(p)p.qty=Number(p.qty||0)+u.qty;
+          const s=(db.sales||[]).find(x=>String(x.id)===String(u.lineId)); if(s){
+            if(u.qty>=Number(s.qty||0)) s.__remove=true; else { const unit=(Number(s.total)||0)/(Number(s.qty)||1); s.qty=Number(s.qty)-u.qty; s.total=Math.max(0,Number(s.total)-unit*u.qty); }
+          }
+        }
+        db.sales=(db.sales||[]).filter(s=>!s.__remove);
+        const remaining=(db.sales||[]).filter(s=>String(s.orderId||s.id)===String(orderId));
+        const newTotal=remaining.reduce((a,s)=>a+Number(s.total||0),0);
+        db.sales=(db.sales||[]).map(s=>String(s.orderId||s.id)===String(orderId)?{...s,orderTotal:newTotal,cartFinalTotal:newTotal}:s);
+        saveLocalRender();
+      }
+      window.pendingPartialCancel=null;
+      $('cancelReturnMsg')?.classList.add('show');
+      notify(`Annullate ${removedQty} unità online. Dopo refresh resta corretto.`, 'success');
+      setTimeout(()=>{ const rem=(db.sales||[]).some(s=>String(s.orderId||s.id)===String(orderId)); rem?openOrderDetail(orderId):closeCancelSale(); },700);
+    }catch(err){ console.error('Annulla parziale online:',err); notify('Errore annullamento online: '+(err.message||err)); }
+  };
+
+  // Home finale sicura: mai barcode, EAN, ID, codici sconto o codici prodotto.
+  function safeHomeImage(p,name){return p&&p.photo?`<img src="${esc(p.photo)}" alt="${esc(name)}">`:esc((String(name).trim()[0]||'N').toUpperCase());}
+  function renderHomeNoCodesFinal(){
+    try{
+      const lowMax=typeof getLowStockMax==='function'?getLowStockMax():5;
+      const products=Array.isArray(window.db?.products)?window.db.products:[];
+      const sales=Array.isArray(window.db?.sales)?window.db.sales:[];
+      const low=products.filter(p=>Number(p.qty)<=lowMax).sort((a,b)=>Number(a.qty)-Number(b.qty)).slice(0,6);
+      const last=[...sales].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
+      const lastTotal=last.reduce((a,s)=>a+Number(s.total||0),0);
+      let html='<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">';
+      html+=`<div class="card panel home-stock-card"><div class="home-stock-head"><div><h2>📦 Scorte basse</h2><p class="hint">Esauriti e prodotti sotto soglia</p></div><span class="home-stock-total">Soglia ${esc(lowMax)} pz</span></div>${low.length?`<div class="home-stock-list">${low.map(p=>{const name=p.name||'Prodotto';return `<div class="home-stock-item"><div class="home-stock-photo">${safeHomeImage(p,name)}</div><div><div class="home-stock-name">${esc(name)}</div><div class="home-stock-meta">${esc(p.brand||'Noor Profumi')} · ${esc(p.size||'Formato —')}</div><div style="margin-top:6px">${typeof statusBadge==='function'?statusBadge(p.qty):esc(p.qty)}</div><div class="home-stock-actions"><button class="btn small secondary" onclick="event.stopPropagation();viewProduct('${esc(p.id)}')">Apri</button><button class="btn small secondary" onclick="event.stopPropagation();editProduct('${esc(p.id)}')">Modifica</button></div></div><div class="home-stock-qty">${esc(Number(p.qty)||0)}<span>pezzi</span></div></div>`}).join('')}</div>`:`<div class="home-empty-stock">Tutto ok: nessun prodotto sotto la soglia impostata.</div>`}</div>`;
+      html+=`<div class="card panel home-sales-card"><div class="home-sales-head"><div><h2>🧾 Ultime vendite</h2><p class="hint">Movimenti recenti registrati</p></div><span class="home-sales-total">Totale ${euro(lastTotal)}</span></div>${last.length?`<div class="home-sales-list">${last.map(s=>{const d=new Date(s.date);const name=s.productName||'Prodotto';const product=products.find(p=>String(p.id)===String(s.productId));return `<div class="home-sale-item"><div class="home-sale-icon">${safeHomeImage(product,name)}</div><div><div class="home-sale-name">${esc(name)}</div><div class="home-sale-meta">${esc(d.toLocaleDateString('it-IT'))} · ${esc(d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}))} · Quantità ${esc(s.qty||1)}</div></div><div class="home-sale-total">${euro(s.total||0)}<br><span class="home-sale-pay">${esc(s.payment||'Pagamento —')}</span></div></div>`}).join('')}</div>`:`<div class="home-empty-sales">Nessuna vendita recente.</div>`}</div>`;
+      html+='</div>'; const target=$('homeAlerts'); if(target) target.innerHTML=html;
+    }catch(e){console.warn('Home finale no codici:',e)}
+  }
+  window.renderHomeAlerts=renderHomeNoCodesFinal;
+  const oldRenderAll=window.renderAll;
+  if(typeof oldRenderAll==='function'&&!window.__NOOR_RENDERALL_NO_CODES_FINAL__){
+    window.__NOOR_RENDERALL_NO_CODES_FINAL__=true;
+    window.renderAll=function(){ const r=oldRenderAll.apply(this,arguments); try{renderHomeNoCodesFinal()}catch(e){} return r; };
+  }
+  const oldGo=window.go;
+  if(typeof oldGo==='function'&&!window.__NOOR_GO_NO_CODES_FINAL__){
+    window.__NOOR_GO_NO_CODES_FINAL__=true;
+    window.go=function(id){ const r=oldGo.apply(this,arguments); if(id==='home') setTimeout(renderHomeNoCodesFinal,20); return r; };
+  }
+  function boot(){ addLoginLogoControls(); applyOnlineIdentity(identityCache); renderHomeNoCodesFinal(); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
+  setTimeout(boot,400); setTimeout(boot,1400); setInterval(()=>{try{addLoginLogoControls();renderHomeNoCodesFinal()}catch(e){}},3500);
+  loadIdentityOnce();
+  onAuthStateChanged(auth,()=>{setTimeout(()=>{bootIdentity();},250);});
+  bootIdentity();
 })();
 </script>
 
