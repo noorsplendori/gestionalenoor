@@ -1823,7 +1823,7 @@ load();
   const DEFAULTS={
     owner:{sell:1,viewOrders:1,cancelOrders:1,editPayment:1,manageProducts:1,editPrices:1,manageDiscounts:1,deleteProducts:1,viewRevenue:1,viewCosts:1,backup:1,settings:1,manageEmployees:1},
     manager:{sell:1,viewOrders:1,cancelOrders:1,editPayment:1,manageProducts:1,editPrices:1,manageDiscounts:1,deleteProducts:1,viewRevenue:1,viewCosts:1,backup:1,settings:1,manageEmployees:1},
-    warehouse:{sell:0,viewOrders:0,cancelOrders:0,editPayment:0,manageProducts:1,editPrices:0,manageDiscounts:0,deleteProducts:0,viewRevenue:0,viewCosts:0,backup:0,settings:0,manageEmployees:0},
+    warehouse:{sell:0,viewOrders:0,cancelOrders:0,editPayment:0,manageProducts:1,editPrices:1,manageDiscounts:1,deleteProducts:0,viewRevenue:0,viewCosts:0,backup:0,settings:0,manageEmployees:0},
     seller:{sell:1,viewOrders:1,cancelOrders:1,editPayment:1,manageProducts:0,editPrices:0,manageDiscounts:0,deleteProducts:0,viewRevenue:1,viewCosts:0,backup:0,settings:0,manageEmployees:0}
   };
   function safeToast(msg,type){try{toast(msg,type||'')}catch(e){alert(msg)}}
@@ -1835,6 +1835,8 @@ load();
     Object.keys(DEFAULTS).forEach(role=>{settings.rolePerms[role]={...DEFAULTS[role],...(settings.rolePerms[role]||{})};});
     // Regola fissa richiesta: il Venditore può vedere l'incasso, ma non i valori di magazzino/costo.
     settings.rolePerms.seller={...(settings.rolePerms.seller||{}),viewRevenue:1,viewCosts:0};
+    // Regola fissa richiesta: il Magazziniere può inserire prodotti, scegliere prezzi e gestire sconti, senza vedere incassi/costi.
+    settings.rolePerms.warehouse={...(settings.rolePerms.warehouse||{}),manageProducts:1,editPrices:1,manageDiscounts:1,viewRevenue:0,viewCosts:0};
     const activeOk=db.employees.some(e=>String(e.id)===String(settings.activeEmployeeId)&&e.active!==false);
     if(!activeOk){settings.activeEmployeeId=(db.employees.find(e=>e.active!==false)||db.employees[0]).id; try{saveSettings()}catch(e){}}
   }
@@ -1849,7 +1851,7 @@ load();
     const cards=[
       ['owner','Accesso completo: gestione totale del gestionale, dipendenti, prezzi, sconti, ordini, incassi, backup e impostazioni.'],
       ['manager','Ruolo di fiducia: può vendere, gestire prodotti, prezzi, sconti, ordini, dipendenti e vedere i dati economici.'],
-      ['warehouse','Gestione magazzino: prodotti, stock, descrizioni, foto e barcode. Non vede incassi/costi e non tocca prezzi, sconti o ordini.'],
+      ['warehouse','Gestione magazzino: prodotti, stock, descrizioni, foto, barcode, prezzi e sconti. Non vede incassi/costi e non modifica ordini.'],
       ['seller','Banco vendita: crea vendite, apre ordini, annulla errori, modifica pagamento, stampa e vede l’incasso oggi. Può vedere gli sconti in sola lettura, ma non vede valore magazzino/costo.']
     ];
     box.innerHTML=cards.map(([role,desc])=>{const p=rolePerms(role);return `<div class="role-perm"><b>${roleLabel(role)}</b><div class="hint">${desc}</div><div style="margin-top:8px;font-size:12px;line-height:1.7">Vendere ${yesNo(p.sell)} · Ordini ${yesNo(p.viewOrders)} · Annullare ${yesNo(p.cancelOrders)} · Prodotti ${yesNo(p.manageProducts)} · Prezzi ${yesNo(p.editPrices)} · Sconti ${yesNo(p.manageDiscounts)} · Costi ${yesNo(p.viewCosts)}</div></div>`}).join('');
