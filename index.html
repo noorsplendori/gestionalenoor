@@ -6168,3 +6168,175 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-aut
   document.addEventListener('submit',function(ev){if(ev.target&&ev.target.id==='employeeForm') saveLocalPhoto();},true);
 })();
 </script>
+
+
+<!-- PATCH FINALE: foto profilo realmente online + accesso annullati per tutti + riconferma ordine persistente -->
+<style id="noor-final-fixes-profile-cancelled-style">
+  .noor-welcome-avatar{overflow:hidden!important}
+  .noor-welcome-avatar img{width:100%;height:100%;object-fit:cover;display:block;border-radius:15px}
+  .profile-photo-avatar img,.employee-photo-preview img{width:100%;height:100%;object-fit:cover;display:block}
+  .cancelled-help-box{margin:10px 0 14px;padding:12px 14px;border-radius:18px;border:1px solid rgba(242,184,75,.34);background:rgba(242,184,75,.12);font-size:13px;line-height:1.45;color:var(--text)}
+  .cancelled-help-box b{display:block;margin-bottom:3px}
+</style>
+<script type="module" id="noor-final-fixes-profile-cancelled-js">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+(function(){
+  if(window.__NOOR_FINAL_PROFILE_CANCELLED_FIXES__) return;
+  window.__NOOR_FINAL_PROFILE_CANCELLED_FIXES__=true;
+  const FIREBASE_CONFIG={apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",authDomain:"gestionalenoor-2fa61.firebaseapp.com",projectId:"gestionalenoor-2fa61",storageBucket:"gestionalenoor-2fa61.firebasestorage.app",messagingSenderId:"66670691093",appId:"1:66670691093:web:82d0b2122e600bf5885f1c",measurementId:"G-0HSQB7XLJG"};
+  const app=getApps().length?getApps()[0]:initializeApp(FIREBASE_CONFIG);
+  const auth=getAuth(app);
+  const fs=getFirestore(app);
+  const LS_CANCEL='noor_cancelled_orders_log_v2';
+  const $=id=>document.getElementById(id);
+  const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const money=v=>{try{return typeof eur==='function'?eur(v):Number(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'})}catch(e){return '€ '+Number(v||0).toFixed(2)}};
+  const notify=(m,t)=>{try{toast(m,t||'')}catch(e){try{window.noorCenterPopup?window.noorCenterPopup('Avviso',m):alert(m)}catch(_){alert(m)}}};
+  function localCancelled(){try{return JSON.parse(localStorage.getItem(LS_CANCEL)||'[]')}catch(e){return []}}
+  function setLocalCancelled(arr){try{localStorage.setItem(LS_CANCEL,JSON.stringify(arr||[]))}catch(e){}}
+  function profile(){return window.currentFirebaseUserProfile||window.currentUserProfile||window.currentProfileData||{};}
+  function activeUser(){return auth.currentUser||window.currentFirebaseUser||null;}
+  function activeUid(){const u=activeUser(); const p=profile(); return u?.uid||p.uid||p.firebaseUid||p.id||'';}
+  function activeRole(){try{if(typeof activeEmployee==='function'){const e=activeEmployee()||{}; if(e.role)return String(e.role).toLowerCase();}}catch(e){} return String(profile().role||profile().userRole||'seller').toLowerCase();}
+  function canRestore(){return ['supervisor','supervisore','owner','admin','manager','administrator','amministratore','super_admin','superadmin','master'].includes(activeRole());}
+  function canDelete(){return ['owner','admin','manager','administrator','amministratore','super_admin','superadmin','master'].includes(activeRole());}
+  function actor(){let emp={};try{if(typeof activeEmployee==='function')emp=activeEmployee()||{}}catch(e){}const p=profile();const u=activeUser();return {uid:u?.uid||p.uid||'',name:emp.name||p.name||p.displayName||u?.displayName||u?.email||'Utente',email:emp.email||p.email||u?.email||'',role:emp.role||p.role||activeRole()};}
+  function initial(){const p=profile();const u=activeUser();const name=p.name||p.displayName||u?.displayName||p.email||u?.email||'N';return esc((String(name).trim()[0]||'N').toUpperCase());}
+  function photo(){const p=profile();return p.photo||p.photoURL||p.avatar||'';}
+  function setAvatar(el,data){if(!el)return;el.innerHTML=data?'<img src="'+esc(data)+'" alt="Foto profilo">':initial();}
+  function applyProfilePhotoToUI(){
+    const ph=photo();
+    setAvatar(document.querySelector('#homeWelcomeAccessBox .noor-welcome-avatar'),ph);
+    setAvatar($('profilePhotoAvatar'),ph);
+    try{if($('profileContent') && !$('profilePhotoCard') && typeof window.go==='function' && $('profile')?.classList.contains('active')) window.go('profile');}catch(e){}
+  }
+  function mergeCurrentProfile(data){
+    const u=activeUser();
+    const merged=Object.assign({},profile(),data||{},u?{uid:u.uid,email:u.email||data?.email||profile().email}:{});
+    window.currentFirebaseUserProfile=merged;
+    try{localStorage.setItem('noor_firebase_current_user_v1',JSON.stringify(merged));}catch(e){}
+    try{if(window.db&&Array.isArray(db.employees)){const emp=db.employees.find(x=>String(x.uid||x.firebaseUid||x.id||'')===String(merged.uid||'')||String(x.email||'').toLowerCase()===String(merged.email||'').toLowerCase());if(emp){emp.photo=merged.photo||merged.photoURL||emp.photo||'';emp.photoURL=merged.photoURL||merged.photo||emp.photoURL||'';emp.name=merged.name||emp.name;emp.role=merged.role||emp.role;localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db));}}}catch(e){}
+    applyProfilePhotoToUI();
+  }
+  let unsubUser=null,unsubUsers=null;
+  function startProfileListeners(user){
+    try{if(unsubUser)unsubUser();}catch(e){}
+    if(!user)return;
+    unsubUser=onSnapshot(doc(fs,'users',user.uid),snap=>{if(snap.exists()) mergeCurrentProfile({uid:user.uid,email:user.email,...snap.data()});},err=>console.warn('Profilo foto online:',err));
+  }
+  function startAllUsersPhotoListener(){
+    try{if(unsubUsers)return;unsubUsers=onSnapshot(collection(fs,'users'),snap=>{
+      const all=[];snap.forEach(d=>all.push({uid:d.id,...(d.data()||{})}));
+      try{if(window.db&&Array.isArray(db.employees)){all.forEach(u=>{const emp=db.employees.find(e=>String(e.uid||e.firebaseUid||e.id||'')===String(u.uid)||String(e.email||'').toLowerCase()===String(u.email||'').toLowerCase()); if(emp){emp.photo=u.photo||u.photoURL||emp.photo||'';emp.photoURL=u.photoURL||u.photo||emp.photoURL||'';emp.name=u.name||emp.name;emp.role=u.role||emp.role;}});localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db));}}
+      catch(e){}
+      try{if(typeof renderEmployees==='function')renderEmployees();}catch(e){}
+      applyProfilePhotoToUI();
+    },err=>console.warn('Lista foto utenti:',err));}catch(e){console.warn('Listener foto utenti:',e)}
+  }
+  async function compressImage(file,max=420,quality=.72){
+    if(!file) return '';
+    if(!/^image\//.test(file.type||'')) throw new Error('Carica un file immagine.');
+    const url=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file);});
+    const img=await new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=reject;im.src=url;});
+    const scale=Math.min(1,max/Math.max(img.width,img.height));
+    const w=Math.max(1,Math.round(img.width*scale)); const h=Math.max(1,Math.round(img.height*scale));
+    const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h);
+    return c.toDataURL('image/jpeg',quality);
+  }
+  window.noorCompressUserPhoto=compressImage;
+  window.noorSaveCurrentProfilePhoto=async function(data){
+    const uid=activeUid(); const u=activeUser(); if(!uid){notify('Utente non trovato. Esci e rientra.');return;}
+    const payload={photo:data||'',photoURL:data||'',updatedAt:new Date().toISOString(),updatedAtServer:serverTimestamp()};
+    await setDoc(doc(fs,'users',String(uid)),payload,{merge:true});
+    mergeCurrentProfile(Object.assign({},payload,{uid,email:u?.email||profile().email||''}));
+    notify('Foto profilo salvata online.','success');
+  };
+  async function saveEmployeePhotoOnline(uid,email,photoData){
+    if(!photoData) return;
+    let targetUid=uid||'';
+    const mail=String(email||'').trim().toLowerCase();
+    if(!targetUid&&mail){
+      try{const snap=await getDocs(collection(fs,'users'));snap.forEach(d=>{const x=d.data()||{};if(!targetUid&&String(x.email||'').toLowerCase()===mail)targetUid=d.id;});}catch(e){}
+    }
+    if(!targetUid) return;
+    await setDoc(doc(fs,'users',String(targetUid)),{photo:photoData,photoURL:photoData,updatedAt:new Date().toISOString(),updatedAtServer:serverTimestamp()},{merge:true});
+    try{if(window.db&&Array.isArray(db.employees)){const emp=db.employees.find(x=>String(x.uid||x.firebaseUid||x.id||'')===String(targetUid)||String(x.email||'').toLowerCase()===mail);if(emp){emp.photo=photoData;emp.photoURL=photoData;localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db));}}}catch(e){}
+  }
+  const oldFetch=window.fetch;
+  window.fetch=async function(input,init){
+    let body={};try{body=init&&init.body?JSON.parse(String(init.body)):{};}catch(e){}
+    const isEmployee=String(input||'').includes('/.netlify/functions/createEmployee');
+    const res=await oldFetch.apply(this,arguments);
+    if(isEmployee){
+      try{const photoData=$('empPhotoData')?.value||body.photo||body.photoURL||''; if(photoData){const cloned=await res.clone().json().catch(()=>({})); const uid=cloned?.user?.uid||cloned?.uid||body.uid||body.firebaseUid||body.id||''; const email=body.email||$('empEmail')?.value||''; await saveEmployeePhotoOnline(uid,email,photoData);}}
+      catch(e){console.warn('Salvataggio foto dipendente online:',e)}
+    }
+    return res;
+  };
+  document.addEventListener('submit',ev=>{if(ev.target&&ev.target.id==='employeeForm'){setTimeout(()=>{saveEmployeePhotoOnline($('empFirebaseUid')?.value||$('employeeId')?.value||'', $('empEmail')?.value||'', $('empPhotoData')?.value||'').catch(console.warn)},1600);}},true);
+  function showSection(id){document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id===id));try{document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));}catch(e){}window.scrollTo({top:0,behavior:'smooth'});}
+  const previousGo=window.go;
+  window.go=function(id){
+    if(id==='cancelledOrders'){
+      try{if(!$('cancelledOrders')&&typeof ensureSectionText==='function')ensureSectionText();}catch(e){}
+      showSection('cancelledOrders');
+      try{if(typeof renderCancelledOrders==='function')renderCancelledOrders();}catch(e){}
+      cleanCancelledTextFinal();
+      return;
+    }
+    const r=previousGo?previousGo.apply(this,arguments):undefined;
+    setTimeout(()=>{applyProfilePhotoToUI(); if(id==='cancelledOrders')cleanCancelledTextFinal();},80);
+    return r;
+  };
+  function cleanCancelledTextFinal(){
+    const sec=$('cancelledOrders'); if(!sec)return;
+    const hint=sec.querySelector('.panel-title .hint'); if(hint) hint.textContent='Registro degli ordini annullati.';
+    const adm=$('cancelledOrdersAdminActions'); if(adm){const h=adm.querySelector('.hint'); if(h) h.style.display='none'; adm.classList.toggle('hidden',!canDelete());}
+    if(!$('cancelledOrdersHelpBox')){const list=$('cancelledOrdersList'); const filter=$('cancelledOrdersSearch')?.closest('.cancelled-filter-box'); const info=document.createElement('div'); info.id='cancelledOrdersHelpBox'; info.className='cancelled-help-box'; info.innerHTML='<b>Hai bisogno di riconfermare un ordine annullato?</b>Contatta il tuo supervisore o l’amministratore.'; if(filter&&filter.parentNode)filter.insertAdjacentElement('afterend',info); else if(list&&list.parentNode)list.parentNode.insertBefore(info,list);}
+  }
+  function productForLine(l){try{return (window.db&&Array.isArray(db.products)?db.products:[]).find(p=>String(p.id)===String(l.productId)||String(p.barcode||'')===String(l.barcode||''))||{}}catch(e){return {}}}
+  function lineHTML(l){const p=productForLine(l);const name=l.productName||l.name||p.name||'Prodotto';const image=l.photo||p.photo||'';const qty=Number(l.qty)||1;const total=Number(l.total)||((Number(l.price)||0)*qty);return '<div class="cancelled-product-row"><div class="cancelled-product-img">'+(image?'<img src="'+esc(image)+'" alt="'+esc(name)+'">':esc((String(name)[0]||'P').toUpperCase()))+'</div><div><div class="cancelled-product-name">'+esc(name)+'</div><div class="cancelled-product-meta">Qtà '+esc(qty)+(l.barcode?' · '+esc(l.barcode):'')+'</div></div><div class="cancelled-product-total">'+money(total)+'</div></div>';}
+  function recordText(r){return [r.orderNumber,r.orderId,r.id,r.note,r.cancelledByName,r.cancelledByEmail,r.cancelledByRole,r.payment,new Date(r.cancelledAt||'').toLocaleDateString('it-IT'),...(r.lines||[]).map(l=>[l.productName,l.name,l.barcode,l.brand,l.size].join(' '))].join(' ').toLowerCase();}
+  const oldRenderCancelled=window.renderCancelledOrders;
+  window.renderCancelledOrders=function(records){
+    try{oldRenderCancelled&&oldRenderCancelled.apply(this,arguments);}catch(e){}
+    try{
+      cleanCancelledTextFinal();
+      const list=$('cancelledOrdersList'); if(!list)return;
+      let arr=(Array.isArray(records)?records:localCancelled()).slice().sort((a,b)=>new Date(b.cancelledAt||0)-new Date(a.cancelledAt||0));
+      const q=($('cancelledOrdersSearch')?.value||'').trim().toLowerCase(); if(q)arr=arr.filter(r=>recordText(r).includes(q));
+      const del=canDelete(), restore=canRestore();
+      const adminBox=$('cancelledOrdersAdminActions'); if(adminBox)adminBox.classList.toggle('hidden',!del);
+      if(!arr.length){list.innerHTML='<div class="empty">'+(q?'Nessun ordine annullato trovato con questo filtro.':'Nessun ordine annullato registrato.')+'</div>';return;}
+      list.innerHTML=arr.map(r=>{const title=del?'<label style="display:inline-flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" class="cancelledCheck" value="'+esc(r.id)+'"> <b>Ordine '+esc(r.orderNumber||r.orderId||r.id)+'</b></label>':'<b>Ordine '+esc(r.orderNumber||r.orderId||r.id)+'</b>'; let actions=''; if(restore)actions+='<button class="btn small gold" type="button" onclick="restoreCancelledOrderRecord(\''+esc(r.id)+'\')">Riconferma ordine</button>'; if(del)actions+='<button class="btn small red" type="button" onclick="deleteCancelledOrderRecord(\''+esc(r.id)+'\')">Rimuovi dalla lista</button>'; return '<div class="cancelled-card"><div class="cancelled-head"><div>'+title+'<div class="cancelled-meta"><span class="pill">'+esc(new Date(r.cancelledAt||Date.now()).toLocaleString('it-IT'))+'</span><span class="pill">Annullato da: '+esc(r.cancelledByName||'Utente')+'</span><span class="pill">'+esc(r.cancelledByRole||'Ruolo')+'</span></div></div><div><b>'+money(r.total||0)+'</b></div></div><div class="cancelled-note"><b>Motivo annullamento</b><br>'+esc(r.note||'—')+'</div><div class="cancelled-note"><b>Prodotti</b><div class="cancelled-products-list">'+((r.lines||[]).map(lineHTML).join('')||'<div class="hint">—</div>')+'</div></div>'+(actions?'<div class="cancelled-actions">'+actions+'</div>':'')+'</div>';}).join('');
+    }catch(e){console.warn('Render annullati finale:',e)}
+  };
+  window.restoreCancelledOrderRecord=async function(id){
+    if(!canRestore()){notify('Solo Supervisore, Amministratore o Super Admin può riconfermare un ordine annullato.');return;}
+    let arr=localCancelled(); let rec=arr.find(x=>String(x.id)===String(id));
+    if(!rec){try{const s=await getDoc(doc(fs,'cancelledOrders',String(id)));if(s.exists())rec={id:s.id,...s.data()};}catch(e){}}
+    if(!rec){notify('Ordine annullato non trovato.');return;}
+    if(!confirm('Riconfermare questo ordine e riportarlo nello Storico vendite?')) return;
+    const a=actor(); const now=new Date().toISOString(); const orderId=String(rec.orderId||('ORD-'+Date.now())); const orderNumber=rec.orderNumber||orderId; const date=rec.originalDate||rec.orderDate||rec.date||now; const payment=rec.payment||'Contanti'; const lines=(rec.lines||[]).map((l,i)=>{const qty=Number(l.qty)||1; const price=Number(l.price)||0; return {lineId:orderId+'_'+i,productId:String(l.productId||''),productName:l.productName||l.name||'Prodotto',barcode:l.barcode||'',photo:l.photo||'',qty,price,total:Number(l.total)||qty*price,basePrice:Number(l.basePrice)||price,manualDiscountCode:l.manualDiscountCode||'',manualDiscountAmount:Number(l.manualDiscountAmount)||0,discountCode:l.discountCode||'',discountAmount:Number(l.discountAmount)||0,productDiscountActive:!!l.productDiscountActive};});
+    const total=Number(rec.total||lines.reduce((s,l)=>s+Number(l.total||0),0));
+    const orderData={id:orderId,orderNumber,status:'completed',createdAtClient:date,date,paymentMethod:payment,payment,subtotal:total,discountCode:'',discountAmount:0,total,items:lines,employeeUid:a.uid,employeeEmail:a.email,employeeName:a.name,employeeRole:a.role,restoredFromCancelled:true,restoredAt:now,restoredByName:a.name,restoredByEmail:a.email,updatedAt:serverTimestamp(),createdAt:serverTimestamp()};
+    await runTransaction(fs,async tx=>{
+      const productReads=[];
+      for(const l of lines){if(!l.productId)continue;const ref=doc(fs,'products',String(l.productId));const snap=await tx.get(ref);productReads.push({ref,snap,line:l});}
+      for(const pr of productReads){if(pr.snap.exists()){const current=Number(pr.snap.data().qty)||0;tx.update(pr.ref,{qty:Math.max(0,current-Number(pr.line.qty||0)),updatedAt:serverTimestamp(),updatedAtClient:now,updatedBy:a.uid,updatedByEmail:a.email});}}
+      tx.set(doc(fs,'orders',orderId),orderData,{merge:true});
+      tx.delete(doc(fs,'cancelledOrders',String(id)));
+    });
+    try{if(!window.db)window.db={}; if(!Array.isArray(db.products))db.products=[]; if(!Array.isArray(db.sales))db.sales=[]; for(const l of lines){const p=db.products.find(x=>String(x.id)===String(l.productId)); if(p)p.qty=Math.max(0,Number(p.qty||0)-Number(l.qty||0));} const newSales=lines.map((l,i)=>({id:l.lineId||orderId+'_'+i,orderId,orderNumber,productId:l.productId,productName:l.productName,barcode:l.barcode,photo:l.photo,qty:l.qty,price:l.price,payment,total:l.total,date,discountCode:l.discountCode||'',discountAmount:Number(l.discountAmount)||0,manualDiscountCode:l.manualDiscountCode||'',manualDiscountAmount:Number(l.manualDiscountAmount)||0,productDiscountActive:!!l.productDiscountActive,orderTotal:total,cartFinalTotal:total,online:true,restoredFromCancelled:true,restoredAt:now})); db.sales=[...newSales,...db.sales.filter(s=>String(s.orderId||s.id)!==orderId)]; localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db));}catch(e){}
+    arr=localCancelled().filter(x=>String(x.id)!==String(id)); setLocalCancelled(arr);
+    try{if(typeof renderAll==='function')renderAll(); if(typeof renderSales==='function')renderSales();}catch(e){}
+    window.renderCancelledOrders(arr); notify('Ordine riconfermato online e riportato nello Storico vendite.','success'); try{window.go('history')}catch(e){}
+  };
+  onAuthStateChanged(auth,user=>{startProfileListeners(user); if(user){startAllUsersPhotoListener(); setTimeout(()=>{applyProfilePhotoToUI();},500);}});
+  function boot(){startAllUsersPhotoListener();applyProfilePhotoToUI();cleanCancelledTextFinal();}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,500));else setTimeout(boot,500);
+  setTimeout(boot,1500); setInterval(()=>{applyProfilePhotoToUI(); if($('cancelledOrders')?.classList.contains('active'))cleanCancelledTextFinal();},1800);
+})();
+</script>
