@@ -495,7 +495,7 @@ body.login-active .nav{
 
   <section id="history" class="section">
     <div class="card panel">
-      <div class="panel-title"><div><h2>Storico vendite</h2><p class="hint">Filtra le vendite e scarica solo quello che ti serve.</p></div><div class="action-row"><button class="btn gold" onclick="toggleRevenuePanel()">Incasso</button><button class="btn secondary" onclick="go('drafts')">Storie Bozze</button><button class="btn secondary" onclick="printSales()">Stampa ordini PDF</button><button class="btn secondary" onclick="exportSalesCSV()">Scarica CSV filtrato</button></div></div>
+      <div class="panel-title"><div><h2>Storico vendite</h2><p class="hint">Filtra le vendite e scarica solo quello che ti serve.</p></div><div class="action-row"><button class="btn gold" onclick="toggleRevenuePanel()">Incasso</button><button class="btn secondary" onclick="go('drafts')">Storie Bozze</button><button id="cancelledOrdersHistoryBtn" class="btn secondary" type="button" onclick="go('cancelledOrders'); if(window.renderCancelledOrders) renderCancelledOrders();">Ordini annullati</button><button class="btn secondary" onclick="printSales()">Stampa ordini PDF</button><button class="btn secondary" onclick="exportSalesCSV()">Scarica CSV filtrato</button></div></div>
       <div class="filter-bar">
         <div class="field"><label>Da data</label><input id="filterFrom" type="date" oninput="renderSales()"></div>
         <div class="field"><label>A data</label><input id="filterTo" type="date" oninput="renderSales()"></div>
@@ -561,6 +561,20 @@ body.login-active .nav{
     </div>
   </section>
 
+
+  <section id="cancelledOrders" class="section">
+    <div class="card panel">
+      <div class="panel-title">
+        <div><h2>Ordini annullati</h2><p class="hint">Registro online degli ordini annullati con utente, data e motivazione.</p></div>
+        <div class="action-row"><button class="btn secondary" type="button" onclick="go('history')">← Storico</button><button class="btn secondary" type="button" onclick="if(window.renderCancelledOrders) renderCancelledOrders()">Aggiorna</button></div>
+      </div>
+      <div id="cancelledOrdersAdminActions" class="cancelled-toolbar cancelled-admin-only">
+        <div class="hint">Solo Admin / Owner può eliminare record da questa lista.</div>
+        <div class="action-row"><button class="btn secondary" type="button" onclick="deleteSelectedCancelledOrders()">Elimina selezionati</button><button class="btn red" type="button" onclick="clearCancelledOrdersList()">Svuota lista</button></div>
+      </div>
+      <div id="cancelledOrdersList" class="cancelled-list"><div class="empty">Caricamento ordini annullati...</div></div>
+    </div>
+  </section>
 
   <section id="drafts" class="section">
     <div class="card panel">
@@ -5128,6 +5142,631 @@ import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from "https://
       });
     }catch(err){ console.warn('Preferenze online snapshot:', err); }
   });
+})();
+</script>
+
+<script id="noor-sale-detail-receipt-safe-final">
+/* Noor Splendori - dettaglio sconti vendita + ricevuta post vendita, senza toccare Home */
+(function(){
+  if(window.__NOOR_SALE_DETAIL_RECEIPT_SAFE_FINAL__) return;
+  window.__NOOR_SALE_DETAIL_RECEIPT_SAFE_FINAL__ = true;
+
+  function n(v){ return Number(v)||0; }
+  function money(v){ try{return eur(n(v));}catch(e){return '€ '+n(v).toFixed(2).replace('.',',');} }
+  function safe(s){ try{return escapeHtml(String(s||''));}catch(e){return String(s||'');} }
+  function originalPrice(item){ return n(item.originalPrice || item.initialPrice || item.basePrice || item.listPrice || item.price); }
+  function finalPrice(item){ return n(item.price); }
+  function itemSave(item){ return Math.max(0, originalPrice(item)-finalPrice(item)); }
+  function discountLine(item){
+    const op=originalPrice(item), fp=finalPrice(item), save=itemSave(item);
+    if(item.productDiscountActive || save>0){
+      const pct = op>0 && save>0 ? ' · -'+((save/op)*100).toFixed(((save/op)*100)%1?1:0)+'%' : '';
+      return '<div class="hint" style="margin-top:4px"><b>Prezzo originale:</b> '+money(op)+' · <b>Prezzo scontato:</b> '+money(fp)+(save>0?' · <b>Risparmio:</b> '+money(save)+pct:'')+'</div>';
+    }
+    return '<div class="hint" style="margin-top:4px"><b>Prezzo:</b> '+money(fp)+'</div>';
+  }
+
+  function installRenderCart(){
+    if(typeof renderCart !== 'function') return;
+    renderCart = function(){
+      const box=document.getElementById('saleCartBox');
+      if(!box) return;
+      if(!Array.isArray(saleCart)) saleCart=[];
+      if(!saleCart.length){
+        appliedDiscountCode=null; cartDiscountEnabled=false;
+        box.innerHTML='<div class="empty">Carrello vuoto. Aggiungi uno o più prodotti prima di concludere la vendita.</div>';
+        return;
+      }
+      const sub = typeof getCartSubtotal==='function' ? getCartSubtotal() : saleCart.reduce((a,i)=>a+n(i.qty)*n(i.price),0);
+      const c = typeof calcCartDiscount==='function' ? calcCartDiscount() : {discount:null,amount:0,total:sub,eligible:0};
+      const compatibleInfo=c.discount?(c.eligible===saleCart.length?'Tutti i prodotti sono compatibili.':(c.eligible>0?`${c.eligible} prodotto/i compatibili: lo sconto viene applicato solo a quelli idonei.`:'Il codice sconto non è compatibile con i prodotti nel carrello.')):'';
+      box.innerHTML=`<h2 style="margin:0 0 10px">Carrello vendita ${activeDraftId?'<span class="discount-pill">Bozza caricata</span>':''}</h2>
+        ${saleCart.map((i,idx)=>`<div class="cart-row">
+          <div class="cart-product">${typeof productThumbHtml==='function'?productThumbHtml(i):''}<div><b>${safe(i.productName)}</b><span class="hint">Qtà ${n(i.qty)}${i.manualDiscountCode?` · sconto ${safe(i.manualDiscountCode)}`:''}${i.productDiscountActive?' · prodotto già scontato':''}</span>${discountLine(i)}</div></div>
+          <input class="qty-mini" type="number" min="1" value="${n(i.qty)||1}" onchange="updateCartQty(${idx},this.value)">
+          <button class="btn small red" onclick="removeCartItem(${idx})">Rimuovi</button>
+        </div>`).join('')}
+        <div class="discount-code-box"><label class="cart-discount-toggle"><span><b>Aggiungi sconto a tutto il carrello</b></span><label class="switch"><input id="cartDiscountEnabled" type="checkbox" ${cartDiscountEnabled?'checked':''} onchange="setCartDiscountEnabled(this)"><span class="track"></span><span>Attiva</span></label></label><div class="cart-discount-panel ${cartDiscountEnabled?'open':''}"><div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-top:8px"><input id="cartDiscountCode" placeholder="Inserisci codice sconto carrello" value="${appliedDiscountCode||''}"><button class="btn small secondary" onclick="applyDiscountToCart()">Applica</button><button class="btn small red" onclick="removeDiscountFromCart()">Rimuovi</button></div><div class="hint">Applicando questo sconto vengono annullati gli sconti manuali inseriti sui singoli prodotti. Sugli sconti già presenti nei prodotti si somma solo se il codice è cumulativo.</div>${c.discount?`<span class="applied-code">✓ ${safe(c.discount.code)} applicato · ${typeof discountRuleLabel==='function'?discountRuleLabel(c.discount.rule):''} · -${money(c.amount)}</span><span class="compat-note">${compatibleInfo}</span>`:''}</div></div>
+        <div class="payment-box"><label>Tipo di pagamento</label><select id="cartPayment">${typeof paymentOptions==='function'?paymentOptions(settings.defaultPayment):'<option>Contanti</option><option>POS</option><option>Bonifico</option>'}</select></div>
+        <div class="cart-total"><span style="font-size:14px;color:var(--muted);display:block">Subtotale ${money(sub)} ${c.amount?' · Sconto carrello -'+money(c.amount):''}</span>Totale ${money(c.total)}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px"><button class="btn secondary" onclick="saveCartDraft()">Salva come bozza</button><button class="btn secondary" onclick="printCart()">Stampa carrello PDF</button><button class="btn gold" onclick="confirmSale()">Concludi vendita</button></div><button class="btn small secondary" style="width:100%;margin-top:8px" onclick="resetCurrentCart()">Svuota carrello</button>`;
+    };
+  }
+
+  function installConfirm(){
+    if(typeof openSaleConfirm !== 'function') return;
+    openSaleConfirm = function(data){
+      window.pendingSale=data;
+      const lines=(data.items||[]).map(i=>{
+        const p=(db.products||[]).find(x=>x.id===i.productId);
+        return `<div class="confirm-item"><span class="order-product-line">${typeof productThumbHtml==='function'?productThumbHtml(i,'order-product-photo','order-product-placeholder'):''}<span><b>${safe(i.productName)}</b><br><small>${n(i.qty)} x ${money(finalPrice(i))}${i.manualDiscountCode?' · sconto manuale '+safe(i.manualDiscountCode):''}${i.productDiscountActive?' · prodotto già scontato':''} · stock dopo: ${p?n(p.qty)-n(i.qty):'—'}</small>${discountLine(i)}</span></span><b>${money(n(i.qty)*finalPrice(i))}</b></div>`;
+      }).join('');
+      const el=document.getElementById('saleConfirmContent');
+      if(el) el.innerHTML=`<div class="confirm-row"><span>Pagamento</span><b>${safe(data.payment)}</b></div><div class="confirm-row"><span>Prodotti</span><b>${(data.items||[]).length}</b></div>${data.discountCode?`<div class="confirm-row"><span>Codice sconto carrello</span><b>${safe(data.discountCode)} · ${typeof discountRuleLabel==='function'?discountRuleLabel(data.discountRule):''} · -${money(data.discountAmount)}</b></div>`:''}<div class="confirm-items">${lines}</div><div class="confirm-row"><span>Subtotale</span><b>${money(data.subtotal)}</b></div>${data.discountAmount?`<div class="confirm-row"><span>Sconto carrello</span><b>-${money(data.discountAmount)}</b></div>`:''}<div class="confirm-total">Totale ${money(data.total)}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn secondary" onclick="closeSaleConfirm()">Annulla</button><button class="btn gold" onclick="finalizeSale()">Conferma vendita</button></div>`;
+      document.getElementById('saleConfirmModal')?.classList.add('show');
+    };
+  }
+
+  function ensureReceiptModal(){
+    if(document.getElementById('postSaleReceiptModal')) return;
+    const div=document.createElement('div');
+    div.id='postSaleReceiptModal';
+    div.className='modal';
+    div.innerHTML='<div class="modal-card" style="width:min(560px,100%)"><div class="panel-title"><div><h2>Vendita conclusa</h2><p class="hint">Scegli se stampare subito la ricevuta o il PDF ordine.</p></div><button class="btn small secondary" onclick="closePostSaleReceiptModal()">Chiudi</button></div><div id="postSaleReceiptContent"></div></div>';
+    document.body.appendChild(div);
+  }
+  window.closePostSaleReceiptModal=function(){document.getElementById('postSaleReceiptModal')?.classList.remove('show');};
+  window.openLastOrderFromReceipt=function(orderId){ closePostSaleReceiptModal(); if(typeof openOrderDetail==='function') openOrderDetail(orderId); };
+  window.printReceiptFromReceipt=function(orderId){ if(typeof printSingleOrder==='function') printSingleOrder(orderId); };
+  window.printPdfFromReceipt=function(orderId){ if(typeof printSingleOrder==='function') printSingleOrder(orderId); };
+  function showReceiptChoice(orderId){
+    ensureReceiptModal();
+    const order = typeof getOrderById==='function' ? getOrderById(orderId) : null;
+    const content=document.getElementById('postSaleReceiptContent');
+    if(content){
+      content.innerHTML=`<div class="confirm-row"><span>Ordine</span><b>${safe(order?order.orderNumber:orderId)}</b></div><div class="confirm-row"><span>Totale</span><b>${money(order?order.total:0)}</b></div><div class="order-actions-responsive"><button class="btn gold" onclick="printReceiptFromReceipt('${orderId}')">Stampa ricevuta</button><button class="btn secondary" onclick="printPdfFromReceipt('${orderId}')">Stampa PDF ordine</button><button class="btn secondary" onclick="openLastOrderFromReceipt('${orderId}')">Apri ordine</button></div>`;
+    }
+    document.getElementById('postSaleReceiptModal')?.classList.add('show');
+  }
+
+  function installFinalizeReceipt(){
+    const old = (typeof finalizeSale==='function') ? finalizeSale : window.finalizeSale;
+    if(typeof old !== 'function' || old.__receiptSafe) return;
+    const wrapped = async function(){
+      const beforeIds = new Set((db.sales||[]).map(s=>s.orderId||s.id));
+      const result = await old.apply(this, arguments);
+      setTimeout(function(){
+        try{
+          const newest=(db.sales||[]).filter(s=>!beforeIds.has(s.orderId||s.id)).sort((a,b)=>new Date(b.date)-new Date(a.date))[0] || (db.sales||[]).sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+          const orderId = newest && (newest.orderId || newest.id);
+          if(orderId) showReceiptChoice(orderId);
+        }catch(e){console.warn('Ricevuta post vendita:',e)}
+      }, 700);
+      return result;
+    };
+    wrapped.__receiptSafe = true;
+    try{ finalizeSale = wrapped; }catch(e){}
+    window.finalizeSale = wrapped;
+  }
+
+  function boot(){
+    installRenderCart();
+    installConfirm();
+    installFinalizeReceipt();
+    try{ if(typeof renderCart==='function') renderCart(); }catch(e){}
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
+  setTimeout(boot,800);
+  setTimeout(boot,2200);
+})();
+</script>
+
+
+
+<script id="noor-fix-original-price-clear-detected-final">
+/* Fix vendita: prezzo originale = prezzo vendita pieno; pulizia prodotto rilevato dopo aggiunta */
+(function(){
+  if(window.__NOOR_FIX_ORIGINAL_PRICE_CLEAR_DETECTED_FINAL__) return;
+  window.__NOOR_FIX_ORIGINAL_PRICE_CLEAR_DETECTED_FINAL__ = true;
+
+  function num(v){ return Number(v)||0; }
+  function fullPriceOf(p){ return num(p && p.price); }
+  function sellPriceOf(p){
+    try{ if(typeof currentSellPrice==='function') return num(currentSellPrice(p)); }catch(e){}
+    return (p && p.discountActive && num(p.finalPrice)>0) ? num(p.finalPrice) : fullPriceOf(p);
+  }
+  function notify(msg,type){ try{ toast(msg,type||''); }catch(e){ console.log(msg); } }
+
+  window.clearDetectedProduct = function(message){
+    try{ selectedProduct = null; }catch(e){ window.selectedProduct = null; }
+    try{ selectedLineDiscountCode = null; }catch(e){ window.selectedLineDiscountCode = null; }
+    var bi=document.getElementById('barcodeInput'); if(bi) bi.value='';
+    var prev=document.getElementById('salePreview');
+    if(prev){
+      prev.className='sale-preview empty';
+      prev.innerHTML = message || 'Nessun prodotto selezionato.';
+    }
+  };
+
+  function addClearButtonToPreview(){
+    var prev=document.getElementById('salePreview');
+    if(!prev || prev.classList.contains('empty') || document.getElementById('clearDetectedProductBtn')) return;
+    var btn=document.createElement('button');
+    btn.id='clearDetectedProductBtn';
+    btn.type='button';
+    btn.className='btn secondary';
+    btn.style.width='100%';
+    btn.style.marginTop='8px';
+    btn.textContent='Svuota prodotto rilevato';
+    btn.onclick=function(){ window.clearDetectedProduct(); };
+    prev.appendChild(btn);
+  }
+
+  if(typeof renderSalePreview==='function' && !renderSalePreview.__clearButtonWrap){
+    var oldRenderSalePreview=renderSalePreview;
+    renderSalePreview=function(p){
+      oldRenderSalePreview.apply(this,arguments);
+      setTimeout(addClearButtonToPreview,0);
+    };
+    renderSalePreview.__clearButtonWrap=true;
+    window.renderSalePreview=renderSalePreview;
+  }
+
+  window.createCartItemFromProduct = function(p,qty,price){
+    qty = num(qty)||1;
+    var original = fullPriceOf(p);
+    var unit = (price===undefined || price===null) ? sellPriceOf(p) : num(price);
+    return {
+      productId:p.id,
+      productName:p.name,
+      barcode:p.barcode,
+      qty:qty,
+      price:unit,
+      total:qty*unit,
+      originalPrice:original,
+      basePrice:original,
+      discountedBasePrice:sellPriceOf(p),
+      productDiscountActive:!!p.discountActive,
+      manualDiscountCode:'',
+      manualDiscountAmount:Math.max(0,sellPriceOf(p)-unit),
+      photo:p.photo||''
+    };
+  };
+
+  window.addSelectedToCart = function(){
+    var sp;
+    try{ sp = selectedProduct; }catch(e){ sp = window.selectedProduct; }
+    if(!sp) return;
+    var qty = num(document.getElementById('sellQty') && document.getElementById('sellQty').value) || 1;
+    var price = num(document.getElementById('sellPrice') && document.getElementById('sellPrice').value);
+    var p=(db.products||[]).find(function(x){return String(x.id)===String(sp.id);});
+    if(!p) return;
+    if(qty<=0){ notify('Quantità non valida.'); return; }
+    var already=(saleCart||[]).filter(function(i){return String(i.productId)===String(p.id);}).reduce(function(a,i){return a+num(i.qty);},0);
+    if(num(p.qty)<already+qty){ notify('Quantità insufficiente in magazzino.'); return; }
+    var original=fullPriceOf(p);
+    var discounted=sellPriceOf(p);
+    var item={
+      productId:p.id,
+      productName:p.name,
+      barcode:p.barcode,
+      qty:qty,
+      price:price,
+      total:qty*price,
+      originalPrice:original,
+      basePrice:original,
+      discountedBasePrice:discounted,
+      productDiscountActive:!!p.discountActive,
+      manualDiscountCode:(typeof selectedLineDiscountCode!=='undefined' && selectedLineDiscountCode) ? selectedLineDiscountCode : '',
+      manualDiscountAmount:Math.max(0,discounted-price),
+      photo:p.photo||''
+    };
+    saleCart.push(item);
+    try{ selectedLineDiscountCode=null; }catch(e){ window.selectedLineDiscountCode=null; }
+    if(typeof renderCart==='function') renderCart();
+    window.clearDetectedProduct('Prodotto aggiunto al carrello. Scansiona o cerca un altro prodotto.');
+    notify('Prodotto aggiunto al carrello.','success');
+  };
+
+  if(typeof addFlashToCart==='function'){
+    window.addFlashToCart = window.quickAddToCart = function(id){
+      var p=(db.products||[]).find(function(x){return String(x.id)===String(id);});
+      if(!p){ notify('Prodotto non trovato.'); return; }
+      if(num(p.qty)<=0){ notify('Prodotto non disponibile.'); return; }
+      var already=(typeof cartQtyForProduct==='function') ? cartQtyForProduct(p.id) : (saleCart||[]).filter(function(i){return String(i.productId)===String(p.id);}).reduce(function(a,i){return a+num(i.qty);},0);
+      if(already+1>num(p.qty)){ notify('Quantità insufficiente in magazzino.'); return; }
+      saleCart.push(window.createCartItemFromProduct(p,1));
+      if(typeof renderCart==='function') renderCart();
+      notify('Aggiunta Flash: prodotto inserito nel carrello.','success');
+    };
+  }
+
+  /* Migliora il calcolo mostrato dal dettaglio sconti già installato: usa sempre il prezzo vendita pieno del prodotto. */
+  if(typeof renderCart==='function' && !renderCart.__fullOriginalPricePatch){
+    var oldRenderCart=renderCart;
+    renderCart=function(){
+      try{
+        (saleCart||[]).forEach(function(item){
+          var p=(db.products||[]).find(function(x){return String(x.id)===String(item.productId);});
+          if(p){ item.originalPrice=fullPriceOf(p); item.basePrice=fullPriceOf(p); item.discountedBasePrice=sellPriceOf(p); }
+        });
+      }catch(e){}
+      return oldRenderCart.apply(this,arguments);
+    };
+    renderCart.__fullOriginalPricePatch=true;
+    window.renderCart=renderCart;
+  }
+
+  setTimeout(function(){ try{ if(typeof renderCart==='function') renderCart(); addClearButtonToPreview(); }catch(e){} },300);
+})();
+</script>
+
+
+
+<script id="noor-receipt-pdf-discount-lines-final">
+/* Ricevutina cliente reale + PDF ordine con prezzo originale, sconto e prezzo finale. Non tocca Home. */
+(function(){
+  if(window.__NOOR_RECEIPT_PDF_DISCOUNT_LINES_FINAL__) return;
+  window.__NOOR_RECEIPT_PDF_DISCOUNT_LINES_FINAL__ = true;
+
+  function num(v){ return Number(v)||0; }
+  function html(v){
+    try{ if(typeof escapePrint==='function') return escapePrint(v); }catch(e){}
+    return String(v??'').replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});
+  }
+  function text(v){ return String(v??''); }
+  function money(v){ try{return eur(num(v));}catch(e){return '€ '+num(v).toFixed(2).replace('.',',');} }
+  function moneyNum(v){ return num(v).toFixed(2).replace('.',','); }
+  function notify(msg,type){ try{ toast(msg,type||''); }catch(e){ console.log(msg); } }
+  function productByLine(l){ return (window.db && Array.isArray(db.products)) ? db.products.find(function(p){return String(p.id)===String(l.productId);}) : null; }
+  function fullPriceOfProduct(p){ return num(p && p.price); }
+  function sellPriceOfProduct(p){
+    try{ if(typeof currentSellPrice==='function') return num(currentSellPrice(p)); }catch(e){}
+    return (p && p.discountActive && num(p.finalPrice)>0) ? num(p.finalPrice) : fullPriceOfProduct(p);
+  }
+  function originalUnit(l){
+    var p=productByLine(l);
+    return num(l.originalPrice || l.listPrice || l.basePrice || (p ? fullPriceOfProduct(p) : 0) || l.price);
+  }
+  function finalUnit(l){ return num(l.price); }
+  function unitSave(l){ return Math.max(0, originalUnit(l)-finalUnit(l)); }
+  function lineFinalTotal(l){ return num(l.total) || (num(l.qty)||1)*finalUnit(l); }
+  function lineOriginalTotal(l){ return (num(l.qty)||1)*originalUnit(l); }
+  function lineDiscountTotal(l){ return Math.max(0,lineOriginalTotal(l)-lineFinalTotal(l)); }
+  function discountLabel(l){
+    var save=unitSave(l), op=originalUnit(l);
+    if(save<=0) return '';
+    var pct=op>0 ? Math.round((save/op)*100) : 0;
+    var parts=[];
+    if(l.manualDiscountCode) parts.push('cod. '+text(l.manualDiscountCode));
+    if(l.productDiscountActive) parts.push('prodotto scontato');
+    if(pct) parts.push('-'+pct+'%');
+    return parts.length ? parts.join(' · ') : 'sconto';
+  }
+
+  function normalizeCartItem(item){
+    var p=productByLine(item);
+    if(p){
+      item.originalPrice=fullPriceOfProduct(p);
+      item.basePrice=fullPriceOfProduct(p);
+      item.discountedBasePrice=sellPriceOfProduct(p);
+    }else if(!item.originalPrice){
+      item.originalPrice=item.basePrice||item.price;
+    }
+    item.total=(num(item.qty)||1)*num(item.price);
+    return item;
+  }
+
+  // Salva negli ordini anche prezzo originale e prezzo finale, così refresh/PDF/ricevuta li mantengono.
+  window.finalizeSale = function(){
+    try{
+      if(typeof ensureDb==='function') ensureDb();
+      const data=window.pendingSale;
+      if(!data||!Array.isArray(data.items)||!data.items.length){notify('Nessun carrello da confermare.');return}
+      data.items.forEach(normalizeCartItem);
+      const requestedByProduct={};
+      data.items.forEach(function(item){requestedByProduct[item.productId]=(requestedByProduct[item.productId]||0)+(num(item.qty)||0)});
+      for(const productId of Object.keys(requestedByProduct)){
+        const p=(db.products||[]).find(x=>String(x.id)===String(productId));
+        if(!p||num(p.qty)<requestedByProduct[productId]){notify('Quantità insufficiente. Vendita non registrata.'); if(typeof closeSaleConfirm==='function')closeSaleConfirm(); return}
+      }
+      const now=new Date().toISOString();
+      const orderId=(typeof uid==='function')?uid():('ord_'+Date.now());
+      const orderNumber='ORD-'+new Date().toISOString().slice(2,10).replace(/-/g,'')+'-'+String(Math.floor(Math.random()*9000)+1000);
+      data.items.forEach(function(item){
+        const p=(db.products||[]).find(x=>String(x.id)===String(item.productId));
+        const qty=num(item.qty)||0;
+        const price=num(item.price)||0;
+        const original=originalUnit(item);
+        const discountedBase=num(item.discountedBasePrice || (p?sellPriceOfProduct(p):price) || price);
+        if(p) p.qty=num(p.qty)-qty;
+        db.sales.push({
+          id:(typeof uid==='function')?uid():('sale_'+Math.random().toString(36).slice(2)),
+          orderId:orderId,
+          orderNumber:orderNumber,
+          productId:p?p.id:item.productId,
+          productName:item.productName||(p&&p.name)||'Prodotto',
+          barcode:item.barcode||(p&&p.barcode)||'',
+          photo:item.photo||(p&&p.photo)||'',
+          qty:qty,
+          price:price,
+          originalPrice:original,
+          basePrice:original,
+          listPrice:original,
+          discountedBasePrice:discountedBase,
+          unitDiscountAmount:Math.max(0,original-price),
+          lineDiscountAmount:Math.max(0,(original-price)*qty),
+          payment:data.payment||settings.defaultPayment||'Contanti',
+          total:qty*price,
+          date:now,
+          discountCode:data.discountCode||'',
+          discountAmount:num(data.discountAmount)||0,
+          manualDiscountCode:item.manualDiscountCode||'',
+          manualDiscountAmount:num(item.manualDiscountAmount)||0,
+          productDiscountActive:!!item.productDiscountActive,
+          orderTotal:num(data.total)||0,
+          cartFinalTotal:num(data.total)||0
+        });
+      });
+      if(typeof activeDraftId!=='undefined' && activeDraftId){db.drafts=(db.drafts||[]).filter(d=>d.id!==activeDraftId)}
+      saleCart=[];appliedDiscountCode=null;cartDiscountEnabled=false;selectedLineDiscountCode=null;selectedProduct=null;activeDraftId=null;
+      const barcode=document.getElementById('barcodeInput'); if(barcode)barcode.value='';
+      const search=document.getElementById('saleSearch'); if(search)search.value='';
+      const list=document.getElementById('saleProductList'); if(list)list.innerHTML='';
+      const preview=document.getElementById('salePreview'); if(preview){preview.className='sale-preview empty';preview.innerHTML='Vendita registrata. Scansiona o cerca un altro prodotto.';}
+      if(typeof closeSaleConfirm==='function') closeSaleConfirm();
+      if(typeof save==='function') save();
+      if(typeof renderCart==='function') renderCart();
+      if(typeof renderSales==='function') renderSales();
+      if(typeof showSuccessBadge==='function') showSuccessBadge();
+      notify('Ordine registrato. Stock aggiornato.','success');
+      document.getElementById('barcodeInput')?.focus();
+      setTimeout(function(){ if(typeof showPostSaleActions==='function') showPostSaleActions(orderId); },400);
+    }catch(err){console.error(err);notify('Errore durante la registrazione ordine.');}
+  };
+
+  function orderById(orderId){
+    try{ if(typeof getOrderById==='function'){var o=getOrderById(orderId); if(o) return o;} }catch(e){}
+    var sales=(window.db&&db.sales)||[];
+    var rows=sales.filter(function(s){return String(s.orderId)===String(orderId)||String(s.id)===String(orderId)||String(s.orderNumber)===String(orderId)});
+    if(!rows.length) return null;
+    return {id:rows[0].orderId||rows[0].id,orderNumber:rows[0].orderNumber||rows[0].id,date:rows[0].date,payment:rows[0].payment,lines:rows,qty:rows.reduce((a,l)=>a+num(l.qty),0),total:num(rows[0].orderTotal||rows[0].cartFinalTotal)||rows.reduce((a,l)=>a+num(l.total),0),discountCode:rows[0].discountCode||'',discountAmount:num(rows[0].discountAmount)||0};
+  }
+
+  window.printSingleOrder=function(orderId){
+    const o=orderById(orderId);
+    if(!o){notify('Ordine non trovato.');return}
+    const rows=(o.lines||[]).map(function(l){
+      const save=lineDiscountTotal(l);
+      return '<tr><td><b>'+html(l.productName)+'</b><br><span class="muted">'+html(l.barcode||'—')+(discountLabel(l)?' · '+html(discountLabel(l)):'')+'</span></td><td>'+num(l.qty)+'</td><td>'+money(originalUnit(l))+'</td><td>'+(save>0?'-'+money(save):'—')+'</td><td>'+money(finalUnit(l))+'</td><td class="right"><b>'+money(lineFinalTotal(l))+'</b></td></tr>';
+    }).join('');
+    const body='<div class="box"><b>Ordine '+html(o.orderNumber)+'</b><br><span class="muted">'+html(new Date(o.date||Date.now()).toLocaleString('it-IT'))+' · Pagamento: '+html(o.payment||'—')+' · Articoli: '+num(o.qty)+'</span></div><table><thead><tr><th>Prodotto</th><th>Qtà</th><th>Prezzo originale</th><th>Sconto</th><th>Prezzo finale</th><th class="right">Totale pagato</th></tr></thead><tbody>'+rows+'</tbody></table><div class="box">'+(o.discountCode?'<div>Codice sconto carrello: <b>'+html(o.discountCode)+'</b></div>':'')+(num(o.discountAmount)?'<div>Sconto carrello: <b>-'+money(o.discountAmount)+'</b></div>':'')+'<div class="total">Totale pagato '+money(o.total)+'</div></div>';
+    if(typeof printDocument==='function') printDocument('Ordine '+o.orderNumber,body);
+  };
+
+  window.printCart=function(){
+    if(!window.saleCart || !saleCart.length){notify('Il carrello è vuoto: non c’è nulla da stampare.');return}
+    saleCart.forEach(normalizeCartItem);
+    const c=typeof calcCartDiscount==='function'?calcCartDiscount():{amount:0,total:saleCart.reduce((a,i)=>a+num(i.total),0),discount:null};
+    const payment=document.getElementById('cartPayment')?.value||'—';
+    const rows=saleCart.map(function(i){
+      const save=lineDiscountTotal(i);
+      return '<tr><td><b>'+html(i.productName)+'</b><br><span class="muted">'+html(i.barcode||'—')+(discountLabel(i)?' · '+html(discountLabel(i)):'')+'</span></td><td>'+num(i.qty)+'</td><td>'+money(originalUnit(i))+'</td><td>'+(save>0?'-'+money(save):'—')+'</td><td>'+money(finalUnit(i))+'</td><td class="right"><b>'+money(lineFinalTotal(i))+'</b></td></tr>';
+    }).join('');
+    const body='<div class="box"><b>Carrello vendita</b><br><span class="muted">Pagamento: '+html(payment)+'</span></div><table><thead><tr><th>Prodotto</th><th>Qtà</th><th>Prezzo originale</th><th>Sconto</th><th>Prezzo finale</th><th class="right">Totale pagato</th></tr></thead><tbody>'+rows+'</tbody></table><div class="box"><div>Subtotale: <b>'+money(typeof getCartSubtotal==='function'?getCartSubtotal():0)+'</b></div>'+(c.amount?'<div>Sconto carrello: <b>-'+money(c.amount)+'</b>'+(c.discount?' · '+html(c.discount.code):'')+'</div>':'')+'<div class="total">Totale '+money(c.total)+'</div></div>';
+    if(typeof printDocument==='function') printDocument('Stampa carrello',body);
+  };
+
+  function center(s,w){s=text(s); var pad=Math.max(0,Math.floor((w-s.length)/2)); return ' '.repeat(pad)+s;}
+  function padRight(s,n){s=text(s); return s.length>=n?s.slice(0,n):s+' '.repeat(n-s.length);}
+  function padLeft(s,n){s=text(s); return s.length>=n?s.slice(0,n):' '.repeat(n-s.length)+s;}
+  function receiptNo(o){return (o&&o.receiptNumber)||(o&&o.orderNumber)||('ORD-'+String(o&&o.id||Date.now()).slice(-8).toUpperCase());}
+  function paymentLabel(p){p=text(p).toUpperCase(); if(p.includes('ELET')||p.includes('CARTA')||p.includes('CARTE')||p.includes('POS')) return 'CARTE'; if(p.includes('CONT')) return 'CONTANTI'; return p||'PAGAMENTO';}
+  function receiptConfig(){
+    var s=(typeof settings!=='undefined'?settings:{}); var c=s.receiptConfig||{};
+    return Object.assign({companyName:'NOOR SPLENDORI',address:'',city:'',vat:'',documentTitle:'DOCUMENTO COMMERCIALE',documentSubtitle:'di vendita o prestazione',rtCode:'',footer:'GRAZIE PER LA VISITA! ARRIVEDERCI',width:48,showCompany:true,showAddress:true,showVat:true,showDocumentTitle:true,showDate:true,showReceiptNumber:true,showProductDetails:true,showVatLetter:true,showTotals:true,showPayment:true,showRt:true,showFooter:true},c);
+  }
+  function buildReceiptText(o){
+    var c=receiptConfig(), w=num(c.width)||48, dash='-'.repeat(w), sep='='.repeat(w), lines=[];
+    if(c.showCompany){ lines.push(center(c.companyName,w)); if(c.showAddress&&c.address)lines.push(center(c.address,w)); if(c.showAddress&&c.city)lines.push(center(c.city,w)); if(c.showVat&&c.vat)lines.push(center('P.IVA: '+c.vat,w)); lines.push(''); }
+    if(c.showDocumentTitle){lines.push(center(c.documentTitle,w)); lines.push(center(c.documentSubtitle,w)); lines.push('');}
+    var dt=new Date(o.date||Date.now());
+    if(c.showDate){var d=dt.toLocaleDateString('it-IT'); var t=dt.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}); lines.push('Data: '+d+padLeft('Ora: '+t, w-('Data: '+d).length));}
+    if(c.showReceiptNumber) lines.push('N. Scontrino: '+receiptNo(o));
+    lines.push('');
+    if(c.showProductDetails){
+      (o.lines||[]).forEach(function(l){
+        var qty=num(l.qty)||1, name=text(l.productName||l.name||'PRODOTTO').toUpperCase();
+        lines.push(name.slice(0,w));
+        lines.push('Qtà '+qty+'  Orig. '+moneyNum(originalUnit(l))+'  Finale '+moneyNum(finalUnit(l)));
+        if(unitSave(l)>0){
+          lines.push('Sconto '+moneyNum(unitSave(l))+' cad.  Tot. -'+moneyNum(lineDiscountTotal(l))+(discountLabel(l)?' '+discountLabel(l):''));
+        }
+        lines.push(padRight('Totale riga',w-12)+padLeft(moneyNum(lineFinalTotal(l))+(c.showVatLetter?' A':''),12));
+        lines.push(dash);
+      });
+    }
+    var total=num(o.total)||((o.lines||[]).reduce(function(a,l){return a+lineFinalTotal(l)},0));
+    if(num(o.discountAmount)>0){ lines.push('Sconto carrello'+padLeft('-'+moneyNum(o.discountAmount), w-'Sconto carrello'.length)); }
+    if(c.showTotals){lines.push('TOTALE COMPLESSIVO EUR'+padLeft(moneyNum(total), w-'TOTALE COMPLESSIVO EUR'.length)); lines.push(dash);}
+    if(c.showPayment){var pay='PAGATO '+paymentLabel(o.payment)+' EUR'; lines.push(pay+padLeft(moneyNum(total), w-pay.length)); lines.push(dash);}
+    lines.push(''); if(c.showRt&&c.rtCode){lines.push('RT: '+c.rtCode); lines.push('');} if(c.showFooter) lines.push(center(c.footer,w)); lines.push(sep);
+    return lines.join('\n');
+  }
+
+  window.printCustomerReceipt=function(orderId){
+    var o=orderById(orderId); if(!o){notify('Ordine non trovato per la ricevuta.');return;}
+    var txt=buildReceiptText(o);
+    var esc=txt.replace(/[&<>]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[ch];});
+    var htmlDoc='<!doctype html><html><head><meta charset="utf-8"><title>Ricevuta '+html(receiptNo(o))+'</title><style>body{margin:0;background:#f5f5f5}.paper{width:80mm;max-width:100%;margin:0 auto;background:#fff;padding:10px 8px;color:#000}pre{font:12px/1.35 "Courier New",monospace;white-space:pre-wrap;margin:0}.actions{display:flex;gap:8px;justify-content:center;padding:12px}.actions button{padding:9px 13px;border:1px solid #bbb;border-radius:8px;background:#fff;cursor:pointer}@media print{body{background:#fff}.paper{width:80mm;margin:0;padding:0}.actions{display:none}}</style></head><body><div class="paper"><pre>'+esc+'</pre></div><div class="actions"><button onclick="window.print()">Stampa ricevuta</button><button onclick="window.close()">Chiudi</button></div></body></html>';
+    var win=window.open('','_blank','width=420,height=760'); if(!win){notify('Popup bloccato: abilita i popup per stampare.');return;}
+    win.document.open(); win.document.write(htmlDoc); win.document.close(); setTimeout(function(){try{win.focus();win.print();}catch(e){}},350);
+  };
+
+  window.printReceiptFromReceipt=function(orderId){ window.printCustomerReceipt(orderId); };
+  window.printPdfFromReceipt=function(orderId){ window.printSingleOrder(orderId); };
+  window.showPostSaleActions=function(orderId){
+    var div=document.getElementById('postSaleReceiptModal');
+    if(!div){div=document.createElement('div');div.id='postSaleReceiptModal';div.className='modal';document.body.appendChild(div);}
+    var o=orderById(orderId);
+    div.innerHTML='<div class="modal-card" style="width:min(560px,100%)"><div class="panel-title"><div><h2>Vendita conclusa</h2><p class="hint">Scegli se stampare la ricevutina cliente o il PDF ordine.</p></div><button class="btn small secondary" onclick="document.getElementById(\'postSaleReceiptModal\')?.classList.remove(\'show\')">Chiudi</button></div><div class="confirm-row"><span>Ordine</span><b>'+html(o?o.orderNumber:orderId)+'</b></div><div class="confirm-row"><span>Totale pagato</span><b>'+money(o?o.total:0)+'</b></div><div class="order-actions-responsive"><button class="btn gold" onclick="printCustomerReceipt(\''+String(orderId).replace(/'/g,'')+'\')">Stampa ricevuta cliente</button><button class="btn secondary" onclick="printSingleOrder(\''+String(orderId).replace(/'/g,'')+'\')">Stampa PDF ordine</button><button class="btn secondary" onclick="if(typeof openOrderDetail===\'function\')openOrderDetail(\''+String(orderId).replace(/'/g,'')+'\')">Apri ordine</button></div></div>';
+    div.classList.add('show');
+  };
+})();
+</script>
+
+
+
+<!-- PATCH NOOR: Ordini annullati con nota, utente e permessi - Home invariata -->
+<style id="noor-cancelled-orders-style-clean">
+.cancelled-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin:12px 0}.cancelled-list{display:grid;gap:12px}.cancelled-card{border:1px solid var(--line);background:var(--panel2);border-radius:22px;padding:14px}.cancelled-head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}.cancelled-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.cancelled-note{margin-top:10px;padding:10px 12px;border-radius:16px;background:var(--panel);border:1px solid var(--line);line-height:1.45}.cancelled-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.cancel-note-box{margin-top:12px;border:1px solid var(--line);background:var(--panel2);border-radius:18px;padding:12px}.cancel-note-box textarea{min-height:92px}.cancelled-admin-only.hidden{display:none!important}@media(max-width:620px){.cancelled-toolbar{display:grid}.cancelled-head{display:grid}.cancelled-actions .btn{width:100%}}
+</style>
+<script type="module" id="noor-cancelled-orders-clean-final">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+(function(){
+  if(window.__NOOR_CANCELLED_ORDERS_CLEAN_FINAL__) return;
+  window.__NOOR_CANCELLED_ORDERS_CLEAN_FINAL__=true;
+  const FIREBASE_CONFIG={apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",authDomain:"gestionalenoor-2fa61.firebaseapp.com",projectId:"gestionalenoor-2fa61",storageBucket:"gestionalenoor-2fa61.firebasestorage.app",messagingSenderId:"66670691093",appId:"1:66670691093:web:82d0b2122e600bf5885f1c",measurementId:"G-0HSQB7XLJG"};
+  const app=getApps().length?getApps()[0]:initializeApp(FIREBASE_CONFIG);
+  const fs=getFirestore(app);
+  const LS='noor_cancelled_orders_log_v2';
+  const $=id=>document.getElementById(id);
+  const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const money=v=>{try{return (typeof eur==='function'?eur(v):Number(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'}))}catch(e){return '€ '+Number(v||0).toFixed(2)}};
+  const notify=(m,t)=>{try{toast(m,t)}catch(e){alert(m)}};
+  function local(){try{return JSON.parse(localStorage.getItem(LS)||'[]')}catch(e){return []}}
+  function setLocal(arr){try{localStorage.setItem(LS,JSON.stringify(arr||[]))}catch(e){}}
+  function merge(records){const map=new Map(); [...local(),...(records||[])].forEach(r=>{if(r&&r.id)map.set(String(r.id),r)}); const arr=[...map.values()].sort((a,b)=>new Date(b.cancelledAt||0)-new Date(a.cancelledAt||0)); setLocal(arr); return arr;}
+  function roleNow(){
+    try{if(typeof activeEmployee==='function'){const e=activeEmployee(); if(e&&e.role)return e.role}}catch(e){}
+    try{const p=window.currentFirebaseUserProfile||window.currentUserProfile||{}; return p.role||p.userRole||''}catch(e){}
+    return '';
+  }
+  function canAdminCancelList(){const r=String(roleNow()||'').toLowerCase(); return ['owner','admin','manager','superadmin','super_admin','master'].includes(r)}
+  function actor(){
+    let emp={}; try{if(typeof activeEmployee==='function') emp=activeEmployee()||{}}catch(e){}
+    const prof=window.currentFirebaseUserProfile||window.currentUserProfile||{};
+    return {name:emp.name||prof.name||prof.displayName||prof.email||'Utente',email:emp.email||prof.email||'',role:emp.role||prof.role||roleNow()||'',uid:prof.uid||''};
+  }
+  function getOrder(orderId){try{return typeof getOrderById==='function'?getOrderById(orderId):(db.sales||[]).find(s=>String(s.orderId||s.id)===String(orderId))}catch(e){return null}}
+  function orderLines(orderId,o){try{return (o&&Array.isArray(o.lines)&&o.lines.length)?o.lines:(db.sales||[]).filter(s=>String(s.orderId||s.id)===String(orderId))}catch(e){return []}}
+  function ensureButton(){
+    if($('cancelledOrdersHistoryBtn')) return;
+    const actions=document.querySelector('#history .panel-title .action-row'); if(!actions) return;
+    const b=document.createElement('button'); b.id='cancelledOrdersHistoryBtn'; b.type='button'; b.className='btn secondary'; b.textContent='Ordini annullati';
+    b.onclick=function(){try{go('cancelledOrders')}catch(e){} renderCancelledOrders();};
+    actions.insertBefore(b,actions.firstChild);
+  }
+  function ensureSection(){
+    if($('cancelledOrders')) return;
+    const main=document.querySelector('main.app')||document.body;
+    const sec=document.createElement('section'); sec.id='cancelledOrders'; sec.className='section';
+    sec.innerHTML='<div class="card panel"><div class="panel-title"><div><h2>Ordini annullati</h2><p class="hint">Registro degli ordini annullati con utente, data e motivazione.</p></div><div class="action-row"><button class="btn secondary" type="button" onclick="go(\'history\')">← Storico</button><button class="btn secondary" type="button" onclick="renderCancelledOrders()">Aggiorna</button></div></div><div id="cancelledOrdersAdminActions" class="cancelled-toolbar cancelled-admin-only"><div class="hint">Solo Admin / Owner può eliminare record da questa lista.</div><div class="action-row"><button class="btn secondary" type="button" onclick="deleteSelectedCancelledOrders()">Elimina selezionati</button><button class="btn red" type="button" onclick="clearCancelledOrdersList()">Svuota lista</button></div></div><div id="cancelledOrdersList" class="cancelled-list"></div></div>';
+    main.appendChild(sec);
+  }
+  async function saveRecord(r){
+    const arr=merge([r]);
+    try{await setDoc(doc(fs,'cancelledOrders',String(r.id)),{...r,updatedAt:serverTimestamp()},{merge:true})}catch(e){console.warn('Salvataggio annullato online:',e)}
+    renderCancelledOrders(arr);
+  }
+  window.renderCancelledOrders=function(records){
+    ensureSection();
+    const arr=(records||local()).slice().sort((a,b)=>new Date(b.cancelledAt||0)-new Date(a.cancelledAt||0));
+    const admin=canAdminCancelList();
+    const adminBox=$('cancelledOrdersAdminActions'); if(adminBox) adminBox.classList.toggle('hidden',!admin);
+    const box=$('cancelledOrdersList'); if(!box) return;
+    if(!arr.length){box.innerHTML='<div class="empty">Nessun ordine annullato registrato.</div>';return;}
+    box.innerHTML=arr.map(r=>{
+      const lines=(r.lines||[]).map(l=>'<div>• '+esc(l.productName||l.name||'Prodotto')+' · Qtà '+esc(l.qty||1)+' · '+money(l.total||((l.price||0)*(l.qty||1)))+'</div>').join('');
+      return '<div class="cancelled-card"><div class="cancelled-head"><div>'+(admin?'<label style="display:inline-flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0"><input type="checkbox" class="cancelledCheck" value="'+esc(r.id)+'"> <b>Ordine '+esc(r.orderNumber||r.orderId||r.id)+'</b></label>':'<b>Ordine '+esc(r.orderNumber||r.orderId||r.id)+'</b>')+'<div class="cancelled-meta"><span class="pill">'+esc(new Date(r.cancelledAt||Date.now()).toLocaleString('it-IT'))+'</span><span class="pill">'+esc(r.cancelledByName||'Utente')+'</span><span class="pill">'+esc(r.cancelledByRole||'Ruolo')+'</span></div></div><div><b>'+money(r.total||0)+'</b></div></div><div class="cancelled-note"><b>Motivo annullamento</b><br>'+esc(r.note||'—')+'</div><div class="cancelled-note"><b>Prodotti</b><br>'+(lines||'—')+'</div>'+(admin?'<div class="cancelled-actions"><button class="btn small red" type="button" onclick="deleteCancelledOrderRecord(\''+esc(r.id)+'\')">Rimuovi dalla lista</button></div>':'')+'</div>';
+    }).join('');
+  };
+  const oldCancelWhole=window.cancelWholeOrder;
+  window.cancelWholeOrder=function(orderId){
+    const o=getOrder(orderId); if(!o){notify('Ordine non trovato.');return;}
+    window.pendingNoorCancelOrderId=orderId;
+    const box=$('cancelSaleContent');
+    if(!box){ if(typeof oldCancelWhole==='function') return oldCancelWhole(orderId); return; }
+    const count=orderLines(orderId,o).length;
+    box.innerHTML='<div class="confirm-row"><span>Ordine da annullare</span><b>'+esc(o.orderNumber||orderId)+'</b></div><div class="confirm-row"><span>Prodotti nell\'ordine</span><b>'+esc(count)+'</b></div><div class="confirm-row"><span>Totale</span><b>'+money(o.total||0)+'</b></div><div class="cancel-note-box"><label>Nota obbligatoria</label><textarea id="cancelOrderNote" placeholder="Scrivi perché stai annullando questo ordine..." required></textarea><p class="hint">La nota verrà salvata nel registro Ordini annullati insieme all\'utente che ha fatto l\'operazione.</p></div><div id="cancelReturnMsg" class="cancel-badge">✓ Ordine annullato, prodotti tornati in magazzino</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button class="btn secondary" type="button" onclick="openOrderDetail(\''+esc(orderId)+'\')">Indietro</button><button class="btn red" type="button" onclick="finalizeCancelOrderWithNote(\''+esc(orderId)+'\')">Conferma annullamento</button></div>';
+    $('cancelSaleModal')?.classList.add('show'); setTimeout(()=>$('cancelOrderNote')?.focus(),80);
+  };
+  const oldFinalize=window.finalizeCancelOrder;
+  window.finalizeCancelOrderWithNote=async function(orderId){
+    const note=($('cancelOrderNote')?.value||'').trim();
+    if(note.length<3){notify('Inserisci una nota per spiegare perché annulli questo ordine.'); $('cancelOrderNote')?.focus(); return;}
+    const o=getOrder(orderId); if(!o){notify('Ordine non trovato.');return;}
+    const a=actor();
+    const lines=orderLines(orderId,o).map(l=>({productId:l.productId||'',productName:l.productName||l.name||'Prodotto',qty:Number(l.qty)||1,price:Number(l.price)||0,total:Number(l.total)||((Number(l.price)||0)*(Number(l.qty)||1))}));
+    const rec={id:String(orderId)+'_'+Date.now(),orderId:String(orderId),orderNumber:o.orderNumber||String(orderId),total:Number(o.total||lines.reduce((x,l)=>x+Number(l.total||0),0)),payment:o.payment||'',note,cancelledAt:new Date().toISOString(),cancelledByName:a.name,cancelledByEmail:a.email,cancelledByRole:a.role,cancelledByUid:a.uid,lines};
+    await saveRecord(rec);
+    if(typeof oldFinalize==='function') return await oldFinalize(orderId);
+  };
+  window.deleteCancelledOrderRecord=async function(id){
+    if(!canAdminCancelList()){notify('Solo Admin o Owner può rimuovere ordini dalla lista annullati.');return;}
+    if(!confirm('Rimuovere questo record dalla lista annullati?')) return;
+    setLocal(local().filter(r=>String(r.id)!==String(id))); try{await deleteDoc(doc(fs,'cancelledOrders',String(id)))}catch(e){console.warn(e)} renderCancelledOrders(); notify('Record rimosso.','success');
+  };
+  window.deleteSelectedCancelledOrders=async function(){
+    if(!canAdminCancelList()){notify('Solo Admin o Owner può rimuovere ordini dalla lista annullati.');return;}
+    const ids=[...document.querySelectorAll('.cancelledCheck:checked')].map(x=>String(x.value)); if(!ids.length){notify('Seleziona almeno un record.');return;}
+    if(!confirm('Eliminare i record selezionati dalla lista annullati?')) return;
+    setLocal(local().filter(r=>!ids.includes(String(r.id)))); for(const id of ids){try{await deleteDoc(doc(fs,'cancelledOrders',id))}catch(e){console.warn(e)}} renderCancelledOrders(); notify('Record selezionati rimossi.','success');
+  };
+  window.clearCancelledOrdersList=async function(){
+    if(!canAdminCancelList()){notify('Solo Admin o Owner può svuotare la lista annullati.');return;}
+    if(!confirm('Svuotare completamente la lista degli ordini annullati?')) return;
+    try{const snap=await getDocs(collection(fs,'cancelledOrders')); for(const d of snap.docs){await deleteDoc(d.ref)}}catch(e){console.warn(e)} setLocal([]); renderCancelledOrders([]); notify('Lista ordini annullati svuotata.','success');
+  };
+  function startListener(){try{onSnapshot(collection(fs,'cancelledOrders'),snap=>{const arr=snap.docs.map(d=>({id:d.id,...d.data()})); merge(arr); renderCancelledOrders();},err=>console.warn('Ordini annullati online:',err));}catch(e){console.warn(e)}}
+  function boot(){ensureButton(); ensureSection(); renderCancelledOrders(); startListener();}
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
+  setTimeout(boot,800); setTimeout(()=>{ensureButton();ensureSection();},2000);
+})();
+</script>
+<script id="noor-home-clean-last-line">
+(function(){
+  if(window.__NOOR_HOME_CLEAN_LAST_LINE__) return; window.__NOOR_HOME_CLEAN_LAST_LINE__=true;
+  function $(id){return document.getElementById(id)}
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+  function money(v){try{return typeof eur==='function'?eur(v):Number(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'})}catch(e){return '€ '+Number(v||0).toFixed(2)}}
+  function img(p,n){return p&&p.photo?'<img src="'+esc(p.photo)+'" alt="'+esc(n||'Prodotto')+'">':esc((String(n||'N').trim()[0]||'N').toUpperCase())}
+  function renderCleanHome(){try{const box=$('homeAlerts'); if(!box||!window.db) return; const products=Array.isArray(db.products)?db.products:[]; const sales=Array.isArray(db.sales)?db.sales:[]; const max=(typeof getLowStockMax==='function'?getLowStockMax():5); const low=products.filter(p=>Number(p.qty)<=Number(max)).sort((a,b)=>Number(a.qty)-Number(b.qty)).slice(0,6); const last=sales.slice().sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)).slice(0,5); const total=last.reduce((a,s)=>a+Number(s.total||0),0); let h='<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">'; h+='<div class="card panel home-stock-card"><div class="home-stock-head"><div><h2>📦 Scorte basse</h2><p class="hint">Esauriti e prodotti sotto soglia</p></div><span class="home-stock-total">Soglia '+esc(max)+' pz</span></div>'+(low.length?'<div class="home-stock-list">'+low.map(p=>{const n=p.name||'Prodotto';return '<div class="home-stock-item"><div class="home-stock-photo">'+img(p,n)+'</div><div><div class="home-stock-name">'+esc(n)+'</div><div class="home-stock-meta">'+esc(p.brand||p.line||'Noor Profumi')+' · '+esc(p.size||p.format||'Formato —')+'</div><div style="margin-top:6px">'+(typeof statusBadge==='function'?statusBadge(p.qty):'<span class="badge">'+esc(p.qty)+' pz</span>')+'</div><div class="home-stock-actions"><button class="btn small secondary" onclick="event.stopPropagation();viewProduct(\''+esc(p.id)+'\')">Apri</button><button class="btn small secondary" onclick="event.stopPropagation();editProduct(\''+esc(p.id)+'\')">Modifica</button></div></div><div class="home-stock-qty">'+esc(Number(p.qty)||0)+'<span>pezzi</span></div></div>'}).join('')+'</div>':'<div class="home-empty-stock">Tutto ok: nessun prodotto sotto la soglia impostata.</div>')+'</div>'; h+='<div class="card panel home-sales-card"><div class="home-sales-head"><div><h2>🧾 Ultime vendite</h2><p class="hint">Movimenti recenti registrati</p></div><span class="home-sales-total">Totale '+money(total)+'</span></div>'+(last.length?'<div class="home-sales-list">'+last.map(s=>{const n=s.productName||'Prodotto'; const p=products.find(x=>String(x.id)===String(s.productId)); const d=new Date(s.date||Date.now()); return '<div class="home-sale-item"><div class="home-sale-icon">'+img(p,n)+'</div><div><div class="home-sale-name">'+esc(n)+'</div><div class="home-sale-meta">'+esc(d.toLocaleDateString('it-IT'))+' · '+esc(d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}))+' · Quantità '+esc(s.qty||1)+'</div></div><div class="home-sale-total">'+money(s.total||0)+'<br><span class="home-sale-pay">'+esc(s.payment||'Pagamento —')+'</span></div></div>'}).join('')+'</div>':'<div class="home-empty-sales">Nessuna vendita recente.</div>')+'</div></div>'; box.innerHTML=h;}catch(e){console.warn('Home pulita:',e)}}
+  window.renderHomeAlerts=renderCleanHome; const old=window.renderAll; if(typeof old==='function'){window.renderAll=function(){const r=old.apply(this,arguments); setTimeout(renderCleanHome,0); return r}}
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(renderCleanHome,300)); else setTimeout(renderCleanHome,300);
+  setTimeout(renderCleanHome,1200); setInterval(()=>{if($('home')?.classList.contains('active'))renderCleanHome()},2500);
+})();
+</script>
+
+
+<script id="noor-home-clean-verified-final">
+(function(){
+  if(window.__NOOR_HOME_CLEAN_VERIFIED_FINAL__) return; window.__NOOR_HOME_CLEAN_VERIFIED_FINAL__=true;
+  function $(id){return document.getElementById(id)}
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]||c})}
+  function money(v){try{return typeof eur==='function'?eur(v):Number(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'})}catch(e){return '€ '+Number(v||0).toFixed(2)}}
+  function img(p,n){return p&&p.photo?'<img src="'+esc(p.photo)+'" alt="'+esc(n||'Prodotto')+'">':esc((String(n||'N').trim()[0]||'N').toUpperCase())}
+  function cleanHome(){try{
+    var box=$('homeAlerts'); if(!box||!window.db) return;
+    var products=Array.isArray(db.products)?db.products:[];
+    var sales=Array.isArray(db.sales)?db.sales:[];
+    var max=typeof getLowStockMax==='function'?getLowStockMax():5;
+    var low=products.filter(function(p){return Number(p.qty)<=Number(max)}).sort(function(a,b){return Number(a.qty)-Number(b.qty)}).slice(0,6);
+    var last=sales.slice().filter(function(s){return !s.status || String(s.status)!=='cancelled'}).sort(function(a,b){return new Date(b.date||0)-new Date(a.date||0)}).slice(0,5);
+    var total=last.reduce(function(a,s){return a+Number(s.total||0)},0);
+    var h='<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">';
+    h+='<div class="card panel home-stock-card"><div class="home-stock-head"><div><h2>📦 Scorte basse</h2><p class="hint">Esauriti e prodotti sotto soglia</p></div><span class="home-stock-total">Soglia '+esc(max)+' pz</span></div>';
+    h+=low.length?'<div class="home-stock-list">'+low.map(function(p){var n=p.name||'Prodotto';return '<div class="home-stock-item"><div class="home-stock-photo">'+img(p,n)+'</div><div><div class="home-stock-name">'+esc(n)+'</div><div class="home-stock-meta">'+esc(p.brand||p.line||'Noor Profumi')+' · '+esc(p.size||p.format||'Formato —')+'</div><div style="margin-top:6px">'+(typeof statusBadge==='function'?statusBadge(p.qty):'<span class="badge">'+esc(p.qty)+' pz</span>')+'</div><div class="home-stock-actions"><button class="btn small secondary" onclick="event.stopPropagation();viewProduct(\''+esc(p.id)+'\')">Apri</button><button class="btn small secondary" onclick="event.stopPropagation();editProduct(\''+esc(p.id)+'\')">Modifica</button></div></div><div class="home-stock-qty">'+esc(Number(p.qty)||0)+'<span>pezzi</span></div></div>'}).join('')+'</div>':'<div class="home-empty-stock">Tutto ok: nessun prodotto sotto la soglia impostata.</div>';
+    h+='</div>';
+    h+='<div class="card panel home-sales-card"><div class="home-sales-head"><div><h2>🧾 Ultime vendite</h2><p class="hint">Movimenti recenti registrati</p></div><span class="home-sales-total">Totale '+money(total)+'</span></div>';
+    h+=last.length?'<div class="home-sales-list">'+last.map(function(s){var n=s.productName||'Prodotto'; var p=products.find(function(x){return String(x.id)===String(s.productId)}); var d=new Date(s.date||Date.now()); return '<div class="home-sale-item"><div class="home-sale-icon">'+img(p,n)+'</div><div><div class="home-sale-name">'+esc(n)+'</div><div class="home-sale-meta">'+esc(d.toLocaleDateString('it-IT'))+' · '+esc(d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}))+' · Quantità '+esc(s.qty||1)+'</div></div><div class="home-sale-total">'+money(s.total||0)+'<br><span class="home-sale-pay">'+esc(s.payment||'Pagamento —')+'</span></div></div>'}).join('')+'</div>':'<div class="home-empty-sales">Nessuna vendita recente.</div>';
+    h+='</div></div>'; box.innerHTML=h;
+  }catch(e){console.warn('Home pulita verificata:',e)}}
+  window.renderHomeAlerts=cleanHome;
+  var old=window.renderAll; if(typeof old==='function'&&!old.__homeCleanVerified){var wrap=function(){var r=old.apply(this,arguments); setTimeout(cleanHome,0); return r}; wrap.__homeCleanVerified=true; window.renderAll=wrap}
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){setTimeout(cleanHome,300)}); else setTimeout(cleanHome,300);
+  setTimeout(cleanHome,1000); setTimeout(cleanHome,2500); setInterval(function(){if($('home')&&$('home').classList.contains('active')) cleanHome()},1200);
 })();
 </script>
 </body>
