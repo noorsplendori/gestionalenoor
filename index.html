@@ -4957,5 +4957,178 @@ import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from "https://
 })();
 </script>
 
+
+
+<!-- PATCH NOOR: soglie e preferenze online sicure - NON modifica la Home -->
+<script type="module" id="noor-preferenze-online-sicure-no-home">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+(function(){
+  if(window.__NOOR_PREFERENZE_ONLINE_SICURE_NO_HOME__) return;
+  window.__NOOR_PREFERENZE_ONLINE_SICURE_NO_HOME__ = true;
+
+  const FIREBASE_CONFIG = {
+    apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+    authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+    projectId:"gestionalenoor-2fa61",
+    storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+    messagingSenderId:"66670691093",
+    appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+    measurementId:"G-0HSQB7XLJG"
+  };
+
+  const app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  const fs = getFirestore(app);
+  const prefRef = doc(fs, 'settings', 'preferences');
+  let applying = false;
+  let lastSignature = '';
+
+  const KEYS = [
+    'lowStockMax',
+    'theme',
+    'hideMoney',
+    'appName',
+    'appSubtitle',
+    'companyName',
+    'companyPhone',
+    'companyEmail',
+    'companyVat',
+    'logoBoxBg',
+    'logoWidth',
+    'logoHeight',
+    'logoSize',
+    'pdfShowLogo',
+    'pdfLogoAlign',
+    'pdfLogoWidth',
+    'pdfLogoData',
+    'pdfOrderLayout',
+    'pdfFooterMessage',
+    'pdfOrderImages',
+    'pdfOrderPrices',
+    'pdfOrderDiscounts',
+    'pdfOrderBarcode',
+    'pdfOrderCompany',
+    'pdfDraftImages',
+    'pdfDraftPrices',
+    'pdfDraftDiscounts',
+    'pdfDraftBarcode',
+    'pdfDraftCompany',
+    'pdfStockImages',
+    'pdfStockPrices',
+    'pdfStockCosts',
+    'pdfStockBarcode',
+    'pdfStockCompany'
+  ];
+
+  function notify(msg,type){ try{ if(typeof toast==='function') toast(msg,type||''); }catch(e){ console.log(msg); } }
+  function hasSettings(){ try{ return typeof settings === 'object' && settings; }catch(e){ return false; } }
+  function normalize(){
+    if(!hasSettings()) return;
+    settings.lowStockMax = Math.max(1, Number(settings.lowStockMax)||5);
+    settings.theme = settings.theme === 'dark' ? 'dark' : 'light';
+    settings.hideMoney = !!settings.hideMoney;
+    settings.logoWidth = Math.max(24, Number(settings.logoWidth || settings.logoSize || 48));
+    settings.logoHeight = Math.max(24, Number(settings.logoHeight || settings.logoSize || 48));
+    settings.logoSize = Math.max(24, Number(settings.logoSize || Math.max(settings.logoWidth, settings.logoHeight) || 48));
+  }
+  function payload(){
+    if(!hasSettings()) return null;
+    normalize();
+    const out = { updatedAt: serverTimestamp(), updatedAtClient: new Date().toISOString() };
+    KEYS.forEach(k=>{ if(typeof settings[k] !== 'undefined') out[k] = settings[k]; });
+    return out;
+  }
+  function signatureFrom(obj){
+    if(!obj) return '';
+    const clean = {};
+    KEYS.forEach(k=>{ if(typeof obj[k] !== 'undefined') clean[k] = obj[k]; });
+    return JSON.stringify(clean);
+  }
+  async function savePreferencesOnline(showToast){
+    if(applying || !hasSettings()) return;
+    try{
+      const data = payload();
+      const sig = signatureFrom(data);
+      if(sig === lastSignature && !showToast) return;
+      lastSignature = sig;
+      await setDoc(prefRef, data, {merge:true});
+      if(showToast) notify('Soglie e preferenze salvate online.', 'success');
+    }catch(err){
+      console.error('Preferenze online:', err);
+      if(showToast) notify('Errore salvataggio preferenze online: '+(err.message||err));
+    }
+  }
+  function applyPreferences(data){
+    if(!data || !hasSettings()) return;
+    applying = true;
+    try{
+      KEYS.forEach(k=>{ if(typeof data[k] !== 'undefined') settings[k] = data[k]; });
+      normalize();
+      lastSignature = signatureFrom(settings);
+      try{ if(typeof saveSettings === 'function') saveSettings(); }catch(e){}
+      try{ if(typeof applyTheme === 'function') applyTheme(); }catch(e){}
+      try{ if(typeof applyIdentity === 'function') applyIdentity(); }catch(e){}
+      try{ if(typeof renderSettingsPanel === 'function') renderSettingsPanel(); }catch(e){}
+      try{ if(typeof previewStockThresholds === 'function') previewStockThresholds(); }catch(e){}
+      try{ if(typeof renderStats === 'function') renderStats(); }catch(e){}
+      try{ if(typeof renderStock === 'function') renderStock(); }catch(e){}
+      try{ if(typeof renderProducts === 'function') renderProducts(); }catch(e){}
+      try{ if(typeof renderHomeAlerts === 'function') renderHomeAlerts(); }catch(e){}
+    }finally{
+      applying = false;
+    }
+  }
+  function wrapSave(name){
+    const original = window[name];
+    if(typeof original !== 'function' || original.__noorPreferencesOnlineSafe) return;
+    const wrapped = function(){
+      const result = original.apply(this, arguments);
+      setTimeout(()=>savePreferencesOnline(true), 120);
+      return result;
+    };
+    wrapped.__noorPreferencesOnlineSafe = true;
+    window[name] = wrapped;
+  }
+  function addOnlineButton(){
+    const panel = document.querySelector('#settings .card.panel');
+    if(!panel || document.getElementById('savePreferencesOnlineBtn')) return;
+    const btn = document.createElement('button');
+    btn.id = 'savePreferencesOnlineBtn';
+    btn.className = 'btn secondary';
+    btn.type = 'button';
+    btn.textContent = 'Salva preferenze online';
+    btn.onclick = function(){ savePreferencesOnline(true); };
+    const title = panel.querySelector('.panel-title .action-row, .panel-title');
+    if(title) title.appendChild(btn);
+  }
+  function boot(){
+    wrapSave('saveStockThresholds');
+    wrapSave('resetStockThresholds');
+    wrapSave('toggleTheme');
+    wrapSave('toggleMoney');
+    wrapSave('savePdfSettings');
+    wrapSave('resetPdfSettings');
+    wrapSave('removePdfLogo');
+    addOnlineButton();
+  }
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+  setTimeout(boot, 600);
+  setTimeout(boot, 1800);
+
+  onAuthStateChanged(auth, user=>{
+    if(!user) return;
+    try{
+      onSnapshot(prefRef, snap=>{
+        if(snap.exists()) applyPreferences(snap.data()||{});
+        else savePreferencesOnline(false);
+      });
+    }catch(err){ console.warn('Preferenze online snapshot:', err); }
+  });
+})();
+</script>
 </body>
 </html>
