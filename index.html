@@ -4805,5 +4805,155 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction, serverTim
 })();
 </script>
 
+
+<!-- PATCH NOOR: cataloghi online (magazzini, formato, marca/linea) senza modificare Home -->
+<script type="module" id="noor-cataloghi-online-pulito">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+(function(){
+  if(window.__NOOR_CATALOGHI_ONLINE_PULITO__) return;
+  window.__NOOR_CATALOGHI_ONLINE_PULITO__ = true;
+
+  const FIREBASE_CONFIG = {
+    apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+    authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+    projectId:"gestionalenoor-2fa61",
+    storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+    messagingSenderId:"66670691093",
+    appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+    measurementId:"G-0HSQB7XLJG"
+  };
+
+  const app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  const fs = getFirestore(app);
+  const catalogRef = doc(fs, 'settings', 'catalogs');
+  let applying = false;
+  let lastSignature = '';
+
+  function notify(msg,type){ try{ if(typeof toast==='function') toast(msg,type||''); }catch(e){ console.log(msg); } }
+  function uniqueList(value, fallback){
+    const source = Array.isArray(value) ? value : String(value||'').split(/\n|,/);
+    const result = [...new Set(source.map(x=>String(x||'').trim()).filter(Boolean))];
+    return result.length ? result : (fallback||[]);
+  }
+  function ensureSettings(){
+    if(!window.settings || typeof window.settings !== 'object') window.settings = {};
+    settings.productBrands = uniqueList(settings.productBrands, ['Noor Splendori']);
+    settings.productCategories = uniqueList(settings.productCategories, ['Donna','Uomo','Unisex','Ambiente','Altro']);
+    settings.productSizes = uniqueList(settings.productSizes, ['30 ml','50 ml','100 ml','Olio 12 ml']);
+    settings.paymentMethods = uniqueList(settings.paymentMethods, ['Contanti','Elettronico']);
+    if(!Array.isArray(settings.warehouses) || !settings.warehouses.length){
+      settings.warehouses = [{id:'main', name:'Magazzino principale'}];
+    }
+    settings.warehouses = settings.warehouses.map((w,i)=>({
+      id:String(w.id || (i===0?'main':'wh_'+i)),
+      name:String(w.name || ('Magazzino '+(i+1))).trim()
+    })).filter(w=>w.name);
+    if(!settings.warehouses.length) settings.warehouses = [{id:'main', name:'Magazzino principale'}];
+    if(!settings.defaultWarehouseId || !settings.warehouses.some(w=>String(w.id)===String(settings.defaultWarehouseId))){
+      settings.defaultWarehouseId = settings.warehouses[0].id;
+    }
+    if(!settings.defaultPayment || !settings.paymentMethods.includes(settings.defaultPayment)){
+      settings.defaultPayment = settings.paymentMethods[0] || 'Contanti';
+    }
+  }
+  function payload(){
+    ensureSettings();
+    return {
+      productBrands: settings.productBrands,
+      productCategories: settings.productCategories,
+      productSizes: settings.productSizes,
+      paymentMethods: settings.paymentMethods,
+      defaultPayment: settings.defaultPayment,
+      warehouses: settings.warehouses,
+      defaultWarehouseId: settings.defaultWarehouseId,
+      updatedAt: serverTimestamp()
+    };
+  }
+  function signature(data){
+    return JSON.stringify({
+      productBrands:data.productBrands||[],
+      productCategories:data.productCategories||[],
+      productSizes:data.productSizes||[],
+      paymentMethods:data.paymentMethods||[],
+      defaultPayment:data.defaultPayment||'',
+      warehouses:data.warehouses||[],
+      defaultWarehouseId:data.defaultWarehouseId||''
+    });
+  }
+  async function saveCatalogs(showToast){
+    if(applying) return;
+    try{
+      const data = payload();
+      const sig = signature(data);
+      if(sig === lastSignature && !showToast) return;
+      lastSignature = sig;
+      await setDoc(catalogRef, data, {merge:true});
+      if(showToast) notify('Magazzini, formati e marca/linea salvati online.', 'success');
+    }catch(err){
+      console.error('Cataloghi online:', err);
+      notify('Errore salvataggio online cataloghi: '+(err.message||err));
+    }
+  }
+  function applyCatalogs(data){
+    if(!data || typeof data !== 'object') return;
+    applying = true;
+    try{
+      ensureSettings();
+      if(Array.isArray(data.productBrands)) settings.productBrands = uniqueList(data.productBrands, ['Noor Splendori']);
+      if(Array.isArray(data.productCategories)) settings.productCategories = uniqueList(data.productCategories, ['Donna','Uomo','Unisex','Ambiente','Altro']);
+      if(Array.isArray(data.productSizes)) settings.productSizes = uniqueList(data.productSizes, ['30 ml','50 ml','100 ml','Olio 12 ml']);
+      if(Array.isArray(data.paymentMethods)) settings.paymentMethods = uniqueList(data.paymentMethods, ['Contanti','Elettronico']);
+      if(Array.isArray(data.warehouses) && data.warehouses.length){
+        settings.warehouses = data.warehouses.map((w,i)=>({id:String(w.id||('wh_'+i)), name:String(w.name||('Magazzino '+(i+1))).trim()})).filter(w=>w.name);
+      }
+      settings.defaultPayment = data.defaultPayment && settings.paymentMethods.includes(data.defaultPayment) ? data.defaultPayment : (settings.paymentMethods[0]||'Contanti');
+      settings.defaultWarehouseId = data.defaultWarehouseId && settings.warehouses.some(w=>String(w.id)===String(data.defaultWarehouseId)) ? String(data.defaultWarehouseId) : settings.warehouses[0].id;
+      lastSignature = signature(payload());
+      try{ if(typeof saveSettings==='function') saveSettings(); }catch(e){}
+      try{ if(typeof renderDynamicOptions==='function') renderDynamicOptions(); }catch(e){}
+      try{ if(typeof renderSettingsPanel==='function') renderSettingsPanel(); }catch(e){}
+      try{ if(typeof renderProducts==='function') renderProducts(); }catch(e){}
+      try{ if(typeof renderStock==='function') renderStock(); }catch(e){}
+      try{ if(typeof renderSalePicker==='function') renderSalePicker(false); }catch(e){}
+      try{ if(typeof renderHomeAlerts==='function') renderHomeAlerts(); }catch(e){}
+    }finally{
+      applying = false;
+    }
+  }
+  function wrapSaves(){
+    if(window.__NOOR_CATALOGHI_WRAP_PULITO__) return;
+    window.__NOOR_CATALOGHI_WRAP_PULITO__ = true;
+    const names = ['saveProductFormSettings','saveWarehouseSettings','resetProductFormSettings','resetWarehouseSettings'];
+    names.forEach(name=>{
+      const original = window[name];
+      if(typeof original === 'function'){
+        window[name] = function(){
+          const result = original.apply(this, arguments);
+          setTimeout(()=>saveCatalogs(true), 120);
+          return result;
+        };
+      }
+    });
+  }
+  function boot(){ ensureSettings(); wrapSaves(); }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+  setTimeout(boot, 600);
+  setTimeout(boot, 1800);
+  onAuthStateChanged(auth, user=>{
+    if(!user) return;
+    try{
+      onSnapshot(catalogRef, snap=>{
+        if(snap.exists()) applyCatalogs(snap.data()||{});
+        else saveCatalogs(false);
+      });
+    }catch(err){ console.warn('Cataloghi snapshot:', err); }
+  });
+})();
+</script>
+
 </body>
 </html>
