@@ -6784,3 +6784,222 @@ import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSn
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(boot,500)});else setTimeout(boot,300);
 })();
 </script>
+
+
+<!-- PATCH FINALE NOOR: Home stabile, senza codici, con scorte basse e ultime vendite -->
+<style id="noor-home-stable-final-css">
+  #homeDataLoadingBox{margin:14px 0;padding:14px 16px;border:1px solid var(--line);border-radius:20px;background:var(--panel2);color:var(--muted);font-weight:850;text-align:center;}
+  #homeWelcomeAccessBox img{display:block!important;}
+</style>
+<script id="noor-home-stable-final-js">
+(function(){
+  if(window.__NOOR_HOME_STABLE_FINAL_PATCH__) return;
+  window.__NOOR_HOME_STABLE_FINAL_PATCH__ = true;
+
+  var lastHomeHTML = '';
+  var lastWelcomeHTML = '';
+  var lastGoodPhoto = '';
+  var homeReadyOnce = false;
+
+  function byId(id){ return document.getElementById(id); }
+  function esc(v){
+    return String(v == null ? '' : v).replace(/[&<>"']/g,function(m){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+    });
+  }
+  function money(v){
+    try{ if(typeof eur === 'function') return eur(v); }catch(e){}
+    try{ return Number(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'}); }catch(e){ return '€ '+Number(v||0).toFixed(2); }
+  }
+  function readLocalDb(){
+    try{
+      var raw = localStorage.getItem('noor_profumi_pro_v1');
+      if(!raw) return {};
+      return JSON.parse(raw)||{};
+    }catch(e){ return {}; }
+  }
+  function productsList(){
+    try{ if(window.db && Array.isArray(window.db.products) && window.db.products.length) return window.db.products; }catch(e){}
+    var local = readLocalDb();
+    return Array.isArray(local.products) ? local.products : [];
+  }
+  function salesList(){
+    try{ if(window.db && Array.isArray(window.db.sales) && window.db.sales.length) return window.db.sales; }catch(e){}
+    var local = readLocalDb();
+    return Array.isArray(local.sales) ? local.sales : [];
+  }
+  function lowStockMax(){
+    try{ if(typeof getLowStockMax === 'function') return Number(getLowStockMax()) || 5; }catch(e){}
+    return 5;
+  }
+  function imgOrInitial(photo,name,cls){
+    var n = String(name||'N').trim();
+    var first = (n[0] || 'N').toUpperCase();
+    if(photo) return '<img class="'+esc(cls||'')+'" src="'+esc(photo)+'" alt="'+esc(n)+'">';
+    return esc(first);
+  }
+  function normalizeOrders(lines){
+    var map = new Map();
+    (lines||[]).forEach(function(s){
+      if(!s || s.cancelled || String(s.status||'') === 'cancelled') return;
+      var id = s.orderId || s.id || ('sale_'+Math.random());
+      if(!map.has(id)){
+        map.set(id,{
+          id:id,
+          date:s.date || s.createdAt || new Date().toISOString(),
+          payment:s.payment || '',
+          total:Number(s.orderTotal || s.cartFinalTotal || s.total || 0),
+          operator:s.createdByName || s.operatorName || s.userName || '',
+          lines:[]
+        });
+      }
+      var o = map.get(id);
+      o.lines.push(s);
+      if(!o.total || Number(s.orderTotal||s.cartFinalTotal||0)>0) o.total = Number(s.orderTotal || s.cartFinalTotal || o.total || s.total || 0);
+      if(!o.operator && (s.createdByName || s.operatorName || s.userName)) o.operator = s.createdByName || s.operatorName || s.userName;
+    });
+    return Array.from(map.values()).map(function(o){
+      if(!o.total) o.total = o.lines.reduce(function(a,l){ return a + Number(l.total||0); },0);
+      return o;
+    }).sort(function(a,b){ return new Date(b.date||0) - new Date(a.date||0); });
+  }
+  function renderHomeStable(force){
+    var box = byId('homeAlerts');
+    if(!box) return;
+    var products = productsList();
+    var sales = salesList();
+
+    // Se Firebase non ha ancora dati e non abbiamo mai disegnato una Home valida, mostra caricamento senza rompere la pagina.
+    if(!products.length && !sales.length && !homeReadyOnce){
+      var loading = '<div id="homeDataLoadingBox">Caricamento situazione veloce...</div>';
+      if(box.innerHTML !== loading) box.innerHTML = loading;
+      return;
+    }
+
+    // Se arriva un aggiornamento vuoto temporaneo dopo una Home valida, non svuotare le card.
+    if(!products.length && !sales.length && homeReadyOnce && lastHomeHTML){
+      if(box.innerHTML !== lastHomeHTML) box.innerHTML = lastHomeHTML;
+      return;
+    }
+
+    var max = lowStockMax();
+    var low = products.filter(function(p){ return Number(p && p.qty) <= max; })
+      .sort(function(a,b){ return Number(a.qty||0)-Number(b.qty||0); })
+      .slice(0,6);
+    var orders = normalizeOrders(sales).slice(0,5);
+    var total = orders.reduce(function(a,o){ return a + Number(o.total||0); },0);
+
+    var html = '<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">';
+
+    html += '<div class="card panel home-stock-card">';
+    html += '<div class="home-stock-head"><div><h2>📦 Scorte basse</h2><p class="hint">Esauriti e prodotti sotto soglia</p></div><span class="home-stock-total">Soglia '+esc(max)+' pz</span></div>';
+    if(products.length){
+      if(low.length){
+        html += '<div class="home-stock-list">' + low.map(function(p){
+          var name = p.name || 'Prodotto';
+          var status = '';
+          try{ status = (typeof statusBadge === 'function') ? statusBadge(p.qty) : '<span class="badge">'+esc(p.qty)+' pz</span>'; }
+          catch(e){ status = '<span class="badge">'+esc(p.qty)+' pz</span>'; }
+          var htmlLine = '<div class="home-stock-item"><div class="home-stock-photo">'+imgOrInitial(p.photo,name,'')+'</div><div><div class="home-stock-name">'+esc(name)+'</div><div class="home-stock-meta">'+esc(p.brand||p.line||'Noor Profumi')+' · '+esc(p.size||p.format||'Formato —')+'</div><div style="margin-top:6px">'+status+'</div></div><div class="home-stock-qty">'+esc(Number(p.qty)||0)+'<span>pezzi</span></div></div>';
+          return htmlLine;
+        }).join('') + '</div>';
+      }else{
+        html += '<div class="home-empty-stock">Tutto ok: nessun prodotto sotto la soglia impostata.</div>';
+      }
+    }else{
+      html += '<div class="home-empty-stock">Caricamento prodotti...</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="card panel home-sales-card">';
+    html += '<div class="home-sales-head"><div><h2>🧾 Ultime vendite</h2><p class="hint">Movimenti recenti registrati</p></div><span class="home-sales-total">Totale '+money(total)+'</span></div>';
+    if(sales.length){
+      if(orders.length){
+        html += '<div class="home-sales-list">' + orders.map(function(o){
+          var first = (o.lines && o.lines[0]) || {};
+          var name = first.productName || first.name || 'Vendita recente';
+          var product = products.find(function(p){ return String(p.id)===String(first.productId); }) || {};
+          var d = new Date(o.date || Date.now());
+          var dateText = d.toLocaleDateString('it-IT')+' · '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+          var qty = (o.lines||[]).reduce(function(a,l){ return a + Number(l.qty||0); },0) || 1;
+          return '<div class="home-sale-item"><div class="home-sale-icon">'+imgOrInitial(first.photo||product.photo,name,'')+'</div><div><div class="home-sale-name">'+esc(name)+'</div><div class="home-sale-meta">'+esc(dateText)+' · Articoli '+esc(qty)+(o.operator?' · '+esc(o.operator):'')+'</div></div><div class="home-sale-total">'+money(o.total||0)+'<br><span class="home-sale-pay">'+esc(o.payment||'Pagamento —')+'</span></div></div>';
+        }).join('') + '</div>';
+      }else{
+        html += '<div class="home-empty-sales">Nessuna vendita recente.</div>';
+      }
+    }else{
+      html += '<div class="home-empty-sales">Caricamento vendite...</div>';
+    }
+    html += '</div></div>';
+
+    homeReadyOnce = true;
+    if(force || html !== lastHomeHTML){
+      lastHomeHTML = html;
+      box.innerHTML = html;
+    }
+  }
+
+  function profileData(){
+    try{
+      return window.currentFirebaseUserProfile || window.currentUserProfile || window.activeEmployee || {};
+    }catch(e){ return {}; }
+  }
+  function userName(){
+    try{ if(typeof fullName === 'function') return fullName(); }catch(e){}
+    var u = profileData();
+    return u.name || u.displayName || u.email || 'utente';
+  }
+  function userRole(){
+    var u = profileData();
+    try{ if(typeof roleLabel === 'function') return roleLabel(u.role || ''); }catch(e){}
+    return u.role || '';
+  }
+  function accessTime(){
+    try{ if(typeof lastAccess === 'function'){ var a = lastAccess(); if(a) return String(a); } }catch(e){}
+    return new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+  }
+  function userPhoto(){
+    var u = profileData();
+    var p = u.photo || u.photoData || u.photoURL || u.avatar || '';
+    if(p) lastGoodPhoto = p;
+    return lastGoodPhoto;
+  }
+  function renderWelcomeStable(force){
+    var home = byId('home'); if(!home) return;
+    var box = byId('homeWelcomeAccessBox');
+    if(!box){ box = document.createElement('div'); box.id='homeWelcomeAccessBox'; home.insertBefore(box, home.firstChild); }
+    var name = userName();
+    var first = (String(name).trim()[0] || 'N').toUpperCase();
+    var photo = userPhoto();
+    var avatar = photo ? '<img src="'+esc(photo)+'" alt="'+esc(name)+'" style="width:54px;height:54px;border-radius:18px;object-fit:cover;display:block;border:1px solid var(--line)">' : '<div style="width:54px;height:54px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(135deg,var(--green2),var(--gold));font-weight:950;font-size:23px;color:#3a081f">'+esc(first)+'</div>';
+    var html = '<div class="card panel" style="margin:18px 0 0;display:flex;align-items:center;gap:14px;min-height:88px">'+avatar+'<div style="min-width:0"><div style="font-size:20px;font-weight:950;line-height:1.15">Benvenuto, '+esc(name)+'</div><div class="hint" style="margin-top:4px">'+esc(userRole())+' · Accesso '+esc(accessTime())+'</div></div></div>';
+    if(force || html !== lastWelcomeHTML){ lastWelcomeHTML = html; box.innerHTML = html; }
+  }
+
+  window.renderHomeAlerts = renderHomeStable;
+  try{ renderHomeAlerts = window.renderHomeAlerts; }catch(e){}
+  window.renderHomeBox = renderWelcomeStable;
+  window.renderStableHomeWelcome = renderWelcomeStable;
+
+  var oldRenderAll = window.renderAll;
+  if(typeof oldRenderAll === 'function' && !oldRenderAll.__NOOR_FINAL_STABLE_WRAP__){
+    var wrapped = function(){
+      var r = oldRenderAll.apply(this, arguments);
+      try{ renderWelcomeStable(); renderHomeStable(); }catch(e){}
+      return r;
+    };
+    wrapped.__NOOR_FINAL_STABLE_WRAP__ = true;
+    window.renderAll = wrapped;
+  }
+
+  function boot(){
+    try{ renderWelcomeStable(); renderHomeStable(); }catch(e){}
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+  window.addEventListener('load', function(){ setTimeout(boot,250); setTimeout(boot,1200); });
+  setInterval(function(){
+    var home = byId('home');
+    if(home && home.classList.contains('active')) boot();
+  }, 2500);
+})();
+</script>
