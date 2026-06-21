@@ -361,7 +361,7 @@ html,body{overflow-x:hidden!important}.login-screen{position:fixed;inset:0;z-ind
 </style>
 
 <style id="firebase-blur-lock-fix">
-/* FIX: evita gestionale sfocato/bloccato se la sessione Firebase è in attesa */
+/* FIX: evita gestionale sfocato/bloccato se la sessione gestionale è in attesa */
 body.login-active{
   overflow:auto!important;
   height:auto!important;
@@ -402,7 +402,7 @@ body.login-active .nav{
 </style>
 </head>
 <body>
-<div id="firebaseBootLoading" class="route-loading"><div class="boot-card"><div class="boot-title">Verifica sessione in corso...</div><div class="boot-sub">Sto controllando l’accesso Firebase. Attendi qualche secondo senza ricaricare la pagina.</div></div></div>
+<div id="firebaseBootLoading" class="route-loading"><div class="boot-card"><div class="boot-title">Verifica sessione in corso...</div><div class="boot-sub">Sto controllando l’accesso al gestionale. Attendi qualche secondo senza ricaricare la pagina.</div></div></div>
 <div id="loginScreen" class="login-screen">
   <div class="login-card">
     <div class="login-brand"><div class="login-logo">N</div><div><h1>Accesso Gestionale</h1><p class="hint">Inserisci le credenziali fornite per l’accesso.</p></div></div>
@@ -2168,7 +2168,7 @@ load();
     try{localStorage.setItem(getLS(),JSON.stringify(db));}catch(e){}
   }
 
-  async function initFirebaseClosures(){
+  async function initgestionaleClosures(){
     if(fbReady) return true;
     try{
       const [appMod, authMod, fsMod] = await Promise.all([
@@ -2186,7 +2186,7 @@ load();
       });
       return true;
     }catch(err){
-      console.error('Firebase chiusure non inizializzato:',err);
+      console.error('gestionale chiusure non inizializzato:',err);
       notify('Errore collegamento chiusure online: '+(err.message||err));
       return false;
     }
@@ -2242,7 +2242,7 @@ load();
   }
 
   async function saveClosureOnline(rec){
-    const ok=await initFirebaseClosures();
+    const ok=await initgestionaleClosures();
     if(!ok||!fbAuth||!fbAuth.currentUser) throw new Error('Devi essere loggato per salvare chiusure online.');
     const profile=(window.currentUserProfile||window.currentProfileData||{});
     const clean=normalizeClosure(rec,rec.id);
@@ -2345,7 +2345,7 @@ load();
       await saveClosureOnline(rec);
       if(typeof closeCancelSale==='function') closeCancelSale();
       renderClosures();
-      notify('Chiusura giornaliera salvata online su Firebase.','success');
+      notify('Chiusura giornaliera salvata online su gestionale.','success');
     }catch(err){
       console.error('Errore salvataggio chiusura online:',err);
       notify('Errore salvataggio chiusura online: '+(err.message||err));
@@ -2374,7 +2374,7 @@ load();
   const oldGo=window.go;
   window.go=function(id){ installMenu(); installSection(); if(typeof oldGo==='function')oldGo(id); if(id==='closures')renderClosures(); };
 
-  function boot(){ensureClosures();installMenu();installSection();renderClosures();initFirebaseClosures();}
+  function boot(){ensureClosures();installMenu();installSection();renderClosures();initgestionaleClosures();}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
   setTimeout(boot,350);setTimeout(boot,1200);
 })();
@@ -2857,7 +2857,7 @@ let persistenceReady=(async()=>{
   try{await setPersistence(auth,browserLocalPersistence);return 'localStorage'}
   catch(e1){
     try{await setPersistence(auth,browserSessionPersistence);return 'sessionStorage'}
-    catch(e2){console.warn('Persistenza Firebase non disponibile:',e1,e2);return 'memory'}
+    catch(e2){console.warn('Persistenza gestionale non disponibile:',e1,e2);return 'memory'}
   }
 })();
 let allAccessLogs=[];
@@ -2875,7 +2875,7 @@ function shortDevice(ua){ua=String(ua||''); if(/iPhone|iPad|iPod/i.test(ua))retu
 function readCachedUser(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||sessionStorage.getItem(SESSION_KEY)||'null')}catch(e){return null}}
 function cacheUser(firebaseUser,profile){const data={uid:firebaseUser.uid,email:firebaseUser.email,name:profile.name||firebaseUser.email,role:profile.role||'seller',active:profile.active!==false,ts:Date.now()};try{localStorage.setItem(SESSION_KEY,JSON.stringify(data))}catch(e){}try{sessionStorage.setItem(SESSION_KEY,JSON.stringify(data))}catch(e){}return data}
 function clearCachedUser(){try{localStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(SESSION_KEY)}catch(e){}}
-function getCurrentProfile(){return window.currentFirebaseUserProfile||readCachedUser()||{};}
+function getCurrentProfile(){return window.currentgestionaleUserProfile||readCachedUser()||{};}
 
 async function writeAccessLog(user,result,note,profile){
   try{
@@ -2913,8 +2913,8 @@ async function getUserProfile(firebaseUser){
   throw lastErr||new Error('PROFILE_LOAD_FAILED');
 }
 function setLocalActiveUser(firebaseUser,profile){
-  window.currentFirebaseUser=firebaseUser||null;
-  window.currentFirebaseUserProfile=profile||null;
+  window.currentgestionaleUser=firebaseUser||null;
+  window.currentgestionaleUserProfile=profile||null;
   cacheUser(firebaseUser,profile);
   try{
     if(typeof db!=='undefined'){
@@ -2938,13 +2938,13 @@ function restoreSection(){
   try{if(!id)id=localStorage.getItem(ACTIVE_SECTION_KEY)||'home'}catch(e){}
   if(!document.getElementById(id))id='home';
   try{if(typeof window.go==='function')window.go(id);else document.getElementById(id)?.classList.add('active')}catch(e){}
-  if(id==='accessLogs')setTimeout(()=>renderFirebaseAccessLogs(),150);
+  if(id==='accessLogs')setTimeout(()=>rendergestionaleAccessLogs(),150);
 }
 function wrapGoForSectionMemory(){
   if(window.__noorGoMemoryWrapped)return;
   const oldGo=window.go;
   if(typeof oldGo==='function'){
-    window.go=function(id){saveCurrentSection(id);const r=oldGo.apply(this,arguments);if(id==='accessLogs')setTimeout(()=>renderFirebaseAccessLogs(),120);return r;};
+    window.go=function(id){saveCurrentSection(id);const r=oldGo.apply(this,arguments);if(id==='accessLogs')setTimeout(()=>rendergestionaleAccessLogs(),120);return r;};
     window.__noorGoMemoryWrapped=true;
   }
   document.querySelectorAll('.nav button[data-target]').forEach(btn=>btn.addEventListener('click',()=>saveCurrentSection(btn.dataset.target)));
@@ -2974,12 +2974,12 @@ function showSessionChecking(message){
   if(loader){
     loader.classList.remove('hidden');
     const sub=loader.querySelector('.boot-sub');
-    if(sub)sub.textContent=message||'Sto controllando l’accesso Firebase. Attendi qualche secondo senza ricaricare la pagina.';
+    if(sub)sub.textContent=message||'Sto controllando l’accesso al gestionale. Attendi qualche secondo senza ricaricare la pagina.';
   }
   document.body.classList.remove('login-active');
   document.body.classList.add('session-checking');
 }
-function showWaitingIfCached(){showSessionChecking('Sessione trovata nel browser: sto aspettando Firebase prima di mostrare il login.')}
+function showWaitingIfCached(){showSessionChecking('Sessione trovata nel browser: sto aspettando gestionale prima di mostrare il login.')}
 function clearLoginPassword(){const p=$('loginPassword');if(p){p.value='';p.type='password'}const b=$('loginShowPasswordBtn');if(b)b.textContent='Mostra'}
 function firebaseErrorMessage(error){
   if(error?.message==='NO_USER_PROFILE')return 'Utente autenticato, ma manca il profilo Firestore in users/{UID}.';
@@ -3046,14 +3046,14 @@ function installResetPasswordUI(){const openBtn=$('openResetLoginBtn');if(openBt
 function installAccessLogsUI(){
   let section=$('accessLogs');
   const html=`<div class="card panel">
-    <div class="panel-title"><div><h2>Controllo Accessi</h2><p class="hint">Login, logout e tentativi registrati su Firebase.</p></div><button class="btn secondary" type="button" id="refreshAccessLogsBtn">Aggiorna</button></div>
+    <div class="panel-title"><div><h2>Controllo Accessi</h2><p class="hint">Login, logout e tentativi registrati su gestionale.</p></div><button class="btn secondary" type="button" id="refreshAccessLogsBtn">Aggiorna</button></div>
     <div class="access-log-kpis"><div class="access-log-kpi">Login riusciti<b id="logOkCount">0</b></div><div class="access-log-kpi">Accessi negati<b id="logFailCount">0</b></div><div class="access-log-kpi">Logout<b id="logOutCount">0</b></div><div class="access-log-kpi">Totale<b id="logTotalCount">0</b></div></div>
     <div class="filter-bar" style="grid-template-columns:1.2fr 1fr 1fr 1fr 1fr auto">
-      <div class="field"><label>Cerca</label><input id="accessLogSearch" placeholder="Email, nome, ruolo, note" oninput="filterFirebaseAccessLogs()"></div>
-      <div class="field"><label>Esito</label><select id="accessLogResult" onchange="filterFirebaseAccessLogs()"><option value="">Tutti</option><option value="success">Accessi riusciti</option><option value="failed">Accessi negati</option><option value="logout">Logout</option></select></div>
-      <div class="field"><label>Da giorno/ora</label><input id="accessLogFrom" type="datetime-local" onchange="filterFirebaseAccessLogs()"></div>
-      <div class="field"><label>A giorno/ora</label><input id="accessLogTo" type="datetime-local" onchange="filterFirebaseAccessLogs()"></div>
-      <div class="field"><label>Ruolo</label><select id="accessLogRole" onchange="filterFirebaseAccessLogs()"><option value="">Tutti</option><option value="owner">Super Admin</option><option value="manager">Admin</option><option value="warehouse">Magazziniere</option><option value="seller">Venditore</option></select></div>
+      <div class="field"><label>Cerca</label><input id="accessLogSearch" placeholder="Email, nome, ruolo, note" oninput="filtergestionaleAccessLogs()"></div>
+      <div class="field"><label>Esito</label><select id="accessLogResult" onchange="filtergestionaleAccessLogs()"><option value="">Tutti</option><option value="success">Accessi riusciti</option><option value="failed">Accessi negati</option><option value="logout">Logout</option></select></div>
+      <div class="field"><label>Da giorno/ora</label><input id="accessLogFrom" type="datetime-local" onchange="filtergestionaleAccessLogs()"></div>
+      <div class="field"><label>A giorno/ora</label><input id="accessLogTo" type="datetime-local" onchange="filtergestionaleAccessLogs()"></div>
+      <div class="field"><label>Ruolo</label><select id="accessLogRole" onchange="filtergestionaleAccessLogs()"><option value="">Tutti</option><option value="owner">Super Admin</option><option value="manager">Admin</option><option value="warehouse">Magazziniere</option><option value="seller">Venditore</option></select></div>
       <div class="filter-actions"><button class="btn small secondary" type="button" id="clearAccessLogFiltersBtn">Pulisci</button></div>
     </div>
     <div class="table-wrap"><table><thead><tr><th>Data / Ora</th><th>Nome</th><th>Email</th><th>Ruolo</th><th>Esito</th><th>Note</th><th>Dispositivo</th></tr></thead><tbody id="accessLogsTable"><tr><td colspan="7">Caricamento...</td></tr></tbody></table></div>
@@ -3067,15 +3067,15 @@ function installAccessLogsUI(){
     btn.className='btn secondary';
     btn.type='button';
     btn.textContent='Controllo Accessi';
-    btn.onclick=function(ev){ev.preventDefault();try{go('accessLogs')}catch(e){};renderFirebaseAccessLogs();try{closeTopMenu()}catch(e){};return false};
+    btn.onclick=function(ev){ev.preventDefault();try{go('accessLogs')}catch(e){};rendergestionaleAccessLogs();try{closeTopMenu()}catch(e){};return false};
     const logout=$('logoutMenuButton');
     menu.insertBefore(btn, logout||null);
   }
-  const refresh=$('refreshAccessLogsBtn'); if(refresh)refresh.onclick=renderFirebaseAccessLogs;
-  const clear=$('clearAccessLogFiltersBtn'); if(clear)clear.onclick=function(){['accessLogSearch','accessLogResult','accessLogFrom','accessLogTo','accessLogRole'].forEach(id=>{const el=$(id);if(el)el.value=''});filterFirebaseAccessLogs();};
+  const refresh=$('refreshAccessLogsBtn'); if(refresh)refresh.onclick=rendergestionaleAccessLogs;
+  const clear=$('clearAccessLogFiltersBtn'); if(clear)clear.onclick=function(){['accessLogSearch','accessLogResult','accessLogFrom','accessLogTo','accessLogRole'].forEach(id=>{const el=$(id);if(el)el.value=''});filtergestionaleAccessLogs();};
 }
 function accessBadge(result){return result==='success'?'<span class="badge ok">Login</span>':(result==='logout'?'<span class="badge warn">Logout</span>':'<span class="badge danger">Negato</span>')}
-window.filterFirebaseAccessLogs=function(){
+window.filtergestionaleAccessLogs=function(){
   const tbody=$('accessLogsTable'); if(!tbody)return;
   const q=($('accessLogSearch')?.value||'').trim().toLowerCase();
   const res=$('accessLogResult')?.value||'';
@@ -3099,7 +3099,7 @@ window.filterFirebaseAccessLogs=function(){
   count('logTotalCount',allAccessLogs.length);
   tbody.innerHTML=rows.map(x=>`<tr><td>${esc(fmtDate(x.createdAt)||fmtDate(x.createdAtClient))}</td><td><b>${esc(x.name||'—')}</b></td><td>${esc(x.email||'—')}</td><td><span class="badge">${esc(x.role||'—')}</span></td><td>${accessBadge(x.result)}</td><td>${esc(x.note||'—')}</td><td>${esc(x.device||shortDevice(x.userAgent)||'—')}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">Nessun accesso trovato con questi filtri.</td></tr>';
 }
-window.renderFirebaseAccessLogs=async function(){
+window.rendergestionaleAccessLogs=async function(){
   const tbody=$('accessLogsTable');
   if(!tbody)return;
   tbody.innerHTML='<tr><td colspan="7">Caricamento accessi...</td></tr>';
@@ -3122,7 +3122,7 @@ window.renderFirebaseAccessLogs=async function(){
       const db=dateValue(b.createdAt)||dateValue(b.createdAtClient)||new Date(0);
       return db-da;
     }).slice(0,500);
-    filterFirebaseAccessLogs();
+    filtergestionaleAccessLogs();
   }catch(e){
     console.error('Errore accessLogs:',e);
     tbody.innerHTML='<tr><td colspan="7">Errore caricamento accessi. Controlla regole Firestore: devi consentire lettura ad utenti autenticati su accessLogs e users.</td></tr>';
@@ -3267,16 +3267,16 @@ window.stopProductBarcodeScan=function(){
   const box=$('productCameraBox'); if(box)box.classList.remove('show');
 }
 
-function bootFirebaseLogin(){
+function bootgestionaleLogin(){
   installLoginForm();installPasswordToggle();installLogoutButton();installResetPasswordUI();installAccessLogsUI();wrapGoForSectionMemory();
-  showSessionChecking('Verifica sessione in corso: se sei già entrato, resterai collegato dopo il controllo Firebase.');
+  showSessionChecking('Verifica sessione in corso: se sei già entrato, resterai collegato dopo il controllo gestionale.');
 }
-document.addEventListener('DOMContentLoaded',bootFirebaseLogin);if(document.readyState!=='loading')bootFirebaseLogin();
+document.addEventListener('DOMContentLoaded',bootgestionaleLogin);if(document.readyState!=='loading')bootgestionaleLogin();
 
 await persistenceReady;
 let authFirstAnswer=false;
 let authNullTimer=null;
-showSessionChecking('Verifica sessione in corso: sto aspettando Firebase.');
+showSessionChecking('Verifica sessione in corso: sto aspettando gestionale.');
 onAuthStateChanged(auth,async(user)=>{
   authFirstAnswer=true;
   await persistenceReady;
@@ -3287,7 +3287,7 @@ onAuthStateChanged(auth,async(user)=>{
       showSessionChecking('Sto recuperando la sessione salvata. Attendi fino a 12 secondi, non ricaricare.');
       authNullTimer=setTimeout(()=>{
         if(auth.currentUser){return;}
-        showLogin('Sessione non recuperata automaticamente. Inserisci di nuovo le credenziali Firebase.');
+        showLogin('Sessione non recuperata automaticamente. Inserisci di nuovo le credenziali gestionale.');
       },12000);
       return;
     }
@@ -3299,7 +3299,7 @@ onAuthStateChanged(auth,async(user)=>{
     setLocalActiveUser(user,profile);
     showApp();
   }catch(error){
-    console.warn('Profilo Firebase non caricato:',error);
+    console.warn('Profilo gestionale non caricato:',error);
     if(error?.message==='NO_USER_PROFILE'||error?.message==='USER_DISABLED'){
       await signOut(auth).catch(()=>{});
       clearCachedUser();
@@ -3315,9 +3315,9 @@ setTimeout(()=>{
   if(!authFirstAnswer && !auth.currentUser){
     const cached=readCachedUser();
     if(cached){
-      showSessionChecking('Firebase sta ancora verificando la sessione. Attendi ancora qualche secondo.');
+      showSessionChecking('gestionale sta ancora verificando la sessione. Attendi ancora qualche secondo.');
     }else{
-      showLogin('Inserisci le credenziali Firebase.');
+      showLogin('Inserisci le credenziali gestionale.');
     }
   }
 },20000);
@@ -3439,7 +3439,7 @@ setTimeout(()=>{
 
 <style id="noor-employee-firebase-bridge-css">
   #empPasswordBridgeWrap .hint{font-size:12px;text-transform:none;letter-spacing:0;font-weight:700;margin-top:4px}
-  #employeesFirebaseStatus{margin-top:10px;font-weight:900;text-align:center;color:#8a5700}
+  #employeesgestionaleStatus{margin-top:10px;font-weight:900;text-align:center;color:#8a5700}
 </style>
 <script id="noor-employee-firebase-bridge-js">
 (function(){
@@ -3452,7 +3452,7 @@ setTimeout(()=>{
   }
   function ensurePasswordField(){
     var form=$('employeeForm'); if(!form)return;
-    if(!$('empFirebaseUid')){var h=document.createElement('input');h.type='hidden';h.id='empFirebaseUid';form.insertBefore(h,form.firstChild);}
+    if(!$('empgestionaleUid')){var h=document.createElement('input');h.type='hidden';h.id='empgestionaleUid';form.insertBefore(h,form.firstChild);}
     if(!$('empPassword')){
       var statusField=$('empActive')?.closest('.field');
       var wrap=document.createElement('div');
@@ -3462,17 +3462,17 @@ setTimeout(()=>{
       if(statusField&&statusField.parentNode) statusField.insertAdjacentElement('afterend',wrap); else form.insertBefore(wrap,form.querySelector('.field.full'));
     }
     var submit=form.querySelector('button[type="submit"]'); if(submit)submit.textContent='Salva dipendente';
-    if(!$('employeesFirebaseStatus')){
-      var st=document.createElement('div'); st.id='employeesFirebaseStatus';
+    if(!$('employeesgestionaleStatus')){
+      var st=document.createElement('div'); st.id='employeesgestionaleStatus';
       form.appendChild(st);
     }
   }
-  function setStatus(msg,color){var el=$('employeesFirebaseStatus'); if(el){el.textContent=msg||''; el.style.color=color||'#8a5700';}}
+  function setStatus(msg,color){var el=$('employeesgestionaleStatus'); if(el){el.textContent=msg||''; el.style.color=color||'#8a5700';}}
   function employeeEmailValid(email){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email||''));}
   async function getToken(){
-    var u=window.currentFirebaseUser;
+    var u=window.currentgestionaleUser;
     if(u&&typeof u.getIdToken==='function') return await u.getIdToken(true);
-    throw new Error('Sessione Firebase non trovata. Esci e rientra.');
+    throw new Error('Sessione gestionale non trovata. Esci e rientra.');
   }
   function upsertLocalEmployee(item){
     try{
@@ -3495,13 +3495,13 @@ setTimeout(()=>{
       try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db));}catch(e){}
     }catch(e){console.warn('Salvataggio locale dipendente:',e)}
   }
-  async function saveEmployeeFirebase(ev){
+  async function saveEmployeegestionale(ev){
     if(ev){ev.preventDefault();ev.stopPropagation();}
     try{
       if(typeof canAccess==='function' && !canAccess('manageEmployees')){toastMsg('Solo il Super Admin può salvare dipendenti.');return false;}
       ensurePasswordField();
       var id=$('employeeId')?.value||'';
-      var firebaseUid=$('empFirebaseUid')?.value||id||'';
+      var firebaseUid=$('empgestionaleUid')?.value||id||'';
       var name=$('empName')?.value.trim()||'';
       var email=$('empEmail')?.value.trim().toLowerCase()||'';
       var password=$('empPassword')?.value||'';
@@ -3524,7 +3524,7 @@ setTimeout(()=>{
       upsertLocalEmployee(data.user||{uid:firebaseUid,name:name,email:email,role:role,active:active});
       if($('employeeForm'))$('employeeForm').reset();
       if($('employeeId'))$('employeeId').value='';
-      if($('empFirebaseUid'))$('empFirebaseUid').value='';
+      if($('empgestionaleUid'))$('empgestionaleUid').value='';
       if($('empPassword'))$('empPassword').value='';
       if(typeof renderEmployees==='function')renderEmployees();
       if(typeof applyEmployeePermissions==='function')applyEmployeePermissions();
@@ -3532,7 +3532,7 @@ setTimeout(()=>{
       toastMsg('Dipendente salvato.','success');
       return false;
     }catch(err){
-      console.error('saveEmployee Firebase:',err);
+      console.error('saveEmployee gestionale:',err);
       setStatus(err.message||'Errore','#b51545');
       toastMsg(err.message||'Errore salvataggio dipendente.');
       return false;
@@ -3540,8 +3540,8 @@ setTimeout(()=>{
   }
   function install(){
     ensurePasswordField();
-    var form=$('employeeForm'); if(form){form.onsubmit=saveEmployeeFirebase; form.addEventListener('submit',saveEmployeeFirebase,true);}
-    window.saveEmployee=saveEmployeeFirebase;
+    var form=$('employeeForm'); if(form){form.onsubmit=saveEmployeegestionale; form.addEventListener('submit',saveEmployeegestionale,true);}
+    window.saveEmployee=saveEmployeegestionale;
     var oldEdit=window.editEmployee;
     window.editEmployee=function(id){
       if(typeof oldEdit==='function') oldEdit.apply(this,arguments);
@@ -3549,7 +3549,7 @@ setTimeout(()=>{
         ensurePasswordField();
         try{
           var e=(db.employees||[]).find(function(x){return String(x.id)===String(id)||String(x.uid)===String(id)||String(x.firebaseUid)===String(id)});
-          if(e&&$('empFirebaseUid'))$('empFirebaseUid').value=e.firebaseUid||e.uid||'';
+          if(e&&$('empgestionaleUid'))$('empgestionaleUid').value=e.firebaseUid||e.uid||'';
           if($('empPassword'))$('empPassword').value='';
         }catch(err){}
       },50);
@@ -3595,13 +3595,13 @@ const basePerms={
 let users=[];
 let openedExtra=null;
 function roleOf(u){return (u&&u.role)||'seller'}
-function currentProfile(){return window.currentFirebaseUserProfile||{};}
+function currentProfile(){return window.currentgestionaleUserProfile||{};}
 function currentPerms(){const p=currentProfile();const base=basePerms[roleOf(p)]||basePerms.seller;if(base.all)return {...base,all:true};return {...base,...(p.extraPermissions||{})};}
 function can(perm){const p=currentPerms();return !!(p.all||p[perm]);}
 function toLocalEmployee(u){return {id:u.uid||u.id||u.firebaseUid,email:u.email||'',name:u.name||u.displayName||u.email||'Dipendente',role:roleOf(u),active:u.active!==false,createdAt:u.createdAtClient||u.createdAt||'',firebaseUid:u.uid||u.firebaseUid||u.id,uid:u.uid||u.firebaseUid||u.id,extraPermissions:u.extraPermissions||{}};}
 function syncLocal(){try{window.db=window.db||{};window.db.employees=users.map(toLocalEmployee);try{localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(window.db));}catch(e){}}catch(e){}}
 async function loadUsers(){try{const snap=await getDocs(collection(firestore,'users'));users=[];snap.forEach(d=>users.push({uid:d.id,...d.data()}));syncLocal();renderEmployeesFinal();applyMenuByRole();renderProfile();return users;}catch(e){console.warn('Lettura users Firestore:',e);return users;}}
-async function refreshCurrentProfile(){try{const u=auth.currentUser||window.currentFirebaseUser;if(!u)return;const s=await getDoc(doc(firestore,'users',u.uid));if(s.exists()){window.currentFirebaseUserProfile={uid:u.uid,email:u.email,...s.data()};}}catch(e){console.warn('Profilo corrente:',e)}}
+async function refreshCurrentProfile(){try{const u=auth.currentUser||window.currentgestionaleUser;if(!u)return;const s=await getDoc(doc(firestore,'users',u.uid));if(s.exists()){window.currentgestionaleUserProfile={uid:u.uid,email:u.email,...s.data()};}}catch(e){console.warn('Profilo corrente:',e)}}
 function ensureSupervisorOptions(){['empRole','permRoleSelect'].forEach(id=>{const sel=$(id);if(sel&&!Array.from(sel.options).some(o=>o.value==='supervisor')){const opt=document.createElement('option');opt.value='supervisor';opt.textContent='Supervisore';sel.appendChild(opt);}})}
 function ensureDashboard(){const section=$('employees');if(!section)return null;const panel=section.querySelector('.card.panel');if(!panel)return null;let dash=$('employeeRoleDashboard');if(!dash){dash=document.createElement('div');dash.id='employeeRoleDashboard';const title=panel.querySelector('.panel-title');if(title)title.insertAdjacentElement('afterend',dash);else panel.insertBefore(dash,panel.firstChild);}return dash;}
 function renderDashboard(){const dash=ensureDashboard();if(!dash)return;dash.innerHTML=roleOrder.map(r=>{const count=users.filter(u=>roleOf(u)===r&&u.active!==false).length;return `<div class="employee-role-card"><div class="erc-title">${esc(labels[r])}</div><div class="erc-number">${count}</div><div class="erc-sub">${esc(roleSubs[r])}</div></div>`}).join('');}
@@ -3609,7 +3609,7 @@ function statusBadge(active){return active!==false?'<span class="badge status-ok
 function permSummary(u){const p={...(basePerms[roleOf(u)]||{}),...(u.extraPermissions||{})};if(p.all)return 'Accesso completo';return Object.entries(p).filter(([,v])=>v===true||v===1).slice(0,6).map(([k])=>extraDefs.find(x=>x[0]===k)?.[1]||k).join(', ')||'Permessi base';}
 function renderExtraPanel(u){const p=u.extraPermissions||{};return `<tr class="employee-extra-row"><td colspan="5"><div class="employee-extra-panel"><b>Permessi personali per ${esc(u.name||u.email||'Dipendente')}</b><div class="hint">Questi permessi si aggiungono al ruolo principale senza cambiare il ruolo di tutti gli altri dipendenti.</div><div class="employee-extra-grid">${extraDefs.map(([key,label])=>`<label><input type="checkbox" data-extra-uid="${esc(u.uid)}" data-extra-key="${esc(key)}" ${p[key]?'checked':''}> <span>${esc(label)}</span></label>`).join('')}</div><div class="action-row"><button class="btn small gold" type="button" data-save-extra="${esc(u.uid)}">Salva permessi personali</button></div></div></td></tr>`}
 function renderEmployeesFinal(){ensureSupervisorOptions();renderDashboard();try{if(typeof window.renderRoleLegend==='function')window.renderRoleLegend();}catch(e){}const tb=$('employeesTable');if(!tb)return;const rows=users.map(u=>{const id=u.uid||u.id||u.firebaseUid;return `<tr><td><button class="btn small secondary" type="button" data-toggle-extra="${esc(id)}">${openedExtra===id?'▴':'▾'}</button> <b>${esc(u.name||u.email||'Dipendente')}</b><br><span class="hint">${esc(u.email||'—')}</span></td><td><span class="badge">${esc(labels[roleOf(u)]||'Venditore')}</span></td><td>${statusBadge(u.active)}</td><td>${esc(permSummary(u))}</td><td><div class="action-row"><button class="btn small secondary" onclick="editEmployee('${esc(id)}')">Modifica</button><button class="btn small red" onclick="deleteEmployee('${esc(id)}')">Elimina</button></div></td></tr>${openedExtra===id?renderExtraPanel(u):''}`}).join('');tb.innerHTML=rows||'<tr><td colspan="5" class="empty">Nessun dipendente.</td></tr>';tb.querySelectorAll('[data-toggle-extra]').forEach(b=>b.onclick=()=>{openedExtra=openedExtra===b.dataset.toggleExtra?null:b.dataset.toggleExtra;renderEmployeesFinal();});tb.querySelectorAll('[data-save-extra]').forEach(b=>b.onclick=()=>saveExtraPermissions(b.dataset.saveExtra));}
-async function saveExtraPermissions(uid){try{const u=users.find(x=>(x.uid||x.id||x.firebaseUid)===uid);if(!u)return;const extra={};document.querySelectorAll(`[data-extra-uid="${CSS.escape(uid)}"]`).forEach(ch=>{if(ch.checked)extra[ch.dataset.extraKey]=true;});const token=await (auth.currentUser||window.currentFirebaseUser).getIdToken(true);const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'update',uid:uid,name:u.name||u.email,email:u.email,role:roleOf(u),active:u.active!==false,extraPermissions:extra})});const data=await res.json().catch(()=>({}));if(!res.ok||!data.ok)throw new Error(data.error||'Errore salvataggio permessi');u.extraPermissions=extra;syncLocal();renderEmployeesFinal();if(uid===(auth.currentUser?.uid||'')){await refreshCurrentProfile();applyMenuByRole();}toast('Permessi personali salvati.','success');}catch(e){console.error(e);toast(e.message||'Errore salvataggio permessi.')}}
+async function saveExtraPermissions(uid){try{const u=users.find(x=>(x.uid||x.id||x.firebaseUid)===uid);if(!u)return;const extra={};document.querySelectorAll(`[data-extra-uid="${CSS.escape(uid)}"]`).forEach(ch=>{if(ch.checked)extra[ch.dataset.extraKey]=true;});const token=await (auth.currentUser||window.currentgestionaleUser).getIdToken(true);const res=await fetch('/.netlify/functions/createEmployee',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({action:'update',uid:uid,name:u.name||u.email,email:u.email,role:roleOf(u),active:u.active!==false,extraPermissions:extra})});const data=await res.json().catch(()=>({}));if(!res.ok||!data.ok)throw new Error(data.error||'Errore salvataggio permessi');u.extraPermissions=extra;syncLocal();renderEmployeesFinal();if(uid===(auth.currentUser?.uid||'')){await refreshCurrentProfile();applyMenuByRole();}toast('Permessi personali salvati.','success');}catch(e){console.error(e);toast(e.message||'Errore salvataggio permessi.')}}
 function sectionForButton(btn){const oc=btn.getAttribute('onclick')||'';const m=oc.match(/go\(['\"]([^'\"]+)['\"]\)/);return m?m[1]:'';}
 const sectionPerm={home:'home',products:'viewProducts',productDetail:'viewProducts',sell:'sell',history:'viewOrders',drafts:'viewOrders',stock:'viewStock',discounts:'viewDiscounts',closures:'createClosure',settings:'settings',employees:'manageEmployees',accessLogs:'viewAccessLogs',profile:'profile'};
 function canSection(id){if(!id||id==='home'||id==='profile')return true;const perm=sectionPerm[id];return perm?can(perm):true;}
@@ -3648,7 +3648,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
   'use strict';
   function $(id){return document.getElementById(id)}
   function readJSON(k){try{return JSON.parse(localStorage.getItem(k)||sessionStorage.getItem(k)||'null')||{}}catch(e){return {}}}
-  function getProfile(){return window.currentFirebaseUserProfile||readJSON('noor_firebase_current_user_v1')||{}}
+  function getProfile(){return window.currentgestionaleUserProfile||readJSON('noor_firebase_current_user_v1')||{}}
   function getRole(){return String(getProfile().role||'seller').toLowerCase()}
   function getExtra(){const p=getProfile();return (p&&typeof p.extraPermissions==='object'&&p.extraPermissions)||{}}
   const base={
@@ -3832,7 +3832,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
     }catch(e){console.warn('Render prodotti:', e)}
   }
 
-  async function initFirebaseProducts(){
+  async function initgestionaleProducts(){
     if(fbReady) return true;
     try{
       const [appMod, authMod, fsMod] = await Promise.all([
@@ -3857,7 +3857,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
 
       return true;
     }catch(err){
-      console.error('Firebase prodotti non inizializzato:', err);
+      console.error('gestionale prodotti non inizializzato:', err);
       try{ toast('Errore collegamento prodotti online: '+(err.message||err)); }catch(_e){}
       return false;
     }
@@ -3903,7 +3903,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
   }
 
   async function saveProductOnline(product){
-    const ok = await initFirebaseProducts();
+    const ok = await initgestionaleProducts();
     if(!ok || !fbAuth || !fbAuth.currentUser){
       throw new Error('Devi essere loggato per salvare prodotti online.');
     }
@@ -3919,7 +3919,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
   }
 
   async function deleteProductOnline(id){
-    const ok = await initFirebaseProducts();
+    const ok = await initgestionaleProducts();
     if(!ok || !fbAuth || !fbAuth.currentUser){
       throw new Error('Devi essere loggato per eliminare prodotti online.');
     }
@@ -3991,7 +3991,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
           }
 
           if(typeof closeModal === 'function') closeModal();
-          try{toast('Prodotto salvato online su Firebase.', 'success')}catch(_e){}
+          try{toast('Prodotto salvato online su gestionale.', 'success')}catch(_e){}
         }catch(err){
           console.error('Salvataggio prodotto online fallito:', err);
           try{toast('Errore salvataggio online: '+(err.message||err))}catch(_e){}
@@ -4077,7 +4077,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
   function bootProductsOnline(){
     installProductOverrides();
     installSaveSync();
-    initFirebaseProducts().then(function(){
+    initgestionaleProducts().then(function(){
       if(fbAuth && fbAuth.currentUser) startProductsOnlineListener();
     });
   }
@@ -4122,7 +4122,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
 
   function iso(){return new Date().toISOString()}
   function localId(){return (typeof uid==='function'?uid():Date.now().toString(36)+Math.random().toString(36).slice(2,8))}
-  function currentProfile(){return window.currentFirebaseUserProfile || JSON.parse(localStorage.getItem('noor_firebase_current_user_v1')||'{}') || {}}
+  function currentProfile(){return window.currentgestionaleUserProfile || JSON.parse(localStorage.getItem('noor_firebase_current_user_v1')||'{}') || {}}
   function normalizePayment(p){
     p=String(p||'Contanti').trim();
     if(p.toLowerCase()==='elettronico') return 'POS';
@@ -4137,7 +4137,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
     }catch(e){console.warn('Render ordini online:',e)}
   }
 
-  async function initFirebaseOrders(){
+  async function initgestionaleOrders(){
     if(fbReady) return true;
     try{
       const [appMod, authMod, fsMod] = await Promise.all([
@@ -4153,7 +4153,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
       authMod.onAuthStateChanged(fbAuth,function(user){ if(user) startOrdersListener(); else stopOrdersListener(); });
       return true;
     }catch(err){
-      console.error('Firebase ordini non inizializzato:',err);
+      console.error('gestionale ordini non inizializzato:',err);
       try{toast('Errore collegamento ordini online: '+(err.message||err));}catch(e){}
       return false;
     }
@@ -4235,7 +4235,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
   }
 
   async function saveOrderOnline(data){
-    const ok=await initFirebaseOrders();
+    const ok=await initgestionaleOrders();
     if(!ok||!fbAuth||!fbAuth.currentUser) throw new Error('Devi essere loggato per registrare ordini online.');
     const profile=currentProfile();
     const now=iso();
@@ -4361,7 +4361,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
           if(typeof closeSaleConfirm==='function') closeSaleConfirm();
           saveLocalOnly();
           try{if(typeof renderCart==='function')renderCart(); if(typeof renderSales==='function')renderSales(); if(typeof showSuccessBadge==='function')showSuccessBadge();}catch(e){}
-          toast('Ordine registrato online. Stock aggiornato su Firebase.','success');
+          toast('Ordine registrato online. Stock aggiornato su gestionale.','success');
           document.getElementById('barcodeInput')?.focus();
           return false;
         }catch(err){
@@ -4377,7 +4377,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
   function bootOrdersOnline(){
     installPaymentOptions();
     installFinalizeOverride();
-    initFirebaseOrders().then(function(){ if(fbAuth&&fbAuth.currentUser) startOrdersListener(); });
+    initgestionaleOrders().then(function(){ if(fbAuth&&fbAuth.currentUser) startOrdersListener(); });
   }
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bootOrdersOnline); else bootOrdersOnline();
@@ -4416,7 +4416,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
     note:String(d?.note||'')
   });
 
-  async function initDiscountsFirebase(){
+  async function initDiscountsgestionale(){
     if(fDb&&fAuth&&fns) return true;
     const [appMod,authMod,fsMod]=await Promise.all([
       import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'),
@@ -4435,7 +4435,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
   }
 
   async function startDiscountsFirestoreListener(){
-    await initDiscountsFirebase();
+    await initDiscountsgestionale();
     if(unsub||!fAuth.currentUser) return;
     loadingDiscounts=true;
     try{ if(typeof renderDiscounts==='function') renderDiscounts(); }catch(e){}
@@ -4451,7 +4451,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
   }
 
   async function saveDiscountFirestore(discount){
-    await initDiscountsFirebase();
+    await initDiscountsgestionale();
     if(!fAuth.currentUser) throw new Error('Accesso richiesto');
     const d=norm(discount,discount.id);
     if(!d.code) throw new Error('Codice sconto mancante');
@@ -4498,7 +4498,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
   window.deleteDiscount=async function(id){
     if(!confirm('Eliminare questo codice sconto?')) return;
     try{
-      await initDiscountsFirebase();
+      await initDiscountsgestionale();
       if(!fAuth.currentUser) throw new Error('Accesso richiesto');
       await fns.deleteDoc(fns.doc(fDb,'discounts',cleanId(id)));
       if(typeof db==='object') db.discounts=(db.discounts||[]).filter(x=>String(x.id)!==String(id));
@@ -4519,7 +4519,7 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
     tb.innerHTML=rows||'<tr><td colspan="7" class="empty">Nessun codice sconto creato.</td></tr>';
   };
 
-  initDiscountsFirebase().then(()=>{ if(fAuth&&fAuth.currentUser) startDiscountsFirestoreListener(); setTimeout(()=>{try{renderDiscounts()}catch(e){}},700); });
+  initDiscountsgestionale().then(()=>{ if(fAuth&&fAuth.currentUser) startDiscountsFirestoreListener(); setTimeout(()=>{try{renderDiscounts()}catch(e){}},700); });
 })();
 </script>
 
@@ -4548,9 +4548,9 @@ const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const roleLabels={owner:'Owner',manager:'Admin',admin:'Admin',warehouse:'Magazziniere',seller:'Venditore',venditore:'Venditore',supervisor:'Supervisore',supervisore:'Supervisore'};
 function readJSON(k){try{return JSON.parse(localStorage.getItem(k)||sessionStorage.getItem(k)||'null')||{}}catch(e){return {}}}
-function profile(){return window.currentFirebaseUserProfile||window.currentUserProfile||window.currentProfileData||readJSON('noor_firebase_current_user_v1')||readJSON('noor_active_user_v1')||{};}
+function profile(){return window.currentgestionaleUserProfile||window.currentUserProfile||window.currentProfileData||readJSON('noor_firebase_current_user_v1')||readJSON('noor_active_user_v1')||{};}
 function role(){return String(profile().role||'seller').toLowerCase();}
-function authUser(){return auth.currentUser||window.currentFirebaseUser||null;}
+function authUser(){return auth.currentUser||window.currentgestionaleUser||null;}
 function fullName(){const p=profile(),u=authUser();return p.name||p.displayName||u?.displayName||p.email||u?.email||'Utente';}
 function email(){const p=profile(),u=authUser();return p.email||u?.email||'—';}
 function fmtDate(v){try{const d=v&&v.toDate?v.toDate():v?new Date(v):null;return d&&!isNaN(d)?d.toLocaleString('it-IT'):'—'}catch(e){return '—'}}
@@ -4564,7 +4564,7 @@ const items=[
   ['employeesMenuButton','Dipendenti','manageEmployees',()=>go('employees')],
   ['discountsMenuButton','Sconti','viewDiscounts',()=>go('discounts')],
   ['menuClosuresBtn','Chiusure','createClosure',()=>go('closures')],
-  ['accessLogsMenuButton','Controllo accessi','viewAccessLogs',()=>{go('accessLogs');try{window.renderFirebaseAccessLogs&&window.renderFirebaseAccessLogs()}catch(e){}}],
+  ['accessLogsMenuButton','Controllo accessi','viewAccessLogs',()=>{go('accessLogs');try{window.rendergestionaleAccessLogs&&window.rendergestionaleAccessLogs()}catch(e){}}],
   ['importMenuButton','Importa','backup',()=>{$('importFile')?.click()}],
   ['backupMenuButton','Backup','backup',()=>{try{window.exportData&&window.exportData()}catch(e){}}],
   ['settingsMenuButton','Impostazioni','settings',()=>go('settings')],
@@ -4574,7 +4574,7 @@ function ensureMenu(){const menu=$('topMenu');if(!menu)return;menu.innerHTML='';
 function ensureHomeBox(){const home=$('home');if(!home)return;let box=$('homeWelcomeAccessBox');if(!box){box=document.createElement('div');box.id='homeWelcomeAccessBox';home.insertBefore(box,home.firstElementChild);}renderHomeBox();}
 function renderHomeBox(){const box=$('homeWelcomeAccessBox');if(!box)return;const name=fullName();const first=(String(name).trim()[0]||'N').toUpperCase();const access=lastAccess();const m=String(access).match(/(\d{1,2}:\d{2})/);const time=m?m[1]:access;box.innerHTML=`<div class="noor-welcome-head"><div class="noor-welcome-left"><div class="noor-welcome-avatar">${esc(first)}</div><div style="min-width:0"><div class="noor-welcome-title">Benvenuto, ${esc(name)}</div><div class="noor-welcome-sub">Buon lavoro</div></div></div><div class="noor-welcome-right"><span class="noor-welcome-badge">${esc(roleLabels[role()]||role())}</span><span class="noor-welcome-time">🕒 Accesso ${esc(time)}</span></div></div>`;}
 function ensureProfile(){let sec=$('profile');const main=document.querySelector('main.app')||document.querySelector('main');if(!main)return;if(!sec){sec=document.createElement('section');sec.id='profile';sec.className='section';main.appendChild(sec);}sec.innerHTML=`<div class="card panel"><div class="panel-title"><div><h2>Profilo</h2><p class="hint">Dati dell’utente collegato e cambio password.</p></div></div><div id="profileContent" class="profile-card-grid"></div></div>`;renderProfile();}
-function renderProfile(){const box=$('profileContent');if(!box)return;box.innerHTML=`<div class="profile-info-card"><b>Nome e cognome</b><span>${esc(fullName())}</span></div><div class="profile-info-card"><b>Email</b><span>${esc(email())}</span></div><div class="profile-info-card"><b>Ruolo</b><span>${esc(roleLabels[role()]||role())}</span></div><div class="profile-info-card"><b>Data creazione account</b><span>${esc(createdAt())}</span></div><div class="profile-info-card"><b>Ultimo accesso</b><span>${esc(lastAccess())}</span></div><div class="profile-info-card"><b>Stato account</b><span>${esc(status())}</span></div><div class="profile-actions-card"><b>Cambio password</b><p class="hint">Invia il link ufficiale Firebase all’email dell’account.</p><div class="action-row"><button id="profilePasswordResetBtn" class="btn gold" type="button">Invia email cambio password</button></div></div>`;const btn=$('profilePasswordResetBtn');if(btn)btn.onclick=async()=>{const mail=email();if(!mail||mail==='—'){try{toast('Email non disponibile.')}catch(e){}return;}try{await sendPasswordResetEmail(auth,mail);try{toast('Email cambio password inviata.')}catch(e){}}catch(err){try{toast('Errore invio email cambio password.')}catch(e){}}};}
+function renderProfile(){const box=$('profileContent');if(!box)return;box.innerHTML=`<div class="profile-info-card"><b>Nome e cognome</b><span>${esc(fullName())}</span></div><div class="profile-info-card"><b>Email</b><span>${esc(email())}</span></div><div class="profile-info-card"><b>Ruolo</b><span>${esc(roleLabels[role()]||role())}</span></div><div class="profile-info-card"><b>Data creazione account</b><span>${esc(createdAt())}</span></div><div class="profile-info-card"><b>Ultimo accesso</b><span>${esc(lastAccess())}</span></div><div class="profile-info-card"><b>Stato account</b><span>${esc(status())}</span></div><div class="profile-actions-card"><b>Cambio password</b><p class="hint">Invia il link ufficiale gestionale all’email dell’account.</p><div class="action-row"><button id="profilePasswordResetBtn" class="btn gold" type="button">Invia email cambio password</button></div></div>`;const btn=$('profilePasswordResetBtn');if(btn)btn.onclick=async()=>{const mail=email();if(!mail||mail==='—'){try{toast('Email non disponibile.')}catch(e){}return;}try{await sendPasswordResetEmail(auth,mail);try{toast('Email cambio password inviata.')}catch(e){}}catch(err){try{toast('Errore invio email cambio password.')}catch(e){}}};}
 function safeImg(p,name){return p&&p.photo?`<img src="${esc(p.photo)}" alt="${esc(name)}">`:esc((String(name).trim()[0]||'N').toUpperCase());}
 function renderHomeSafe(){try{const lowMax=typeof getLowStockMax==='function'?getLowStockMax():5;const products=Array.isArray(window.db?.products)?window.db.products:[];const sales=Array.isArray(window.db?.sales)?window.db.sales:[];const low=products.filter(p=>Number(p.qty)<=lowMax).sort((a,b)=>Number(a.qty)-Number(b.qty)).slice(0,6);const last=[...sales].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);const lastTotal=last.reduce((a,s)=>a+Number(s.total||0),0);let html='<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">';html+=`<div class="card panel home-stock-card"><div class="home-stock-head"><div><h2>📦 Scorte basse</h2><p class="hint">Esauriti e prodotti sotto soglia</p></div><span class="home-stock-total">Soglia ${esc(lowMax)} pz</span></div>${low.length?`<div class="home-stock-list">${low.map(p=>{const name=p.name||'Prodotto';return `<div class="home-stock-item"><div class="home-stock-photo">${safeImg(p,name)}</div><div><div class="home-stock-name">${esc(name)}</div><div class="home-stock-meta">${esc(p.brand||'Noor Profumi')} · ${esc(p.size||'Formato —')}</div><div style="margin-top:6px">${typeof statusBadge==='function'?statusBadge(p.qty):esc(p.qty)}</div><div class="home-stock-actions"><button class="btn small secondary" onclick="event.stopPropagation();viewProduct('${esc(p.id)}')">Apri</button><button class="btn small secondary" onclick="event.stopPropagation();editProduct('${esc(p.id)}')">Modifica</button></div></div><div class="home-stock-qty">${esc(Number(p.qty)||0)}<span>pezzi</span></div></div>`}).join('')}</div>`:`<div class="home-empty-stock">Tutto ok: nessun prodotto sotto la soglia impostata.</div>`}</div>`;html+=`<div class="card panel home-sales-card"><div class="home-sales-head"><div><h2>🧾 Ultime vendite</h2><p class="hint">Movimenti recenti registrati</p></div><span class="home-sales-total">Totale ${typeof eur==='function'?eur(lastTotal):lastTotal}</span></div>${last.length?`<div class="home-sales-list">${last.map(s=>{const d=new Date(s.date);const name=s.productName||'Prodotto';const product=products.find(p=>p.id===s.productId);return `<div class="home-sale-item"><div class="home-sale-icon">${safeImg(product,name)}</div><div><div class="home-sale-name">${esc(name)}</div><div class="home-sale-meta">${esc(d.toLocaleDateString('it-IT'))} · ${esc(d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}))} · Quantità ${esc(s.qty||1)}</div></div><div class="home-sale-total">${typeof eur==='function'?eur(s.total||0):esc(s.total||0)}<br><span class="home-sale-pay">${esc(s.payment||'Pagamento —')}</span></div></div>`}).join('')}</div>`:`<div class="home-empty-sales">Nessuna vendita recente. Quando registri un ordine, lo vedrai qui in modo elegante.</div>`}</div>`;html+='</div>';const target=$('homeAlerts');if(target)target.innerHTML=html;}catch(e){console.warn('Home safe:',e)}}
 function boot(){ensureProfile();ensureMenu();ensureHomeBox();renderProfile();renderHomeBox();renderHomeSafe();window.renderHomeAlerts=renderHomeSafe;}
@@ -4724,7 +4724,7 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction, serverTim
     return {id:String(orderId),orderNumber:lines[0].orderNumber||String(orderId),lines,total:Number(lines[0].orderTotal||lines[0].cartFinalTotal)||lines.reduce((a,l)=>a+Number(l.total||0),0)};
   }
   async function cancelOrderOnline(orderId){
-    if(!auth.currentUser) throw new Error('Accesso Firebase richiesto');
+    if(!auth.currentUser) throw new Error('Accesso al gestionale richiesto');
     const orderRef=doc(fs,'orders',String(orderId));
     await runTransaction(fs,async tx=>{
       const os=await tx.get(orderRef);
@@ -5093,10 +5093,10 @@ import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from "https://
       if(sig === lastSignature && !showToast) return;
       lastSignature = sig;
       await setDoc(prefRef, data, {merge:true});
-      if(showToast) notify('Soglie e preferenze salvate online.', 'success');
+      if(showToast) notify('Preferenze salvate nel gestionale.', 'success');
     }catch(err){
       console.error('Preferenze online:', err);
-      if(showToast) notify('Errore salvataggio preferenze online: '+(err.message||err));
+      if(showToast) notify('Errore salvataggio preferenze nel gestionale: '+(err.message||err));
     }
   }
   function applyPreferences(data){
@@ -5146,7 +5146,7 @@ import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from "https://
     wrapSave('saveStockThresholds');
     wrapSave('resetStockThresholds');
     wrapSave('toggleTheme');
-    wrapSave('toggleMoney');
+    // toggleMoney escluso dal salvataggio online rumoroso
     wrapSave('savePdfSettings');
     wrapSave('resetPdfSettings');
     wrapSave('removePdfLogo');
@@ -5664,13 +5664,13 @@ import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, 
   function merge(records){const map=new Map(); [...local(),...(records||[])].forEach(r=>{if(r&&r.id)map.set(String(r.id),r)}); const arr=[...map.values()].sort((a,b)=>new Date(b.cancelledAt||0)-new Date(a.cancelledAt||0)); setLocal(arr); return arr;}
   function roleNow(){
     try{if(typeof activeEmployee==='function'){const e=activeEmployee(); if(e&&e.role)return e.role}}catch(e){}
-    try{const p=window.currentFirebaseUserProfile||window.currentUserProfile||{}; return p.role||p.userRole||''}catch(e){}
+    try{const p=window.currentgestionaleUserProfile||window.currentUserProfile||{}; return p.role||p.userRole||''}catch(e){}
     return '';
   }
   function canAdminCancelList(){const r=String(roleNow()||'').toLowerCase(); return ['owner','admin','manager','superadmin','super_admin','master'].includes(r)}
   function actor(){
     let emp={}; try{if(typeof activeEmployee==='function') emp=activeEmployee()||{}}catch(e){}
-    const prof=window.currentFirebaseUserProfile||window.currentUserProfile||{};
+    const prof=window.currentgestionaleUserProfile||window.currentUserProfile||{};
     return {name:emp.name||prof.name||prof.displayName||prof.email||'Utente',email:emp.email||prof.email||'',role:emp.role||prof.role||roleNow()||'',uid:prof.uid||''};
   }
   function getOrder(orderId){try{return typeof getOrderById==='function'?getOrderById(orderId):(db.sales||[]).find(s=>String(s.orderId||s.id)===String(orderId))}catch(e){return null}}
@@ -5770,7 +5770,7 @@ import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, 
   function setLocal(arr){try{localStorage.setItem(LS,JSON.stringify(arr||[]))}catch(e){}}
   function merge(records){const map=new Map(); [...local(),...(records||[])].forEach(r=>{if(r&&r.id)map.set(String(r.id),r)}); const arr=[...map.values()].sort((a,b)=>new Date(b.cancelledAt||0)-new Date(a.cancelledAt||0)); setLocal(arr); return arr;}
   function activeEmp(){try{if(typeof activeEmployee==='function') return activeEmployee()||{}}catch(e){} return {};}
-  function profile(){return window.currentFirebaseUserProfile||window.currentUserProfile||{};}
+  function profile(){return window.currentgestionaleUserProfile||window.currentUserProfile||{};}
   function roleNow(){
     const e=activeEmp(), p=profile();
     return String(e.role||p.role||p.userRole||'').toLowerCase().trim();
@@ -5977,7 +5977,7 @@ const fs=getFirestore(app);
 const LS_CANCEL='noor_cancelled_orders_log_v2';
 const $=id=>document.getElementById(id);
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function safeRole(){try{if(typeof activeEmployee==='function'){const e=activeEmployee()||{};if(e.role)return String(e.role).toLowerCase();}}catch(e){}const p=window.currentFirebaseUserProfile||{};return String(p.role||p.claimRole||p.type||'seller').toLowerCase();}
+function safeRole(){try{if(typeof activeEmployee==='function'){const e=activeEmployee()||{};if(e.role)return String(e.role).toLowerCase();}}catch(e){}const p=window.currentgestionaleUserProfile||{};return String(p.role||p.claimRole||p.type||'seller').toLowerCase();}
 function isAdmin(){const r=safeRole();return ['owner','superadmin','super_admin','admin','manager'].includes(r);}
 function setLocalCancelled(arr){try{localStorage.setItem(LS_CANCEL,JSON.stringify(Array.isArray(arr)?arr:[]));}catch(e){}}
 function getLocalCancelled(){try{return JSON.parse(localStorage.getItem(LS_CANCEL)||'[]')}catch(e){return []}}
@@ -6013,9 +6013,9 @@ function installClearOverride(){
 }
 installClearOverride();
 setTimeout(installClearOverride,800);setTimeout(installClearOverride,2500);
-// Foto profilo stabile nella Home: niente lampeggio e immagine letta da Firebase.
+// Foto profilo stabile nella Home: niente lampeggio e immagine letta da gestionale.
 let lastAvatarKey=''; let unsubUser=null;
-function readProfile(){try{return window.currentFirebaseUserProfile||window.currentUserProfile||JSON.parse(localStorage.getItem('noor_firebase_current_user_v1')||'{}')||{}}catch(e){return window.currentFirebaseUserProfile||window.currentUserProfile||{}}}
+function readProfile(){try{return window.currentgestionaleUserProfile||window.currentUserProfile||JSON.parse(localStorage.getItem('noor_firebase_current_user_v1')||'{}')||{}}catch(e){return window.currentgestionaleUserProfile||window.currentUserProfile||{}}}
 function profilePhoto(){const p=readProfile();return p.photo||p.photoURL||p.avatar||'';}
 function profileName(){try{if(typeof fullName==='function')return fullName();}catch(e){}const p=readProfile();return p.name||p.displayName||p.email||'Utente';}
 function profileRole(){try{if(typeof role==='function'&&typeof roleLabels!=='undefined')return roleLabels[role()]||role();}catch(e){}const r=safeRole();return ({owner:'Super Admin',manager:'Admin',admin:'Admin',warehouse:'Magazziniere',seller:'Venditore'}[r]||r);}
@@ -6032,7 +6032,7 @@ window.renderHomeBox=renderStableHomeWelcome;
 window.ensureHomeBox=function(){renderStableHomeWelcome();};
 function mergeProfile(data,user){
   const current=readProfile(); const merged=Object.assign({},current,data||{},user?{uid:user.uid,email:user.email||data?.email||current.email}:{});
-  window.currentFirebaseUserProfile=merged;
+  window.currentgestionaleUserProfile=merged;
   try{localStorage.setItem('noor_firebase_current_user_v1',JSON.stringify(merged));}catch(e){}
   renderStableHomeWelcome();
 }
@@ -6130,24 +6130,24 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{renderStableHom
 
   function userPhoto(){
     try{
-      var u = window.currentFirebaseUserProfile || window.currentUserProfile || window.activeEmployee || {};
+      var u = window.currentgestionaleUserProfile || window.currentUserProfile || window.activeEmployee || {};
       return u.photo || u.photoData || u.photoURL || u.avatar || '';
     }catch(e){ return ''; }
   }
   function userName(){
     try{
       if(typeof fullName === 'function') return fullName();
-      var u = window.currentFirebaseUserProfile || window.currentUserProfile || window.activeEmployee || {};
+      var u = window.currentgestionaleUserProfile || window.currentUserProfile || window.activeEmployee || {};
       return u.name || u.displayName || u.email || 'utente';
     }catch(e){ return 'utente'; }
   }
   function userRole(){
     try{
       if(typeof roleLabel === 'function'){
-        var u = window.currentFirebaseUserProfile || window.currentUserProfile || window.activeEmployee || {};
+        var u = window.currentgestionaleUserProfile || window.currentUserProfile || window.activeEmployee || {};
         return roleLabel(u.role || '');
       }
-      var u2 = window.currentFirebaseUserProfile || window.currentUserProfile || window.activeEmployee || {};
+      var u2 = window.currentgestionaleUserProfile || window.currentUserProfile || window.activeEmployee || {};
       return u2.role || '';
     }catch(e){ return ''; }
   }
@@ -6206,6 +6206,53 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{renderStableHom
   window.addEventListener('load', boot);
 })();
 </script>
+
+
+<!-- PATCH NOOR: cambio pagamento ordine persistente online senza toccare Home -->
+<script type="module" id="noor-fix-pagamento-ordine-online-no-home">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, doc, getDoc, updateDoc, collection, query, where, limit, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const FIREBASE_CONFIG={apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",authDomain:"gestionalenoor-2fa61.firebaseapp.com",projectId:"gestionalenoor-2fa61",storageBucket:"gestionalenoor-2fa61.firebasestorage.app",messagingSenderId:"66670691093",appId:"1:66670691093:web:82d0b2122e600bf5885f1c",measurementId:"G-0HSQB7XLJG"};
+const app=getApps().length?getApps()[0]:initializeApp(FIREBASE_CONFIG);
+const fs=getFirestore(app);
+function $(id){return document.getElementById(id)}
+function notify(msg,type){try{ if(typeof window.toast==='function') window.toast(msg,type||'success'); }catch(e){}}
+function getLines(orderId){try{return (window.db&&Array.isArray(window.db.sales)?window.db.sales:[]).filter(s=>String(s.orderId||s.id)===String(orderId));}catch(e){return []}}
+async function resolveOrderRef(orderId){
+  const direct=doc(fs,'orders',String(orderId));
+  try{ const snap=await getDoc(direct); if(snap.exists()) return direct; }catch(e){}
+  const lines=getLines(orderId);
+  const orderNumber=lines[0]?.orderNumber || '';
+  try{ const qs=await getDocs(query(collection(fs,'orders'),where('id','==',String(orderId)),limit(1))); if(!qs.empty) return qs.docs[0].ref; }catch(e){}
+  if(orderNumber){try{ const qs=await getDocs(query(collection(fs,'orders'),where('orderNumber','==',String(orderNumber)),limit(1))); if(!qs.empty) return qs.docs[0].ref; }catch(e){}}
+  return direct;
+}
+function saveLocalQuiet(){try{localStorage.setItem('noor_profumi_pro_v1',JSON.stringify(window.db));}catch(e){}}
+window.saveOrderPayment=async function(){
+  const orderId=window.pendingPaymentOrder;
+  const value=$('orderPaymentEdit')?.value;
+  if(!orderId||!value){ notify('Seleziona un pagamento valido.'); return; }
+  const btn=[...document.querySelectorAll('button')].find(b=>(b.textContent||'').trim().toLowerCase()==='salva pagamento');
+  if(btn){btn.disabled=true;btn.textContent='Salvataggio...';}
+  try{
+    const orderRef=await resolveOrderRef(orderId);
+    await updateDoc(orderRef,{payment:value,paymentMethod:value,updatedAt:serverTimestamp(),updatedAtClient:new Date().toISOString()});
+    if(window.db&&Array.isArray(window.db.sales)){
+      window.db.sales=window.db.sales.map(s=>String(s.orderId||s.id)===String(orderId)?Object.assign({},s,{payment:value}):s);
+      saveLocalQuiet();
+    }
+    try{ if(typeof window.renderSales==='function') window.renderSales(); }catch(e){}
+    notify('Pagamento ordine aggiornato sul gestionale.','success');
+    setTimeout(()=>{ try{ if(typeof window.openOrderDetail==='function') window.openOrderDetail(orderId); }catch(e){} },120);
+  }catch(err){
+    console.error('Cambio pagamento ordine:',err);
+    notify('Pagamento non salvato: controlla la connessione e riprova.');
+    if(btn){btn.disabled=false;btn.textContent='Salva pagamento';}
+  }
+};
+</script>
+
 </body>
 </html>
 <!-- PATCH NOOR: Filtro ordini annullati + immagini prodotto + popup pulito -->
@@ -6230,7 +6277,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{renderStableHom
   const money=v=>{try{return typeof eur==='function'?eur(v):Number(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'})}catch(e){return '€ '+Number(v||0).toFixed(2)}};
   function local(){try{return JSON.parse(localStorage.getItem(LS)||'[]')}catch(e){return []}}
   function setLocal(arr){try{localStorage.setItem(LS,JSON.stringify(arr||[]))}catch(e){}}
-  function roleNow(){try{if(typeof activeEmployee==='function'){const e=activeEmployee()||{}; if(e.role)return String(e.role).toLowerCase()}}catch(e){} const p=window.currentFirebaseUserProfile||window.currentUserProfile||{}; return String(p.role||p.userRole||'').toLowerCase();}
+  function roleNow(){try{if(typeof activeEmployee==='function'){const e=activeEmployee()||{}; if(e.role)return String(e.role).toLowerCase()}}catch(e){} const p=window.currentgestionaleUserProfile||window.currentUserProfile||{}; return String(p.role||p.userRole||'').toLowerCase();}
   function canRestore(){const r=roleNow();return ['owner','admin','manager','administrator','amministratore','supervisor','supervisore','super_admin','superadmin','master'].includes(r)}
   function canDelete(){const r=roleNow();return ['owner','admin','manager','administrator','amministratore','super_admin','superadmin','master'].includes(r)}
   function productForLine(l){try{return (window.db&&Array.isArray(db.products)?db.products:[]).find(p=>String(p.id)===String(l.productId)||String(p.barcode||'')===String(l.barcode||''))||{}}catch(e){return {}}}
@@ -6281,7 +6328,7 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{renderStableHom
   const oldToast=window.toast;
   window.toast=function(msg,type){
     const s=String(msg||'');
-    if(s.includes('Ordine registrato online')||s.includes('Stock aggiornato su Firebase')||s.includes('stock aggiornato su Firebase')) return;
+    if(s.includes('Ordine registrato online')||s.includes('Stock aggiornato su gestionale')||s.includes('stock aggiornato su gestionale')) return;
     if(s.toLowerCase().includes('ordine annullato')||s.toLowerCase().includes('prodotti tornati in magazzino')){centerPopup('Ordine annullato','L’ordine è stato spostato negli ordini annullati e il magazzino è stato aggiornato.');return;}
     try{return oldToast?oldToast(msg,type):void 0}catch(e){centerPopup('Avviso',s,type==='warn'?'warn':'')}
   };
@@ -6317,8 +6364,8 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-aut
   const toastOk=(m)=>{try{toast(m,'success')}catch(e){alert(m)}};
   const toastWarn=(m)=>{try{toast(m)}catch(e){alert(m)}};
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function activeProfile(){return window.currentFirebaseUserProfile||window.currentUserProfile||window.currentProfileData||{};}
-  function activeUid(){return auth.currentUser?.uid||window.currentFirebaseUser?.uid||activeProfile().uid||'';}
+  function activeProfile(){return window.currentgestionaleUserProfile||window.currentUserProfile||window.currentProfileData||{};}
+  function activeUid(){return auth.currentUser?.uid||window.currentgestionaleUser?.uid||activeProfile().uid||'';}
   function nameInitial(){const p=activeProfile(); const s=p.name||p.displayName||p.email||auth.currentUser?.email||'N'; return esc((String(s).trim()[0]||'N').toUpperCase());}
   async function fileToImageData(file,max=520,quality=.78){
     if(!file) return '';
@@ -6336,8 +6383,8 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-aut
   window.noorSaveCurrentProfilePhoto=async function(data){
     const uid=activeUid(); if(!uid){toastWarn('Utente non trovato. Esci e rientra.');return;}
     await setDoc(doc(fs,'users',String(uid)),{photo:data,photoURL:data,updatedAt:new Date().toISOString()},{merge:true});
-    window.currentFirebaseUserProfile=Object.assign({},activeProfile(),{uid,photo:data,photoURL:data});
-    try{localStorage.setItem('noor_firebase_current_user_v1',JSON.stringify(window.currentFirebaseUserProfile));}catch(e){}
+    window.currentgestionaleUserProfile=Object.assign({},activeProfile(),{uid,photo:data,photoURL:data});
+    try{localStorage.setItem('noor_firebase_current_user_v1',JSON.stringify(window.currentgestionaleUserProfile));}catch(e){}
     try{if(window.db&&Array.isArray(db.employees)){const p=activeProfile();const emp=db.employees.find(x=>String(x.uid||x.firebaseUid||'')===String(uid)||String(x.email||'').toLowerCase()===String(p.email||auth.currentUser?.email||'').toLowerCase());if(emp){emp.photo=data;emp.photoURL=data;localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db));}}}catch(e){}
     setPreview('profilePhotoAvatar',data,nameInitial());
     toastOk('Foto profilo salvata online.');
@@ -6372,7 +6419,7 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-aut
   window.__NOOR_USER_PHOTO_CANCELLED_CLEAN_UI__=true;
   const $=id=>document.getElementById(id);
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function currentProfile(){return window.currentFirebaseUserProfile||window.currentUserProfile||window.currentProfileData||{};}
+  function currentProfile(){return window.currentgestionaleUserProfile||window.currentUserProfile||window.currentProfileData||{};}
   function initialFromProfile(){const p=currentProfile();const s=p.name||p.displayName||p.email||'N';return esc((String(s).trim()[0]||'N').toUpperCase());}
   function photoFromProfile(){const p=currentProfile();return p.photo||p.photoURL||p.avatar||'';}
   function cleanCancelledText(){
@@ -6404,7 +6451,7 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-aut
     $('clearEmployeePhotoBtn').onclick=function(){$('empPhotoData').value=''; $('empPhotoInput').value=''; $('employeePhotoPreview').innerHTML='👤';};
   }
   function fillEmployeePhoto(){
-    try{const id=$('employeeId')?.value||$('empFirebaseUid')?.value||''; if(!id||!window.db||!Array.isArray(db.employees)) return; const emp=db.employees.find(e=>String(e.id)===String(id)||String(e.uid||e.firebaseUid||'')===String(id)); const photo=emp?.photo||emp?.photoURL||''; if(photo){$('empPhotoData').value=photo; $('employeePhotoPreview').innerHTML='<img src="'+photo+'" alt="Foto dipendente">';}}
+    try{const id=$('employeeId')?.value||$('empgestionaleUid')?.value||''; if(!id||!window.db||!Array.isArray(db.employees)) return; const emp=db.employees.find(e=>String(e.id)===String(id)||String(e.uid||e.firebaseUid||'')===String(id)); const photo=emp?.photo||emp?.photoURL||''; if(photo){$('empPhotoData').value=photo; $('employeePhotoPreview').innerHTML='<img src="'+photo+'" alt="Foto dipendente">';}}
     catch(e){}
   }
   const oldEdit=window.editEmployee;
@@ -6463,8 +6510,8 @@ import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSn
   const notify=(m,t)=>{try{toast(m,t||'')}catch(e){try{window.noorCenterPopup?window.noorCenterPopup('Avviso',m):alert(m)}catch(_){alert(m)}}};
   function localCancelled(){try{return JSON.parse(localStorage.getItem(LS_CANCEL)||'[]')}catch(e){return []}}
   function setLocalCancelled(arr){try{localStorage.setItem(LS_CANCEL,JSON.stringify(arr||[]))}catch(e){}}
-  function profile(){return window.currentFirebaseUserProfile||window.currentUserProfile||window.currentProfileData||{};}
-  function activeUser(){return auth.currentUser||window.currentFirebaseUser||null;}
+  function profile(){return window.currentgestionaleUserProfile||window.currentUserProfile||window.currentProfileData||{};}
+  function activeUser(){return auth.currentUser||window.currentgestionaleUser||null;}
   function activeUid(){const u=activeUser(); const p=profile(); return u?.uid||p.uid||p.firebaseUid||p.id||'';}
   function activeRole(){try{if(typeof activeEmployee==='function'){const e=activeEmployee()||{}; if(e.role)return String(e.role).toLowerCase();}}catch(e){} return String(profile().role||profile().userRole||'seller').toLowerCase();}
   function canRestore(){return ['supervisor','supervisore','owner','admin','manager','administrator','amministratore','super_admin','superadmin','master'].includes(activeRole());}
@@ -6482,7 +6529,7 @@ import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSn
   function mergeCurrentProfile(data){
     const u=activeUser();
     const merged=Object.assign({},profile(),data||{},u?{uid:u.uid,email:u.email||data?.email||profile().email}:{});
-    window.currentFirebaseUserProfile=merged;
+    window.currentgestionaleUserProfile=merged;
     try{localStorage.setItem('noor_firebase_current_user_v1',JSON.stringify(merged));}catch(e){}
     try{if(window.db&&Array.isArray(db.employees)){const emp=db.employees.find(x=>String(x.uid||x.firebaseUid||x.id||'')===String(merged.uid||'')||String(x.email||'').toLowerCase()===String(merged.email||'').toLowerCase());if(emp){emp.photo=merged.photo||merged.photoURL||emp.photo||'';emp.photoURL=merged.photoURL||merged.photo||emp.photoURL||'';emp.name=merged.name||emp.name;emp.role=merged.role||emp.role;localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db));}}}catch(e){}
     applyProfilePhotoToUI();
@@ -6542,7 +6589,7 @@ import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSn
     }
     return res;
   };
-  document.addEventListener('submit',ev=>{if(ev.target&&ev.target.id==='employeeForm'){setTimeout(()=>{saveEmployeePhotoOnline($('empFirebaseUid')?.value||$('employeeId')?.value||'', $('empEmail')?.value||'', $('empPhotoData')?.value||'').catch(console.warn)},1600);}},true);
+  document.addEventListener('submit',ev=>{if(ev.target&&ev.target.id==='employeeForm'){setTimeout(()=>{saveEmployeePhotoOnline($('empgestionaleUid')?.value||$('employeeId')?.value||'', $('empEmail')?.value||'', $('empPhotoData')?.value||'').catch(console.warn)},1600);}},true);
   function showSection(id){document.querySelectorAll('.section').forEach(s=>s.classList.toggle('active',s.id===id));try{document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));}catch(e){}window.scrollTo({top:0,behavior:'smooth'});}
   const previousGo=window.go;
   window.go=function(id){
@@ -6616,9 +6663,9 @@ import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSn
   function money(v){try{return (typeof eur==='function')?eur(v):Number(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'})}catch(e){return '€ '+Number(v||0).toFixed(2)}}
   function allSales(){return safe(function(){return (db&&Array.isArray(db.sales))?db.sales:[]},[])}
   function allProducts(){return safe(function(){return (db&&Array.isArray(db.products))?db.products:[]},[])}
-  function profile(){return safe(function(){return window.currentFirebaseUserProfile||window.currentUserProfile||window.currentProfileData||{}},{})||{};}
+  function profile(){return safe(function(){return window.currentgestionaleUserProfile||window.currentUserProfile||window.currentProfileData||{}},{})||{};}
   function activeEmp(){return safe(function(){return (typeof activeEmployee==='function'?activeEmployee():null)||{}},{})||{};}
-  function authUser(){return safe(function(){return (window.auth&&window.auth.currentUser)||(window.fbAuth&&window.fbAuth.currentUser)||window.currentFirebaseUser||null},null);}
+  function authUser(){return safe(function(){return (window.auth&&window.auth.currentUser)||(window.fbAuth&&window.fbAuth.currentUser)||window.currentgestionaleUser||null},null);}
   window.getSaleOperatorInfo=function(){
     var p=profile(), e=activeEmp(), u=authUser();
     var name=p.name||p.displayName||e.name||e.fullName||u?.displayName||u?.email||p.email||e.email||'Operatore';
@@ -6869,7 +6916,7 @@ import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSn
     var products = productsList();
     var sales = salesList();
 
-    // Se Firebase non ha ancora dati e non abbiamo mai disegnato una Home valida, mostra caricamento senza rompere la pagina.
+    // Se gestionale non ha ancora dati e non abbiamo mai disegnato una Home valida, mostra caricamento senza rompere la pagina.
     if(!products.length && !sales.length && !homeReadyOnce){
       var loading = '<div id="homeDataLoadingBox">Caricamento situazione veloce...</div>';
       if(box.innerHTML !== loading) box.innerHTML = loading;
@@ -6941,7 +6988,7 @@ import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSn
 
   function profileData(){
     try{
-      return window.currentFirebaseUserProfile || window.currentUserProfile || window.activeEmployee || {};
+      return window.currentgestionaleUserProfile || window.currentUserProfile || window.activeEmployee || {};
     }catch(e){ return {}; }
   }
   function userName(){
@@ -7003,3 +7050,432 @@ import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSn
   }, 2500);
 })();
 </script>
+
+
+<!-- PATCH NOOR FINALE VERIFICATA: toggle valore silenzioso, messaggi puliti, logo accesso online -->
+<script id="noor-final-no-popup-toggle-home-safe">
+(function(){
+  'use strict';
+  if(window.__NOOR_FINAL_NO_POPUP_TOGGLE_HOME_SAFE__) return;
+  window.__NOOR_FINAL_NO_POPUP_TOGGLE_HOME_SAFE__ = true;
+  function cleanMsg(msg){ return String(msg == null ? '' : msg).replace(/Firebase/g,'gestionale').replace(/firebase/g,'gestionale'); }
+  var originalToast = window.toast;
+  if(typeof originalToast === 'function' && !originalToast.__noorCleanMessages){
+    var wrappedToast = function(msg,type){ return originalToast.call(this, cleanMsg(msg), type); };
+    wrappedToast.__noorCleanMessages = true;
+    window.toast = wrappedToast;
+    try{ toast = wrappedToast; }catch(e){}
+  }
+  function saveSettingsLocalOnly(){
+    try{ if(typeof SETTINGS_KEY !== 'undefined'){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); return; } }catch(e){}
+    try{ localStorage.setItem('noor_profumi_settings_v1', JSON.stringify(window.settings || settings || {})); }catch(e){}
+  }
+  function canViewCostsSafe(){
+    try{ if(typeof canAccess === 'function') return !!canAccess('viewCosts'); }catch(e){}
+    try{ if(typeof can === 'function') return !!can('viewCosts'); }catch(e){}
+    return true;
+  }
+  function renderStatsOnly(){
+    try{ if(typeof renderStats === 'function') renderStats(); }catch(e){}
+    try{ if(typeof applyEmployeePermissions === 'function') applyEmployeePermissions(); }catch(e){}
+  }
+  window.toggleMoney = function(){
+    try{
+      if(!window.settings && typeof settings !== 'undefined') window.settings = settings;
+      var st = window.settings || settings;
+      if(!canViewCostsSafe()){
+        st.hideMoney = true;
+        saveSettingsLocalOnly();
+        renderStatsOnly();
+        return false;
+      }
+      st.hideMoney = !st.hideMoney;
+      saveSettingsLocalOnly();
+      renderStatsOnly();
+      return false;
+    }catch(err){ console.error('Toggle valore magazzino:', err); return false; }
+  };
+  try{ toggleMoney = window.toggleMoney; }catch(e){}
+  document.addEventListener('click', function(ev){
+    var btn = ev.target && ev.target.closest && ev.target.closest('#moneyBtn, button[onclick*="toggleMoney"]');
+    if(!btn) return;
+    setTimeout(renderStatsOnly, 30);
+  }, true);
+  function cleanBootText(){
+    try{ document.querySelectorAll('#firebaseBootLoading .boot-sub, #firebaseBootLoading .boot-title, .toast').forEach(function(el){ el.textContent = cleanMsg(el.textContent); }); }catch(e){}
+  }
+  cleanBootText();
+  window.addEventListener('load', function(){ setTimeout(cleanBootText, 200); setTimeout(cleanBootText, 1200); });
+})();
+</script>
+
+<script type="module" id="noor-final-login-logo-online-safe">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+(function(){
+  if(window.__NOOR_FINAL_LOGIN_LOGO_ONLINE_SAFE__) return;
+  window.__NOOR_FINAL_LOGIN_LOGO_ONLINE_SAFE__ = true;
+  const FIREBASE_CONFIG = {apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",authDomain:"gestionalenoor-2fa61.firebaseapp.com",projectId:"gestionalenoor-2fa61",storageBucket:"gestionalenoor-2fa61.firebasestorage.app",messagingSenderId:"66670691093",appId:"1:66670691093:web:82d0b2122e600bf5885f1c",measurementId:"G-0HSQB7XLJG"};
+  const app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG);
+  const fs = getFirestore(app);
+  const identityRef = doc(fs, 'settings', 'identity');
+  function applyLoginLogo(src){
+    const logo = document.querySelector('.login-logo');
+    if(!logo) return;
+    if(src){ logo.classList.add('has-image'); logo.innerHTML = '<img src="'+String(src).replace(/"/g,'&quot;')+'" alt="Logo accesso">'; }
+    else{ logo.classList.remove('has-image'); logo.textContent = 'N'; }
+    const prev = document.getElementById('loginLogoPreview');
+    if(prev) prev.innerHTML = src ? '<img src="'+String(src).replace(/"/g,'&quot;')+'" alt="Logo accesso">' : 'N';
+  }
+  function resizeImage(file,max=700,quality=.86){
+    return new Promise((resolve,reject)=>{
+      const reader = new FileReader(); reader.onerror = () => reject(new Error('Errore lettura immagine'));
+      reader.onload = () => { const img = new Image(); img.onerror = () => reject(new Error('Immagine non valida')); img.onload = () => { let w=img.width,h=img.height; const scale=Math.min(1,max/Math.max(w,h)); w=Math.round(w*scale); h=Math.round(h*scale); const canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h; canvas.getContext('2d').drawImage(img,0,0,w,h); resolve(canvas.toDataURL('image/png',quality)); }; img.src=reader.result; };
+      reader.readAsDataURL(file);
+    });
+  }
+  function bindUpload(){
+    const input = document.getElementById('setLoginLogoFile');
+    if(input && !input.__noorAutoOnlineLogo){
+      input.__noorAutoOnlineLogo = true;
+      input.addEventListener('change', async function(ev){
+        const file = ev.target.files && ev.target.files[0]; if(!file) return;
+        try{ const data = await resizeImage(file,700,.86); applyLoginLogo(data); await setDoc(identityRef,{loginLogo:data,updatedAt:serverTimestamp(),updatedAtClient:new Date().toISOString()},{merge:true}); try{ if(typeof toast === 'function') toast('Logo accesso salvato online.', 'success'); }catch(e){} }
+        catch(err){ console.error('Logo accesso online:', err); try{ if(typeof toast === 'function') toast('Errore salvataggio logo accesso online.'); }catch(e){} }
+      });
+    }
+  }
+  try{ onSnapshot(identityRef, snap => { if(snap.exists()) applyLoginLogo((snap.data()||{}).loginLogo || ''); }); }catch(e){ console.warn(e); }
+  bindUpload();
+  window.addEventListener('load', ()=>{ setTimeout(bindUpload,500); setTimeout(bindUpload,1500); });
+  try{ new MutationObserver(bindUpload).observe(document.body,{childList:true,subtree:true}); }catch(e){}
+})();
+</script>
+
+
+<!-- PATCH NOOR: Benvenuto unico stabile - NON tocca homeAlerts/Situazione veloce -->
+<style id="noor-welcome-single-final-css">
+  #homeWelcomeAccessBox{display:block!important;min-height:74px!important;margin:0 0 14px!important;}
+  /* Nasconde la vecchia box provvisoria che creava il lampeggio/duplicazione */
+  #homeWelcomeAccessBox > .card.panel{display:none!important;}
+  #homeWelcomeAccessBox .noor-welcome-avatar{overflow:hidden!important;}
+  #homeWelcomeAccessBox .noor-welcome-avatar img{width:100%!important;height:100%!important;object-fit:cover!important;display:block!important;border-radius:15px!important;}
+</style>
+<script id="noor-welcome-single-final-js">
+(function(){
+  'use strict';
+  if(window.__NOOR_WELCOME_SINGLE_FINAL__) return;
+  window.__NOOR_WELCOME_SINGLE_FINAL__ = true;
+
+  var lastHTML = '';
+  var lastPhoto = '';
+  var busy = false;
+
+  function byId(id){ return document.getElementById(id); }
+  function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function readProfile(){
+    try{ if(window.currentgestionaleUserProfile && typeof window.currentgestionaleUserProfile === 'object') return window.currentgestionaleUserProfile; }catch(e){}
+    try{ if(window.currentUserProfile && typeof window.currentUserProfile === 'object') return window.currentUserProfile; }catch(e){}
+    try{ var p = JSON.parse(localStorage.getItem('noor_firebase_current_user_v1')||'{}'); if(p && typeof p === 'object') return p; }catch(e){}
+    return {};
+  }
+  function getName(){
+    try{ if(typeof fullName === 'function'){ var n = fullName(); if(n) return n; } }catch(e){}
+    var p = readProfile();
+    return p.name || p.displayName || p.fullName || p.email || 'Utente';
+  }
+  function getRole(){
+    try{ if(typeof role === 'function'){
+      var r0 = role();
+      if(typeof roleLabels !== 'undefined' && roleLabels && roleLabels[r0]) return roleLabels[r0];
+      if(r0) return r0;
+    }}catch(e){}
+    var p = readProfile();
+    var r = String(p.role || p.claimRole || p.type || '').toLowerCase();
+    var map = {owner:'Owner',superadmin:'Super Admin',super_admin:'Super Admin',admin:'Admin',manager:'Admin',warehouse:'Magazziniere',seller:'Venditore',supervisor:'Supervisore',supervisore:'Supervisore'};
+    return map[r] || (p.role || '');
+  }
+  function getAccess(){
+    try{ if(typeof lastAccess === 'function'){ var a = lastAccess(); if(a) return String(a); } }catch(e){}
+    var p = readProfile();
+    var a2 = p.lastLoginAt || p.lastAccess || p.accessTime || '';
+    if(a2){
+      try{ if(String(a2).length > 12) return new Date(a2).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}); }catch(e){}
+      return String(a2);
+    }
+    return new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+  }
+  function getPhoto(){
+    var p = readProfile();
+    var ph = p.photo || p.photoData || p.photoURL || p.avatar || p.profilePhoto || '';
+    if(ph) lastPhoto = ph;
+    return ph || lastPhoto || '';
+  }
+  function ensureOneBox(){
+    var home = byId('home'); if(!home) return null;
+    var boxes = Array.prototype.slice.call(document.querySelectorAll('#homeWelcomeAccessBox'));
+    var box = boxes[0] || null;
+    if(!box){ box = document.createElement('div'); box.id = 'homeWelcomeAccessBox'; home.insertBefore(box, home.firstChild); }
+    boxes.slice(1).forEach(function(n){ try{ n.remove(); }catch(e){} });
+    /* Elimina eventuali box Benvenuto create senza id */
+    Array.prototype.slice.call(home.children).forEach(function(el){
+      if(el && el.id !== 'homeWelcomeAccessBox' && /Benvenuto,/.test(el.textContent||'') && el.classList && el.classList.contains('card')){
+        try{ el.remove(); }catch(e){}
+      }
+    });
+    return box;
+  }
+  function renderWelcomeFinal(){
+    if(busy) return; busy = true;
+    try{
+      var box = ensureOneBox(); if(!box) return;
+      var name = getName();
+      var first = (String(name).trim().charAt(0) || 'N').toUpperCase();
+      var photo = getPhoto();
+      var roleText = getRole();
+      var access = getAccess();
+      var m = String(access).match(/(\d{1,2}:\d{2})/); var time = m ? m[1] : access;
+      var avatar = photo ? '<img src="'+esc(photo)+'" alt="Foto profilo" loading="eager">' : esc(first);
+      var html = '<div class="noor-welcome-head"><div class="noor-welcome-left"><div class="noor-welcome-avatar">'+avatar+'</div><div style="min-width:0"><div class="noor-welcome-title">Benvenuto, '+esc(name)+'</div><div class="noor-welcome-sub">Buon lavoro</div></div></div><div class="noor-welcome-right"><span class="noor-welcome-badge">'+esc(roleText)+'</span><span class="noor-welcome-time">🕒 Accesso '+esc(time)+'</span></div></div>';
+      if(box.innerHTML !== html){ box.innerHTML = html; }
+      box.setAttribute('data-welcome-final','1');
+      lastHTML = html;
+    }finally{ busy = false; }
+  }
+  function schedule(){ if(window.requestAnimationFrame) requestAnimationFrame(renderWelcomeFinal); else setTimeout(renderWelcomeFinal,0); }
+
+  window.renderHomeBox = renderWelcomeFinal;
+  window.ensureHomeBox = renderWelcomeFinal;
+  window.renderStableHomeWelcome = renderWelcomeFinal;
+  window.noorRenderWelcomeFinal = renderWelcomeFinal;
+
+  var oldRenderAll = window.renderAll;
+  if(typeof oldRenderAll === 'function' && !oldRenderAll.__NOOR_WELCOME_SINGLE_WRAP__){
+    var wrap = function(){ var r = oldRenderAll.apply(this, arguments); schedule(); return r; };
+    wrap.__NOOR_WELCOME_SINGLE_WRAP__ = true;
+    window.renderAll = wrap;
+  }
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', schedule); else schedule();
+  window.addEventListener('load', function(){ schedule(); setTimeout(schedule,250); setTimeout(schedule,1200); });
+  try{
+    var obs = new MutationObserver(function(muts){
+      var need = false;
+      for(var i=0;i<muts.length;i++){
+        var t = muts[i].target;
+        if(t && (t.id === 'homeWelcomeAccessBox' || (t.closest && t.closest('#homeWelcomeAccessBox')) || (t.id === 'home'))){ need = true; break; }
+      }
+      if(need) schedule();
+    });
+    obs.observe(document.body,{childList:true,subtree:true});
+  }catch(e){}
+})();
+</script>
+
+<!-- PATCH NOOR: tasto valore magazzino e tema silenziosi - NON tocca Home/Situazione veloce -->
+<script id="noor-silent-money-theme-final">
+(function(){
+  'use strict';
+  if(window.__NOOR_SILENT_MONEY_THEME_FINAL__) return;
+  window.__NOOR_SILENT_MONEY_THEME_FINAL__ = true;
+
+  var blockedUntil = 0;
+  function now(){ return Date.now ? Date.now() : new Date().getTime(); }
+  function shouldBlockMessage(msg){
+    var s = String(msg == null ? '' : msg).toLowerCase();
+    return (
+      s.indexOf('preferenze') > -1 ||
+      s.indexOf('soglie') > -1 ||
+      s.indexOf('tema chiaro') > -1 ||
+      s.indexOf('tema scuro') > -1 ||
+      s.indexOf('tema salv') > -1 ||
+      s.indexOf('valori magazzino') > -1 ||
+      s.indexOf('valore magazzino') > -1 ||
+      s.indexOf('impostazioni salvate') > -1
+    );
+  }
+  function cleanMsg(msg){ return String(msg == null ? '' : msg).replace(/Firebase/g,'gestionale').replace(/firebase/g,'gestionale'); }
+
+  function wrapNotify(fnName){
+    var old = window[fnName];
+    if(typeof old !== 'function' || old.__NOOR_SILENT_WRAP__) return;
+    var wrapped = function(msg,type){
+      msg = cleanMsg(msg);
+      if(now() < blockedUntil && shouldBlockMessage(msg)) return false;
+      if(shouldBlockMessage(msg)) return false;
+      return old.apply(this, arguments.length ? [msg,type] : arguments);
+    };
+    wrapped.__NOOR_SILENT_WRAP__ = true;
+    window[fnName] = wrapped;
+    try{ if(fnName === 'toast') toast = wrapped; }catch(e){}
+    try{ if(fnName === 'toastCenter') toastCenter = wrapped; }catch(e){}
+  }
+  wrapNotify('toast');
+  wrapNotify('toastCenter');
+  wrapNotify('toastMsg');
+
+  function saveSettingsQuiet(){
+    try{ blockedUntil = now() + 1800; }catch(e){}
+    try{
+      if(typeof SETTINGS_KEY !== 'undefined' && typeof settings !== 'undefined'){
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        return true;
+      }
+    }catch(e){}
+    try{ if(typeof settings !== 'undefined') localStorage.setItem('noor_profumi_settings_v1', JSON.stringify(settings)); }catch(e){}
+    return false;
+  }
+  function canViewCosts(){
+    try{ if(typeof canAccess === 'function') return !!canAccess('viewCosts'); }catch(e){}
+    try{ if(typeof can === 'function') return !!can('viewCosts'); }catch(e){}
+    return true;
+  }
+  function applyMoneyState(){
+    try{ if(typeof renderStats === 'function') renderStats(); }catch(e){}
+    try{ if(typeof applyEmployeePermissions === 'function') applyEmployeePermissions(); }catch(e){}
+    try{
+      var mb = document.getElementById('moneyBtn');
+      if(mb && typeof settings !== 'undefined') mb.textContent = settings.hideMoney ? 'Mostra' : 'Nascondi';
+    }catch(e){}
+  }
+
+  window.toggleMoney = function(){
+    try{
+      if(typeof settings === 'undefined') return false;
+      if(!canViewCosts()) settings.hideMoney = true;
+      else settings.hideMoney = !settings.hideMoney;
+      saveSettingsQuiet();
+      applyMoneyState();
+      return false;
+    }catch(err){ console.error('toggle valore magazzino:', err); return false; }
+  };
+  try{ toggleMoney = window.toggleMoney; }catch(e){}
+
+  window.toggleTheme = function(){
+    try{
+      if(typeof settings === 'undefined') return false;
+      settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
+      saveSettingsQuiet();
+      try{ if(typeof applyTheme === 'function') applyTheme(); }catch(e){}
+      return false;
+    }catch(err){ console.error('toggle tema:', err); return false; }
+  };
+  try{ toggleTheme = window.toggleTheme; }catch(e){}
+
+  document.addEventListener('click', function(ev){
+    var t = ev.target;
+    if(!t || !t.closest) return;
+    var moneyBtn = t.closest('#moneyBtn, button[onclick*="toggleMoney"]');
+    if(moneyBtn){
+      ev.preventDefault();
+      ev.stopPropagation();
+      if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      window.toggleMoney();
+      return false;
+    }
+    var themeBtn = t.closest('#themeBtn, button[onclick*="toggleTheme"]');
+    if(themeBtn){
+      ev.preventDefault();
+      ev.stopPropagation();
+      if(ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+      window.toggleTheme();
+      return false;
+    }
+  }, true);
+
+  function cleanVisibleToasts(){
+    try{
+      document.querySelectorAll('.toast,#firebaseToastCenter').forEach(function(el){
+        var txt = cleanMsg(el.textContent || '');
+        if(shouldBlockMessage(txt)){
+          el.classList.remove('show');
+          el.style.display = 'none';
+          el.textContent = '';
+        }else if(txt !== el.textContent){
+          el.textContent = txt;
+        }
+      });
+    }catch(e){}
+  }
+  setInterval(cleanVisibleToasts, 250);
+  window.addEventListener('load', function(){ setTimeout(applyMoneyState, 200); setTimeout(cleanVisibleToasts, 500); });
+})();
+</script>
+
+<script id="noor-history-filters-default-all-only">
+(function(){
+  if(window.__NOOR_HISTORY_FILTERS_DEFAULT_ALL_ONLY__) return;
+  window.__NOOR_HISTORY_FILTERS_DEFAULT_ALL_ONLY__ = true;
+
+  function el(id){ return document.getElementById(id); }
+
+  function clearHistoryFilters(){
+    var from = el('filterFrom');
+    var to = el('filterTo');
+    var search = el('filterSearch');
+    var payment = el('filterPayment');
+    if(from) from.value = '';
+    if(to) to.value = '';
+    if(search) search.value = '';
+    if(payment) payment.value = '';
+  }
+
+  function historyIsActive(){
+    var h = el('history');
+    return !!(h && h.classList && h.classList.contains('active'));
+  }
+
+  function renderHistoryIfPossible(){
+    try{
+      if(typeof window.renderSales === 'function') window.renderSales();
+      else if(typeof renderSales === 'function') renderSales();
+    }catch(e){}
+  }
+
+  function resetHistoryToAll(){
+    clearHistoryFilters();
+    renderHistoryIfPossible();
+  }
+
+  var oldGo = window.go;
+  if(typeof oldGo === 'function' && !oldGo.__historyFiltersDefaultAll){
+    var wrappedGo = function(id){
+      var result = oldGo.apply(this, arguments);
+      if(id === 'history'){
+        setTimeout(resetHistoryToAll, 0);
+        setTimeout(resetHistoryToAll, 150);
+      }
+      return result;
+    };
+    wrappedGo.__historyFiltersDefaultAll = true;
+    window.go = wrappedGo;
+    try{ go = wrappedGo; }catch(e){}
+  }
+
+  var oldReset = window.resetSalesFilters || (typeof resetSalesFilters === 'function' ? resetSalesFilters : null);
+  window.resetSalesFilters = function(){
+    clearHistoryFilters();
+    renderHistoryIfPossible();
+  };
+  try{ resetSalesFilters = window.resetSalesFilters; }catch(e){}
+
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(function(){
+      clearHistoryFilters();
+      if(historyIsActive()) renderHistoryIfPossible();
+    }, 0);
+    setTimeout(function(){
+      clearHistoryFilters();
+      if(historyIsActive()) renderHistoryIfPossible();
+    }, 400);
+  });
+
+  window.addEventListener('pageshow', function(){
+    setTimeout(function(){
+      clearHistoryFilters();
+      if(historyIsActive()) renderHistoryIfPossible();
+    }, 80);
+  });
+})();
+</script>
+
