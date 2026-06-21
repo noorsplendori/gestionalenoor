@@ -4580,7 +4580,7 @@ function renderHomeSafe(){try{const lowMax=typeof getLowStockMax==='function'?ge
 function boot(){ensureProfile();ensureMenu();ensureHomeBox();renderProfile();renderHomeBox();renderHomeSafe();window.renderHomeAlerts=renderHomeSafe;}
 const oldGo=window.go;if(typeof oldGo==='function'&&!window.__noorFinalGoPatch){window.__noorFinalGoPatch=true;window.go=function(id){ensureProfile();ensureMenu();ensureHomeBox();const r=oldGo.apply(this,arguments);if(id==='profile')renderProfile();if(id==='home'){renderHomeBox();renderHomeSafe();}return r;};}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
-auth.onAuthStateChanged(()=>setTimeout(boot,200));setTimeout(boot,600);setTimeout(boot,1800);setInterval(()=>{ensureMenu();ensureHomeBox();renderHomeBox();window.renderHomeAlerts=renderHomeSafe;},2500);
+auth.onAuthStateChanged(()=>setTimeout(boot,200));setTimeout(boot,600);setTimeout(boot,1800);
 </script>
 
 
@@ -4838,7 +4838,7 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction, serverTim
   }
   function boot(){ addLoginLogoControls(); applyOnlineIdentity(identityCache); renderHomeNoCodesFinal(); }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
-  setTimeout(boot,400); setTimeout(boot,1400); setInterval(()=>{try{addLoginLogoControls();renderHomeNoCodesFinal()}catch(e){}},3500);
+  setTimeout(boot,400); setTimeout(boot,1400); 
   loadIdentityOnce();
   onAuthStateChanged(auth,()=>{setTimeout(()=>{bootIdentity();},250);});
   bootIdentity();
@@ -5929,7 +5929,7 @@ import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, 
   function renderCleanHome(){try{const box=$('homeAlerts'); if(!box||!window.db) return; const products=Array.isArray(db.products)?db.products:[]; const sales=Array.isArray(db.sales)?db.sales:[]; const max=(typeof getLowStockMax==='function'?getLowStockMax():5); const low=products.filter(p=>Number(p.qty)<=Number(max)).sort((a,b)=>Number(a.qty)-Number(b.qty)).slice(0,6); const last=sales.slice().sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)).slice(0,5); const total=last.reduce((a,s)=>a+Number(s.total||0),0); let h='<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">'; h+='<div class="card panel home-stock-card"><div class="home-stock-head"><div><h2>📦 Scorte basse</h2><p class="hint">Esauriti e prodotti sotto soglia</p></div><span class="home-stock-total">Soglia '+esc(max)+' pz</span></div>'+(low.length?'<div class="home-stock-list">'+low.map(p=>{const n=p.name||'Prodotto';return '<div class="home-stock-item"><div class="home-stock-photo">'+img(p,n)+'</div><div><div class="home-stock-name">'+esc(n)+'</div><div class="home-stock-meta">'+esc(p.brand||p.line||'Noor Profumi')+' · '+esc(p.size||p.format||'Formato —')+'</div><div style="margin-top:6px">'+(typeof statusBadge==='function'?statusBadge(p.qty):'<span class="badge">'+esc(p.qty)+' pz</span>')+'</div><div class="home-stock-actions"><button class="btn small secondary" onclick="event.stopPropagation();viewProduct(\''+esc(p.id)+'\')">Apri</button><button class="btn small secondary" onclick="event.stopPropagation();editProduct(\''+esc(p.id)+'\')">Modifica</button></div></div><div class="home-stock-qty">'+esc(Number(p.qty)||0)+'<span>pezzi</span></div></div>'}).join('')+'</div>':'<div class="home-empty-stock">Tutto ok: nessun prodotto sotto la soglia impostata.</div>')+'</div>'; h+='<div class="card panel home-sales-card"><div class="home-sales-head"><div><h2>🧾 Ultime vendite</h2><p class="hint">Movimenti recenti registrati</p></div><span class="home-sales-total">Totale '+money(total)+'</span></div>'+(last.length?'<div class="home-sales-list">'+last.map(s=>{const n=s.productName||'Prodotto'; const p=products.find(x=>String(x.id)===String(s.productId)); const d=new Date(s.date||Date.now()); return '<div class="home-sale-item"><div class="home-sale-icon">'+img(p,n)+'</div><div><div class="home-sale-name">'+esc(n)+'</div><div class="home-sale-meta">'+esc(d.toLocaleDateString('it-IT'))+' · '+esc(d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}))+' · Quantità '+esc(s.qty||1)+'</div></div><div class="home-sale-total">'+money(s.total||0)+'<br><span class="home-sale-pay">'+esc(s.payment||'Pagamento —')+'</span></div></div>'}).join('')+'</div>':'<div class="home-empty-sales">Nessuna vendita recente.</div>')+'</div></div>'; box.innerHTML=h;}catch(e){console.warn('Home pulita:',e)}}
   window.renderHomeAlerts=renderCleanHome; const old=window.renderAll; if(typeof old==='function'){window.renderAll=function(){const r=old.apply(this,arguments); setTimeout(renderCleanHome,0); return r}}
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(renderCleanHome,300)); else setTimeout(renderCleanHome,300);
-  setTimeout(renderCleanHome,1200); setInterval(()=>{if($('home')?.classList.contains('active'))renderCleanHome()},2500);
+  setTimeout(renderCleanHome,1200); 
 })();
 </script>
 
@@ -5960,7 +5960,7 @@ import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, 
   window.renderHomeAlerts=cleanHome;
   var old=window.renderAll; if(typeof old==='function'&&!old.__homeCleanVerified){var wrap=function(){var r=old.apply(this,arguments); setTimeout(cleanHome,0); return r}; wrap.__homeCleanVerified=true; window.renderAll=wrap}
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){setTimeout(cleanHome,300)}); else setTimeout(cleanHome,300);
-  setTimeout(cleanHome,1000); setTimeout(cleanHome,2500); setInterval(function(){if($('home')&&$('home').classList.contains('active')) cleanHome()},1200);
+  setTimeout(cleanHome,1000); setTimeout(cleanHome,2500); 
 })();
 </script>
 
@@ -6049,6 +6049,162 @@ if(typeof oldRenderAll==='function'){
 }
 window.addEventListener('load',()=>{setTimeout(()=>{renderStableHomeWelcome(); if(typeof window.renderHomeAlerts==='function')window.renderHomeAlerts();},300);});
 document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{renderStableHomeWelcome();},150));
+</script>
+
+<script id="noor-home-stable-no-flicker-final">
+(function(){
+  'use strict';
+  if(window.__NOOR_HOME_STABLE_NO_FLICKER_FINAL__) return;
+  window.__NOOR_HOME_STABLE_NO_FLICKER_FINAL__ = true;
+
+  var lastHomeAlertsHTML = '';
+  var lastWelcomeHTML = '';
+
+  function $(id){ return document.getElementById(id); }
+  function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function money(v){
+    try { return typeof eur === 'function' ? eur(v) : Number(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'}); }
+    catch(e){ return '€ ' + Number(v||0).toFixed(2); }
+  }
+  function allProducts(){
+    try { return Array.isArray(window.db && db.products) ? db.products : []; } catch(e){ return []; }
+  }
+  function allSales(){
+    try { return Array.isArray(window.db && db.sales) ? db.sales : []; } catch(e){ return []; }
+  }
+  function lowMax(){
+    try { return typeof getLowStockMax === 'function' ? getLowStockMax() : 5; } catch(e){ return 5; }
+  }
+  function thumb(photo,name){
+    return photo ? '<img src="'+esc(photo)+'" alt="'+esc(name||'Prodotto')+'">' : esc((String(name||'N').trim()[0]||'N').toUpperCase());
+  }
+  function saleDate(s){
+    var d = new Date(s && s.date || Date.now());
+    return esc(d.toLocaleDateString('it-IT')) + ' · ' + esc(d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}));
+  }
+  function buildHomeHTML(){
+    var products = allProducts();
+    var sales = allSales().filter(function(s){ return String(s.status||'') !== 'cancelled' && !s.cancelled; });
+    var max = lowMax();
+    var low = products.filter(function(p){ return Number(p.qty) <= Number(max); }).sort(function(a,b){ return Number(a.qty)-Number(b.qty); }).slice(0,6);
+    var last = sales.slice().sort(function(a,b){ return new Date(b.date||0)-new Date(a.date||0); }).slice(0,5);
+    var total = last.reduce(function(a,s){ return a + Number(s.total||0); },0);
+
+    var html = '<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">';
+    html += '<div class="card panel home-stock-card"><div class="home-stock-head"><div><h2>📦 Scorte basse</h2><p class="hint">Esauriti e prodotti sotto soglia</p></div><span class="home-stock-total">Soglia '+esc(max)+' pz</span></div>';
+    if(low.length){
+      html += '<div class="home-stock-list">' + low.map(function(p){
+        var n = p.name || 'Prodotto';
+        var status = '';
+        try { status = typeof statusBadge === 'function' ? statusBadge(p.qty) : '<span class="badge">'+esc(p.qty)+' pz</span>'; }
+        catch(e){ status = '<span class="badge">'+esc(p.qty)+' pz</span>'; }
+        return '<div class="home-stock-item"><div class="home-stock-photo">'+thumb(p.photo,n)+'</div><div><div class="home-stock-name">'+esc(n)+'</div><div class="home-stock-meta">'+esc(p.brand||p.line||'Noor Profumi')+' · '+esc(p.size||p.format||'Formato —')+'</div><div style="margin-top:6px">'+status+'</div></div><div class="home-stock-qty">'+esc(Number(p.qty)||0)+'<span>pezzi</span></div></div>';
+      }).join('') + '</div>';
+    } else {
+      html += '<div class="home-empty-stock">Tutto ok: nessun prodotto sotto la soglia impostata.</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="card panel home-sales-card"><div class="home-sales-head"><div><h2>🧾 Ultime vendite</h2><p class="hint">Movimenti recenti registrati</p></div><span class="home-sales-total">Totale '+money(total)+'</span></div>';
+    if(last.length){
+      html += '<div class="home-sales-list">' + last.map(function(s){
+        var n = s.productName || (s.items && s.items[0] && s.items[0].name) || 'Prodotto';
+        var p = products.find(function(x){ return String(x.id)===String(s.productId) || String(x.barcode)===String(s.barcode); }) || {};
+        return '<div class="home-sale-item"><div class="home-sale-icon">'+thumb(p.photo,n)+'</div><div><div class="home-sale-name">'+esc(n)+'</div><div class="home-sale-meta">'+saleDate(s)+' · Quantità '+esc(s.qty||1)+'</div></div><div class="home-sale-total">'+money(s.total||0)+'<br><span class="home-sale-pay">'+esc(s.payment||'Pagamento —')+'</span></div></div>';
+      }).join('') + '</div>';
+    } else {
+      html += '<div class="home-empty-sales">Nessuna vendita recente.</div>';
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderHomeAlertsStable(){
+    var box = $('homeAlerts'); if(!box) return;
+    var html = buildHomeHTML();
+    if(html !== lastHomeAlertsHTML){
+      lastHomeAlertsHTML = html;
+      box.innerHTML = html;
+    }
+  }
+
+  function userPhoto(){
+    try{
+      var u = window.currentFirebaseUserProfile || window.currentUserProfile || window.activeEmployee || {};
+      return u.photo || u.photoData || u.photoURL || u.avatar || '';
+    }catch(e){ return ''; }
+  }
+  function userName(){
+    try{
+      if(typeof fullName === 'function') return fullName();
+      var u = window.currentFirebaseUserProfile || window.currentUserProfile || window.activeEmployee || {};
+      return u.name || u.displayName || u.email || 'utente';
+    }catch(e){ return 'utente'; }
+  }
+  function userRole(){
+    try{
+      if(typeof roleLabel === 'function'){
+        var u = window.currentFirebaseUserProfile || window.currentUserProfile || window.activeEmployee || {};
+        return roleLabel(u.role || '');
+      }
+      var u2 = window.currentFirebaseUserProfile || window.currentUserProfile || window.activeEmployee || {};
+      return u2.role || '';
+    }catch(e){ return ''; }
+  }
+  function accessTime(){
+    try{
+      if(typeof lastAccess === 'function'){
+        var a = lastAccess();
+        if(a) return String(a);
+      }
+    }catch(e){}
+    return new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  function renderWelcomeStable(){
+    var home = $('home'); if(!home) return;
+    var box = $('homeWelcomeAccessBox');
+    if(!box){
+      box = document.createElement('div');
+      box.id = 'homeWelcomeAccessBox';
+      home.insertBefore(box, home.firstChild);
+    }
+    var name = userName();
+    var first = (String(name).trim()[0] || 'N').toUpperCase();
+    var photo = userPhoto();
+    var avatar = photo ? '<img src="'+esc(photo)+'" alt="'+esc(name)+'" style="width:54px;height:54px;border-radius:18px;object-fit:cover;display:block;border:1px solid var(--line)">' : '<div style="width:54px;height:54px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(135deg,var(--green2),var(--gold));font-weight:950;font-size:23px;color:#3a081f">'+esc(first)+'</div>';
+    var html = '<div class="card panel" style="margin:18px 0 0;display:flex;align-items:center;gap:14px;min-height:88px">'+avatar+'<div style="min-width:0"><div style="font-size:20px;font-weight:950;line-height:1.15">Benvenuto, '+esc(name)+'</div><div class="hint" style="margin-top:4px">'+esc(userRole())+' · Accesso '+esc(accessTime())+'</div></div></div>';
+    if(html !== lastWelcomeHTML){
+      lastWelcomeHTML = html;
+      box.innerHTML = html;
+    }
+  }
+
+  window.renderHomeAlerts = renderHomeAlertsStable;
+  window.renderHomeNoCodesFinal = renderHomeAlertsStable;
+  window.renderCleanHome = renderHomeAlertsStable;
+  window.cleanHome = renderHomeAlertsStable;
+  window.renderHomeSafe = renderHomeAlertsStable;
+  window.renderHomeBox = renderWelcomeStable;
+  window.renderStableHomeWelcome = renderWelcomeStable;
+
+  var oldRenderAll = window.renderAll;
+  if(typeof oldRenderAll === 'function' && !oldRenderAll.__NOOR_STABLE_HOME_WRAP__){
+    var wrapped = function(){
+      var r = oldRenderAll.apply(this, arguments);
+      try{ renderWelcomeStable(); renderHomeAlertsStable(); }catch(e){}
+      return r;
+    };
+    wrapped.__NOOR_STABLE_HOME_WRAP__ = true;
+    window.renderAll = wrapped;
+  }
+
+  function boot(){
+    try{ renderWelcomeStable(); renderHomeAlertsStable(); }catch(e){}
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+  window.addEventListener('load', boot);
+})();
 </script>
 </body>
 </html>
@@ -6448,7 +6604,7 @@ import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSn
   onAuthStateChanged(auth,user=>{startProfileListeners(user); if(user){startAllUsersPhotoListener(); setTimeout(()=>{applyProfilePhotoToUI();},500);}});
   function boot(){startAllUsersPhotoListener();applyProfilePhotoToUI();cleanCancelledTextFinal();}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,500));else setTimeout(boot,500);
-  setTimeout(boot,1500); setInterval(()=>{applyProfilePhotoToUI(); if($('cancelledOrders')?.classList.contains('active'))cleanCancelledTextFinal();},1800);
+  setTimeout(boot,1500); 
 })();
 </script>
 
@@ -6626,160 +6782,5 @@ import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSn
 
   function boot(){safe(function(){if(typeof renderSales==='function')renderSales();}); safe(function(){if(typeof renderHomeAlerts==='function')renderHomeAlerts();});}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(boot,500)});else setTimeout(boot,300);
-})();
-</script>
-
-
-<!-- PATCH FINALE NOOR: Home senza codici + anti lampeggio reale -->
-<script id="noor-home-clean-antiflicker-final">
-(function(){
-  if(window.__noorHomeCleanAntiFlickerFinal) return;
-  window.__noorHomeCleanAntiFlickerFinal=true;
-
-  function byId(id){return document.getElementById(id)}
-  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]})}
-  function money(v){
-    try{ if(typeof eur==='function') return eur(v); }catch(e){}
-    try{ return Number(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'}); }catch(e){ return '€ '+Number(v||0).toFixed(2); }
-  }
-  function products(){try{return Array.isArray(window.db&&db.products)?db.products:[]}catch(e){return []}}
-  function sales(){try{return Array.isArray(window.db&&db.sales)?db.sales:[]}catch(e){return []}}
-  function threshold(){try{return typeof getLowStockMax==='function'?Number(getLowStockMax()):5}catch(e){return 5}}
-  function thumb(photo,name){
-    if(photo) return '<img src="'+esc(photo)+'" alt="'+esc(name||'Prodotto')+'" loading="eager">';
-    return esc((String(name||'N').trim()[0]||'N').toUpperCase());
-  }
-  function status(q){
-    try{ if(typeof statusBadge==='function') return statusBadge(q); }catch(e){}
-    return '<span class="badge">'+esc(q)+' pz</span>';
-  }
-  function cleanId(v){return String(v==null?'':v).replace(/[^a-zA-Z0-9_-]/g,'')}
-  function salePrimaryName(s){
-    if(s && Array.isArray(s.items) && s.items.length){
-      if(s.items.length===1) return s.items[0].name||s.items[0].productName||'Prodotto';
-      return (s.items[0].name||s.items[0].productName||'Prodotti')+' +'+(s.items.length-1);
-    }
-    return (s&&s.productName)||'Prodotto';
-  }
-  function saleQty(s){
-    if(s && Array.isArray(s.items)) return s.items.reduce(function(a,i){return a+Number(i.qty||1)},0);
-    return Number((s&&s.qty)||1);
-  }
-  function salePhoto(s, prods, name){
-    try{
-      if(s && Array.isArray(s.items) && s.items[0]){
-        var it=s.items[0]; if(it.photo) return it.photo;
-        var p0=prods.find(function(p){return String(p.id)===String(it.productId)||String(p.barcode)===String(it.barcode)});
-        return p0&&p0.photo;
-      }
-      var p=prods.find(function(x){return String(x.id)===String(s.productId)||String(x.barcode)===String(s.barcode)});
-      return p&&p.photo;
-    }catch(e){return ''}
-  }
-  function buildCleanHomeHTML(){
-    var prods=products(), allSales=sales(), max=threshold();
-    var low=prods.filter(function(p){return Number(p.qty)<=Number(max)}).sort(function(a,b){return Number(a.qty)-Number(b.qty)}).slice(0,6);
-    var recent=allSales.slice().filter(function(s){return String((s&&s.status)||'')!=='cancelled' && !(s&&s.cancelled)}).sort(function(a,b){return new Date(b.date||0)-new Date(a.date||0)}).slice(0,5);
-    var total=recent.reduce(function(a,s){return a+Number((s&&s.total)||0)},0);
-    var html='<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">';
-    html+='<div class="card panel home-stock-card"><div class="home-stock-head"><div><h2>📦 Scorte basse</h2><p class="hint">Esauriti e prodotti sotto soglia</p></div><span class="home-stock-total">Soglia '+esc(max)+' pz</span></div>';
-    if(low.length){
-      html+='<div class="home-stock-list">'+low.map(function(p){
-        var n=p.name||'Prodotto';
-        return '<div class="home-stock-item"><div class="home-stock-photo">'+thumb(p.photo,n)+'</div><div><div class="home-stock-name">'+esc(n)+'</div><div class="home-stock-meta">'+esc(p.brand||p.line||'Noor Profumi')+' · '+esc(p.size||p.format||'Formato —')+'</div><div style="margin-top:6px">'+status(p.qty)+'</div><div class="home-stock-actions"><button class="btn small secondary" onclick="event.stopPropagation();viewProduct(\''+cleanId(p.id)+'\')">Apri</button><button class="btn small secondary" onclick="event.stopPropagation();editProduct(\''+cleanId(p.id)+'\')">Modifica</button></div></div><div class="home-stock-qty">'+esc(Number(p.qty)||0)+'<span>pezzi</span></div></div>';
-      }).join('')+'</div>';
-    }else{
-      html+='<div class="home-empty-stock">Tutto ok: nessun prodotto sotto la soglia impostata.</div>';
-    }
-    html+='</div>';
-    html+='<div class="card panel home-sales-card"><div class="home-sales-head"><div><h2>🧾 Ultime vendite</h2><p class="hint">Movimenti recenti registrati</p></div><span class="home-sales-total">Totale '+money(total)+'</span></div>';
-    if(recent.length){
-      html+='<div class="home-sales-list">'+recent.map(function(s){
-        var n=salePrimaryName(s), d=new Date(s.date||Date.now()), ph=salePhoto(s,prods,n);
-        return '<div class="home-sale-item"><div class="home-sale-icon">'+thumb(ph,n)+'</div><div><div class="home-sale-name">'+esc(n)+'</div><div class="home-sale-meta">'+esc(d.toLocaleDateString('it-IT'))+' · '+esc(d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}))+' · Quantità '+esc(saleQty(s))+'</div></div><div class="home-sale-total">'+money((s&&s.total)||0)+'<br><span class="home-sale-pay">'+esc((s&&s.payment)||'Pagamento —')+'</span></div></div>';
-      }).join('')+'</div>';
-    }else{
-      html+='<div class="home-empty-sales">Nessuna vendita recente.</div>';
-    }
-    html+='</div></div>';
-    return html;
-  }
-  var lastHomeHTML='';
-  function renderCleanHomeStable(force){
-    var box=byId('homeAlerts'); if(!box) return;
-    var html=buildCleanHomeHTML();
-    if(!force && (html===lastHomeHTML || html===box.innerHTML)) { lastHomeHTML=html; return; }
-    box.innerHTML=html;
-    lastHomeHTML=html;
-  }
-
-  function currentProfile(){
-    try{ if(window.currentFirebaseUserProfile) return window.currentFirebaseUserProfile; }catch(e){}
-    try{ return JSON.parse(localStorage.getItem('noor_firebase_current_user_v1')||'{}')||{}; }catch(e){return {}}
-  }
-  function roleText(v){
-    var m={owner:'Super Admin',manager:'Admin',supervisor:'Supervisore',warehouse:'Magazziniere',seller:'Venditore',admin:'Admin'};
-    return m[v]||v||'';
-  }
-  function renderWelcomeStable(force){
-    var home=byId('home'); if(!home) return;
-    var box=byId('homeWelcomeAccessBox');
-    if(!box){ box=document.createElement('div'); box.id='homeWelcomeAccessBox'; home.insertBefore(box,home.firstElementChild); }
-    var p=currentProfile();
-    var name=p.name||p.fullName||p.displayName||p.email||'Utente';
-    var photo=p.photo||p.photoURL||p.avatar||'';
-    var access=p.lastAccess||p.lastLoginAtClient||p.lastLogin||'';
-    var m=String(access).match(/(\d{1,2}:\d{2})/); var time=m?m[1]:(access||new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}));
-    var role=roleText(p.role||p.userRole||'');
-    var key=[name,photo,time,role].join('|');
-    if(!force && box.dataset.noorWelcomeKey===key) return;
-    var avatar=photo?'<img src="'+esc(photo)+'" alt="Foto profilo" loading="eager">':esc((String(name).trim()[0]||'N').toUpperCase());
-    var html='<div class="noor-welcome-head"><div class="noor-welcome-left"><div class="noor-welcome-avatar">'+avatar+'</div><div style="min-width:0"><div class="noor-welcome-title">Benvenuto, '+esc(name)+'</div><div class="noor-welcome-sub">Buon lavoro</div></div></div><div class="noor-welcome-right"><span class="noor-welcome-badge">'+esc(role)+'</span><span class="noor-welcome-time">🕒 Accesso '+esc(time)+'</span></div></div>';
-    if(box.innerHTML!==html) box.innerHTML=html;
-    box.dataset.noorWelcomeKey=key;
-  }
-
-  // Evita che vecchi render identici ricreino DOM e causino lampeggio.
-  try{
-    var desc=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
-    if(desc && desc.set && desc.get && !desc.set.__noorNoFlickerSet){
-      var originalSet=desc.set, originalGet=desc.get;
-      var newSet=function(value){
-        try{
-          if(this && (this.id==='homeAlerts' || this.id==='homeWelcomeAccessBox')){
-            var next=String(value==null?'':value), current=String(originalGet.call(this)||'');
-            if(next===current) return;
-          }
-        }catch(e){}
-        return originalSet.call(this,value);
-      };
-      newSet.__noorNoFlickerSet=true;
-      Object.defineProperty(Element.prototype,'innerHTML',{get:originalGet,set:newSet,configurable:true});
-    }
-  }catch(e){}
-
-  window.renderHomeAlerts=renderCleanHomeStable;
-  try{ renderHomeAlerts=renderCleanHomeStable; }catch(e){}
-  window.renderHomeBox=renderWelcomeStable;
-  try{ renderHomeBox=renderWelcomeStable; }catch(e){}
-  window.ensureHomeBox=function(){ renderWelcomeStable(false); };
-
-  var oldRenderAll=window.renderAll;
-  if(typeof oldRenderAll==='function' && !oldRenderAll.__noorCleanStableHome){
-    var wrapped=function(){
-      var r=oldRenderAll.apply(this,arguments);
-      try{ renderWelcomeStable(false); renderCleanHomeStable(false); }catch(e){}
-      return r;
-    };
-    wrapped.__noorCleanStableHome=true;
-    window.renderAll=wrapped;
-    try{ renderAll=wrapped; }catch(e){}
-  }
-
-  function bootFinal(){
-    try{ renderWelcomeStable(false); renderCleanHomeStable(false); }catch(e){}
-  }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bootFinal); else bootFinal();
-  window.addEventListener('load',function(){setTimeout(bootFinal,100);setTimeout(bootFinal,600);});
 })();
 </script>
