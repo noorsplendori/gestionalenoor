@@ -400,6 +400,17 @@ body.login-active .nav{
   #firebaseBootLoading .boot-title{font-size:22px;font-weight:950;margin-bottom:8px;}
   #firebaseBootLoading .boot-sub{font-size:14px;color:#8f5a72;font-weight:800;line-height:1.45;}
 </style>
+<style id="noor-step2b-closures-deleted-style">
+  #closureStep2Panel.noor-step2b-ready{padding:0!important;overflow:hidden;}
+  #closureStep2Panel .noor-step2b-head{padding:16px;cursor:pointer;user-select:none;}
+  #closureStep2Panel .noor-step2b-head .noor-step2b-arrow{width:34px;height:34px;border-radius:999px;display:grid;place-items:center;background:var(--panel);border:1px solid var(--line);font-weight:950;transition:.18s transform;flex:0 0 auto;}
+  #closureStep2Panel.noor-step2b-collapsed .noor-step2b-body{display:none!important;}
+  #closureStep2Panel.noor-step2b-collapsed .noor-step2b-arrow{transform:rotate(-90deg);}
+  #closureStep2Panel .noor-step2b-body{padding:0 16px 16px;}
+  .noor-step2b-closure-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end;}
+  .noor-deleted-closure-card{border:1px solid var(--line);background:var(--panel2);border-radius:20px;padding:14px;margin:10px 0;}
+  .noor-deleted-closure-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;}
+</style>
 </head>
 <body>
 <div id="firebaseBootLoading" class="route-loading"><div class="boot-card"><div class="boot-title">Verifica sessione in corso...</div><div class="boot-sub">Sto controllando l’accesso al gestionale. Attendi qualche secondo senza ricaricare la pagina.</div></div></div>
@@ -2377,6 +2388,309 @@ load();
   function boot(){ensureClosures();installMenu();installSection();renderClosures();initgestionaleClosures();}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
   setTimeout(boot,350);setTimeout(boot,1200);
+})();
+</script>
+
+
+
+<script id="noor-closures-smart-step1">
+/* STEP 1 - Chiusure intelligenti: vendite dopo mezzanotte, conguaglio, modifica/elimina chiusura.
+   Patch isolata: non tocca Home, Benvenuto, Situazione veloce o render homeAlerts. */
+(function(){
+  if(window.__NOOR_CLOSURES_SMART_STEP1__) return;
+  window.__NOOR_CLOSURES_SMART_STEP1__ = true;
+
+  const FIREBASE_CONFIG = {
+    apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+    authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+    projectId:"gestionalenoor-2fa61",
+    storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+    messagingSenderId:"66670691093",
+    appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+    measurementId:"G-0HSQB7XLJG"
+  };
+  let fbReady=false, fbAuth=null, fbDb=null, fbFns=null;
+
+  function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+  function ymd(d){const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');}
+  function dmy(v){try{return new Date(String(v).includes('T')?v:(v+'T12:00:00')).toLocaleDateString('it-IT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});}catch(e){return String(v||'');}}
+  function dayStart(d){const x=new Date(d);x.setHours(0,0,0,0);return x;}
+  function dayEnd(d){const x=new Date(d);x.setHours(23,59,59,999);return x;}
+  function money(v){try{return typeof eur==='function'?eur(Number(v)||0):('€'+(Number(v)||0).toFixed(2).replace('.',','));}catch(e){return '€0,00';}}
+  function toastMsg(msg,type){try{if(typeof toast==='function') toast(msg,type||'');}catch(e){}}
+  function getLS(){return typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1';}
+  function ensure(){ if(typeof db!=='object'||!db) window.db={products:[],sales:[],closures:[]}; if(!Array.isArray(db.sales)) db.sales=[]; if(!Array.isArray(db.closures)) db.closures=[]; }
+  function saveLocal(){try{localStorage.setItem(getLS(),JSON.stringify(db));}catch(e){}}
+  function profile(){return window.currentgestionaleUserProfile||window.currentUserProfile||window.currentProfileData||{};}
+  function roleNow(){try{if(typeof activeEmployee==='function'){const e=activeEmployee(); if(e&&e.role)return String(e.role).toLowerCase();}}catch(e){} return String(profile().role||'seller').toLowerCase();}
+  function canManageClosure(){const r=roleNow(); return ['owner','superadmin','super_admin','admin','manager','administrator','amministratore','supervisor','supervisore','master'].includes(r);}
+
+  async function initFb(){
+    if(fbReady) return true;
+    try{
+      const [appMod,authMod,fsMod]=await Promise.all([
+        import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js')
+      ]);
+      const app=appMod.getApps().length?appMod.getApps()[0]:appMod.initializeApp(FIREBASE_CONFIG);
+      fbAuth=authMod.getAuth(app); fbDb=fsMod.getFirestore(app); fbFns=fsMod; fbReady=true; return true;
+    }catch(err){console.error('Chiusure smart: errore gestionale online',err); return false;}
+  }
+  async function saveClosureGest(rec){
+    const ok=await initFb(); if(!ok||!fbAuth||!fbAuth.currentUser) throw new Error('Accesso al gestionale non pronto.');
+    const p=profile(); const ref=fbFns.doc(fbDb,'closures',rec.id);
+    await fbFns.setDoc(ref,{...rec,employeeUid:fbAuth.currentUser.uid,employeeEmail:fbAuth.currentUser.email||'',employeeName:p.name||p.displayName||fbAuth.currentUser.email||'',employeeRole:p.role||'',updatedAt:fbFns.serverTimestamp(),createdAt:rec.createdAt||fbFns.serverTimestamp()},{merge:true});
+  }
+  async function deleteClosureGest(id){
+    const ok=await initFb(); if(!ok||!fbAuth||!fbAuth.currentUser) throw new Error('Accesso al gestionale non pronto.');
+    await fbFns.deleteDoc(fbFns.doc(fbDb,'closures',id));
+  }
+
+  function allSales(){ensure(); return db.sales||[];}
+  function orderListFromSales(sales){
+    if(typeof buildOrdersFromSales==='function'){
+      try{return buildOrdersFromSales(sales||[]).map(o=>({...o,id:o.id||o.orderId,orderNumber:o.orderNumber||('ORD-'+String(o.id||'').slice(-6).toUpperCase())}));}catch(e){}
+    }
+    const map=new Map();
+    (sales||[]).forEach(s=>{const oid=s.orderId||s.id; if(!map.has(oid)) map.set(oid,{id:oid,date:s.date,payment:s.payment||'',orderNumber:s.orderNumber||('ORD-'+String(oid).slice(-6).toUpperCase()),lines:[]}); map.get(oid).lines.push(s);});
+    return [...map.values()].map(o=>{o.qty=o.lines.reduce((a,l)=>a+Number(l.qty||1),0);o.products=o.lines.length;o.total=o.lines.reduce((a,l)=>a+Number(l.total||0),0);return o;});
+  }
+  function salesForDate(date){const a=dayStart(date).getTime(), b=dayEnd(date).getTime(); return allSales().filter(s=>{const t=new Date(s.date).getTime(); return t>=a&&t<=b;});}
+  function summarizeDate(date, chosenOrderIds){
+    let sales=salesForDate(date); let orders=orderListFromSales(sales);
+    if(Array.isArray(chosenOrderIds)){const set=new Set(chosenOrderIds.map(String)); orders=orders.filter(o=>set.has(String(o.id))); const ids=new Set(orders.map(o=>String(o.id))); sales=sales.filter(s=>ids.has(String(s.orderId||s.id)));}
+    const payments={}; orders.forEach(o=>{const p=o.payment||'Non specificato'; payments[p]=(payments[p]||0)+Number(o.total||0);});
+    const prod={}; sales.forEach(s=>{const k=s.productName||'Prodotto'; if(!prod[k]) prod[k]={name:k,qty:0,total:0}; prod[k].qty+=Number(s.qty||1); prod[k].total+=Number(s.total||0);});
+    return {date:ymd(date),orders:orders.length,items:orders.reduce((a,o)=>a+Number(o.qty||0),0),total:orders.reduce((a,o)=>a+Number(o.total||0),0),payments,topProducts:Object.values(prod).sort((a,b)=>b.qty-a.qty).slice(0,8),orderIds:orders.map(o=>o.id),ordersList:orders};
+  }
+  function closureIdFor(date){return 'CHI-'+ymd(date).replaceAll('-','')+'-001';}
+  function existingFor(date){ensure(); const dy=ymd(date); return (db.closures||[]).find(c=>String(c.date)===dy);}
+  function missingOrdersFor(date, closure){const s=summarizeDate(date); const already=new Set((closure?.orderIds||[]).map(String)); return s.ordersList.filter(o=>!already.has(String(o.id)));}
+  function modal(html){const c=document.getElementById('cancelSaleContent'); if(!c){toastMsg('Popup non trovato.'); return;} c.innerHTML=html; document.getElementById('cancelSaleModal')?.classList.add('show');}
+  function closeModal(){try{if(typeof closeCancelSale==='function') closeCancelSale(); else document.getElementById('cancelSaleModal')?.classList.remove('show');}catch(e){}}
+
+  function buildClosure(date, orderIds, notes, mergeExisting){
+    const s=summarizeDate(date,orderIds); const existing=mergeExisting?existingFor(date):null; const now=new Date(); const p=profile();
+    return {id:closureIdFor(date),date:ymd(date),closedAt:now.toISOString(),closedAtText:now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}),orders:s.orders,items:s.items,total:s.total,payments:s.payments,topProducts:s.topProducts,orderIds:s.orderIds,notes:String(notes||''),employeeName:p.name||p.displayName||'',employeeRole:p.role||'',createdAt:existing?.createdAt||now.toISOString()};
+  }
+  async function persistClosure(rec){
+    ensure(); db.closures=db.closures.filter(c=>c.id!==rec.id && c.date!==rec.date); db.closures.push(rec); saveLocal();
+    await saveClosureGest(rec);
+    if(typeof window.renderClosures==='function') window.renderClosures();
+    closeModal(); toastMsg('Chiusura salvata sul gestionale.','success');
+  }
+
+  window.openSmartClosureForDate=function(dateStr, mode){
+    ensure(); const date=new Date(dateStr+'T12:00:00'); const s=summarizeDate(date); const ex=existingFor(date);
+    const payHtml=Object.entries(s.payments).map(([k,v])=>`<div class="confirm-row"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join('')||'<div class="empty">Nessun pagamento registrato.</div>';
+    const title=mode==='conguaglio'?'Conguaglio chiusura':'Conferma chiusura';
+    modal(`<h2>${title}</h2><div class="confirm-row"><span>Data</span><b>${dmy(dateStr)}</b></div><div class="confirm-row"><span>Ordini inclusi</span><b>${s.orders}</b></div><div class="confirm-row"><span>Articoli</span><b>${s.items}</b></div><div class="confirm-row"><span>Totale</span><b>${money(s.total)}</b></div><h2>Pagamenti</h2>${payHtml}<div class="field"><label>Note chiusura</label><textarea id="smartClosureNotes" placeholder="Note contabili, differenze cassa, appunti...">${esc(ex?.notes||'')}</textarea></div>${ex?'<p class="compat-note">Esiste già una chiusura per questa data: confermando verrà aggiornata/conguagliata.</p>':''}<div class="action-row"><button class="btn secondary" onclick="closeCancelSale()">Annulla</button><button class="btn gold" onclick="confirmSmartClosure('${esc(dateStr)}')">Conferma</button></div>`);
+  };
+  window.confirmSmartClosure=async function(dateStr){
+    try{const notes=document.getElementById('smartClosureNotes')?.value||''; const rec=buildClosure(new Date(dateStr+'T12:00:00'),null,notes,true); await persistClosure(rec);}catch(err){console.error(err); toastMsg('Errore salvataggio chiusura: '+(err.message||err));}
+  };
+
+  const originalOpen=window.openDailyClosureConfirm;
+  window.openDailyClosureConfirm=function(){
+    ensure(); const now=new Date(); const today=ymd(now); const yesterdayDate=new Date(now); yesterdayDate.setDate(yesterdayDate.getDate()-1); const yesterday=ymd(yesterdayDate);
+    const todaySum=summarizeDate(now); const ySum=summarizeDate(yesterdayDate); const yExisting=existingFor(yesterdayDate); const yMissing=yExisting?missingOrdersFor(yesterdayDate,yExisting):[];
+    const afterMidnight=now.getHours()<6;
+    if(afterMidnight && ySum.orders>0 && todaySum.orders===0){
+      modal(`<h2>Vendite rilevate nella giornata di ieri</h2><p class="hint">Hai vendite registrate in data <b>${dmy(yesterday)}</b>, ma oggi non risultano vendite. Vuoi includerle nella chiusura di ieri?</p><div class="confirm-row"><span>Ordini ieri</span><b>${ySum.orders}</b></div><div class="confirm-row"><span>Articoli ieri</span><b>${ySum.items}</b></div><div class="confirm-row"><span>Totale ieri</span><b>${money(ySum.total)}</b></div>${yExisting?`<p class="compat-note">Chiusura già rilevata per ieri. Ordini non ancora inclusi: <b>${yMissing.length}</b>. Puoi conguagliarla.</p>`:''}<div class="action-row"><button class="btn secondary" onclick="openSmartClosureForDate('${today}','normale')">Fai chiusura di oggi</button><button class="btn gold" onclick="openSmartClosureForDate('${yesterday}','${yExisting?'conguaglio':'ieri'}')">${yExisting?'Conguaglia chiusura di ieri':'Includi vendite di ieri'}</button></div>`);
+      return;
+    }
+    if(afterMidnight && yExisting && yMissing.length>0){
+      modal(`<h2>Chiusura precedente rilevata</h2><p class="hint">È presente una chiusura in data <b>${dmy(yesterday)}</b>, ma risultano ordini di ieri non inclusi.</p><div class="confirm-row"><span>Ordini da conguagliare</span><b>${yMissing.length}</b></div><div class="action-row"><button class="btn secondary" onclick="openSmartClosureForDate('${today}','normale')">Fai chiusura normalmente</button><button class="btn gold" onclick="openSmartClosureForDate('${yesterday}','conguaglio')">Conguaglia chiusura di ieri</button></div>`);
+      return;
+    }
+    if(typeof originalOpen==='function') return originalOpen();
+    window.openSmartClosureForDate(today,'normale');
+  };
+
+  window.openEditClosure=function(id){
+    if(!canManageClosure()){toastMsg('Non hai il permesso di modificare le chiusure.'); return;}
+    ensure(); const c=(db.closures||[]).find(x=>x.id===id); if(!c){toastMsg('Chiusura non trovata.');return;}
+    const orders=summarizeDate(new Date(c.date+'T12:00:00')).ordersList; const included=new Set((c.orderIds||[]).map(String));
+    const rows=orders.map(o=>`<label class="perm-check"><input type="checkbox" class="closureOrderCheck" value="${esc(o.id)}" ${included.has(String(o.id))?'checked':''}><span><b>${esc(o.orderNumber||o.id)}</b><small>${new Date(o.date).toLocaleString('it-IT')} · ${Number(o.qty||0)} articoli · ${money(o.total)} · ${esc(o.payment||'')}</small></span></label>`).join('')||'<div class="empty">Nessun ordine trovato per questa data.</div>';
+    modal(`<h2>Modifica chiusura</h2><div class="confirm-row"><span>Data</span><b>${dmy(c.date)}</b></div><p class="hint">Seleziona gli ordini da includere nella chiusura. Puoi integrare ordini lasciati fuori oppure rimuovere quelli inclusi per errore.</p><div class="action-row" style="margin-bottom:10px"><button class="btn small secondary" onclick="document.querySelectorAll('.closureOrderCheck').forEach(x=>x.checked=true)">Includi tutti</button><button class="btn small secondary" onclick="document.querySelectorAll('.closureOrderCheck').forEach(x=>x.checked=false)">Deseleziona tutti</button></div><div class="permission-grid">${rows}</div><div class="field"><label>Note chiusura</label><textarea id="editClosureNotes">${esc(c.notes||'')}</textarea></div><div class="action-row"><button class="btn secondary" onclick="closeCancelSale()">Annulla</button><button class="btn gold" onclick="saveEditedClosure('${esc(c.id)}')">Salva modifica</button></div>`);
+  };
+  window.saveEditedClosure=async function(id){
+    try{
+      ensure(); const c=(db.closures||[]).find(x=>x.id===id); if(!c)return;
+      const ids=[...document.querySelectorAll('.closureOrderCheck:checked')].map(x=>x.value); const notes=document.getElementById('editClosureNotes')?.value||'';
+      const rec=buildClosure(new Date(c.date+'T12:00:00'),ids,notes,true); rec.id=c.id; await persistClosure(rec);
+    }catch(err){console.error(err); toastMsg('Errore modifica chiusura: '+(err.message||err));}
+  };
+  window.deleteClosureSmart=async function(id){
+    if(!canManageClosure()){toastMsg('Non hai il permesso di eliminare le chiusure.'); return;}
+    if(!confirm('Eliminare questa chiusura dal gestionale?')) return;
+    try{ensure(); db.closures=db.closures.filter(c=>c.id!==id); saveLocal(); await deleteClosureGest(id); if(typeof renderClosures==='function')renderClosures(); toastMsg('Chiusura eliminata dal gestionale.','success');}catch(err){console.error(err); toastMsg('Errore eliminazione chiusura: '+(err.message||err));}
+  };
+
+  const oldRender=window.renderClosures;
+  window.renderClosures=function(){
+    if(typeof oldRender==='function') oldRender();
+    try{
+      if(!canManageClosure()) return;
+      document.querySelectorAll('#closuresList .closure-card').forEach(card=>{
+        if(card.querySelector('.smart-closure-actions')) return;
+        const idText=(card.textContent||'').match(/CHI-\d{8}-\d{3}/)?.[0]; if(!idText) return;
+        const action=document.createElement('div'); action.className='action-row smart-closure-actions'; action.style.marginTop='8px';
+        action.innerHTML=`<button class="btn small gold" type="button" onclick="openEditClosure('${esc(idText)}')">Modifica / integra</button><button class="btn small red" type="button" onclick="deleteClosureSmart('${esc(idText)}')">Elimina</button>`;
+        card.appendChild(action);
+      });
+    }catch(e){console.warn('Azioni chiusura smart non applicate',e);}
+  };
+
+  const oldGo=window.go;
+  window.go=function(id){ if(typeof oldGo==='function') oldGo(id); if(id==='closures') setTimeout(()=>{try{window.renderClosures();}catch(e){}},80); };
+  setTimeout(()=>{try{if(typeof window.renderClosures==='function') window.renderClosures();}catch(e){}},700);
+})();
+</script>
+
+
+<script id="noor-closures-smart-step1-date-recovery">
+/* STEP 1B - Modifica/integra chiusura con giornata da recuperare selezionabile.
+   Patch isolata: non tocca Home, Benvenuto, Situazione veloce o homeAlerts. */
+(function(){
+  if(window.__NOOR_CLOSURES_STEP1_DATE_RECOVERY__) return;
+  window.__NOOR_CLOSURES_STEP1_DATE_RECOVERY__ = true;
+
+  var FIREBASE_CONFIG={
+    apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+    authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+    projectId:"gestionalenoor-2fa61",
+    storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+    messagingSenderId:"66670691093",
+    appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+    measurementId:"G-0HSQB7XLJG"
+  };
+  var fbReady=false, fbAuth=null, fbDb=null, fbFns=null;
+
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]})}
+  function ymd(d){var x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
+  function dmy(v){try{return new Date(String(v).indexOf('T')>-1?v:(v+'T12:00:00')).toLocaleDateString('it-IT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})}catch(e){return String(v||'')}}
+  function money(v){try{return typeof eur==='function'?eur(Number(v)||0):('€'+(Number(v)||0).toFixed(2).replace('.',','))}catch(e){return '€0,00'}}
+  function notify(msg,type){try{if(typeof toast==='function')toast(msg,type||'')}catch(e){}}
+  function ensure(){if(typeof db!=='object'||!db)window.db={products:[],sales:[],closures:[]};if(!Array.isArray(db.sales))db.sales=[];if(!Array.isArray(db.closures))db.closures=[]}
+  function getLS(){return typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1'}
+  function saveLocal(){try{localStorage.setItem(getLS(),JSON.stringify(db))}catch(e){}}
+  function profile(){return window.currentgestionaleUserProfile||window.currentUserProfile||window.currentProfileData||{}}
+  function roleNow(){try{if(typeof activeEmployee==='function'){var e=activeEmployee();if(e&&e.role)return String(e.role).toLowerCase()}}catch(e){}return String(profile().role||'seller').toLowerCase()}
+  function canManageClosure(){var r=roleNow();return ['owner','superadmin','super_admin','admin','manager','administrator','amministratore','supervisor','supervisore','master'].indexOf(r)>-1}
+
+  async function initFb(){
+    if(fbReady) return true;
+    try{
+      var mods=await Promise.all([
+        import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js')
+      ]);
+      var appMod=mods[0], authMod=mods[1], fsMod=mods[2];
+      var app=appMod.getApps().length?appMod.getApps()[0]:appMod.initializeApp(FIREBASE_CONFIG);
+      fbAuth=authMod.getAuth(app); fbDb=fsMod.getFirestore(app); fbFns=fsMod; fbReady=true; return true;
+    }catch(err){console.error('Chiusure recupero data: errore gestionale online',err);return false;}
+  }
+  async function saveClosureOnline(rec){
+    var ok=await initFb(); if(!ok||!fbAuth||!fbAuth.currentUser) throw new Error('Accesso al gestionale non pronto.');
+    var p=profile();
+    var ref=fbFns.doc(fbDb,'closures',rec.id);
+    await fbFns.setDoc(ref,Object.assign({},rec,{employeeUid:fbAuth.currentUser.uid,employeeEmail:fbAuth.currentUser.email||'',employeeName:p.name||p.displayName||fbAuth.currentUser.email||'',employeeRole:p.role||'',updatedAt:fbFns.serverTimestamp()}),{merge:true});
+  }
+
+  function allSales(){ensure();return db.sales||[]}
+  function dayStart(d){var x=new Date(d);x.setHours(0,0,0,0);return x}
+  function dayEnd(d){var x=new Date(d);x.setHours(23,59,59,999);return x}
+  function salesForDate(dateStr){var a=dayStart(new Date(dateStr+'T12:00:00')).getTime(), b=dayEnd(new Date(dateStr+'T12:00:00')).getTime();return allSales().filter(function(s){var t=new Date(s.date).getTime();return t>=a&&t<=b})}
+  function ordersFromSales(sales){
+    if(typeof buildOrdersFromSales==='function'){
+      try{return buildOrdersFromSales(sales||[]).map(function(o){return Object.assign({},o,{id:o.id||o.orderId,orderNumber:o.orderNumber||('ORD-'+String(o.id||o.orderId||'').slice(-6).toUpperCase())})})}catch(e){}
+    }
+    var map=new Map();
+    (sales||[]).forEach(function(s){var oid=s.orderId||s.id;if(!map.has(oid))map.set(oid,{id:oid,date:s.date,payment:s.payment||'',orderNumber:s.orderNumber||('ORD-'+String(oid).slice(-6).toUpperCase()),lines:[]});map.get(oid).lines.push(s)});
+    return Array.from(map.values()).map(function(o){o.qty=o.lines.reduce(function(a,l){return a+Number(l.qty||1)},0);o.products=o.lines.length;o.total=o.lines.reduce(function(a,l){return a+Number(l.total||0)},0);return o})
+  }
+  function ordersForDate(dateStr){return ordersFromSales(salesForDate(dateStr))}
+  function orderIdsInDate(dateStr){return new Set(ordersForDate(dateStr).map(function(o){return String(o.id)}))}
+  function summarizeOrderIds(ids){
+    var set=new Set((ids||[]).map(String));
+    var sales=allSales().filter(function(s){return set.has(String(s.orderId||s.id))});
+    var orders=ordersFromSales(sales).filter(function(o){return set.has(String(o.id))});
+    var payments={};orders.forEach(function(o){var p=o.payment||'Non specificato';payments[p]=(payments[p]||0)+Number(o.total||0)});
+    var prod={};sales.forEach(function(s){var k=s.productName||'Prodotto';if(!prod[k])prod[k]={name:k,qty:0,total:0};prod[k].qty+=Number(s.qty||1);prod[k].total+=Number(s.total||0)});
+    return {orders:orders.length,items:orders.reduce(function(a,o){return a+Number(o.qty||0)},0),total:orders.reduce(function(a,o){return a+Number(o.total||0)},0),payments:payments,topProducts:Object.values(prod).sort(function(a,b){return b.qty-a.qty}).slice(0,8),orderIds:orders.map(function(o){return o.id})};
+  }
+  function usedByOtherClosure(orderId,currentId){
+    ensure();var oid=String(orderId);
+    for(var i=0;i<(db.closures||[]).length;i++){
+      var c=db.closures[i]; if(String(c.id)===String(currentId)) continue;
+      if((c.orderIds||[]).map(String).indexOf(oid)>-1) return c;
+    }
+    return null;
+  }
+  function renderRowsForDate(closureId,dateStr){
+    ensure();var c=(db.closures||[]).find(function(x){return String(x.id)===String(closureId)});if(!c)return;
+    var included=new Set((c.orderIds||[]).map(String));
+    var orders=ordersForDate(dateStr);
+    var rows=orders.map(function(o){
+      var other=usedByOtherClosure(o.id,closureId);
+      var disabled=other?' disabled':'';
+      var checked=included.has(String(o.id))?' checked':'';
+      var note=other?' · già incluso in '+esc(other.id):'';
+      return '<label class="perm-check" style="opacity:'+(other?'.55':'1')+'"><input type="checkbox" class="closureRecoverCheck" value="'+esc(o.id)+'"'+checked+disabled+'><span><b>'+esc(o.orderNumber||o.id)+'</b><small>'+esc(new Date(o.date).toLocaleString('it-IT'))+' · '+esc(o.qty||0)+' articoli · '+money(o.total)+' · '+esc(o.payment||'')+note+'</small></span></label>';
+    }).join('')||'<div class="empty">Nessun ordine trovato per la giornata selezionata.</div>';
+    var box=document.getElementById('closureRecoverRows'); if(box) box.innerHTML=rows;
+    updateRecoverSummary();
+  }
+  window.refreshClosureRecoverDay=function(id){var d=document.getElementById('closureRecoverDate')&&document.getElementById('closureRecoverDate').value;if(!d)return;renderRowsForDate(id,d)};
+  window.updateRecoverSummary=function(){
+    var ids=Array.from(document.querySelectorAll('.closureRecoverCheck:checked')).map(function(x){return x.value});
+    var s=summarizeOrderIds(ids);
+    var el=document.getElementById('closureRecoverSummary');
+    if(el)el.innerHTML='Selezionati: <b>'+esc(s.orders)+'</b> ordini · <b>'+esc(s.items)+'</b> articoli · Totale <b>'+money(s.total)+'</b>';
+  };
+  document.addEventListener('change',function(e){if(e.target&&e.target.classList&&e.target.classList.contains('closureRecoverCheck'))updateRecoverSummary()});
+
+  window.openEditClosure=function(id){
+    if(!canManageClosure()){notify('Non hai il permesso di modificare le chiusure.');return;}
+    ensure();var c=(db.closures||[]).find(function(x){return String(x.id)===String(id)});if(!c){notify('Chiusura non trovata.');return;}
+    var html='';
+    html+='<h2>Modifica / integra chiusura</h2>';
+    html+='<div class="confirm-row"><span>Data chiusura originale</span><b>'+dmy(c.date)+'</b></div>';
+    html+='<p class="hint">Scegli una giornata da recuperare e integra gli ordini lasciati fuori dalla chiusura. La chiusura rimane salvata online e visibile a tutti.</p>';
+    html+='<div class="form" style="grid-template-columns:1fr auto;align-items:end;margin:12px 0"><div class="field"><label>Giornata da recuperare</label><input id="closureRecoverDate" type="date" value="'+esc(c.date)+'"></div><button class="btn secondary" type="button" onclick="refreshClosureRecoverDay(\''+esc(id)+'\')">Cerca vendite</button></div>';
+    html+='<div id="closureRecoverSummary" class="compat-note">Selezionati: 0 ordini · 0 articoli · Totale €0,00</div>';
+    html+='<div class="action-row" style="margin:10px 0"><button class="btn small secondary" type="button" onclick="document.querySelectorAll(\'.closureRecoverCheck:not(:disabled)\').forEach(function(x){x.checked=true});updateRecoverSummary()">Integra tutte le vendite della giornata</button><button class="btn small secondary" type="button" onclick="document.querySelectorAll(\'.closureRecoverCheck\').forEach(function(x){x.checked=false});updateRecoverSummary()">Deseleziona</button></div>';
+    html+='<div id="closureRecoverRows" class="permission-grid"><div class="empty">Caricamento vendite...</div></div>';
+    html+='<div class="field"><label>Note chiusura</label><textarea id="editClosureNotes">'+esc(c.notes||'')+'</textarea></div>';
+    html+='<div class="action-row"><button class="btn secondary" onclick="closeCancelSale()">Annulla</button><button class="btn gold" onclick="saveEditedClosure(\''+esc(c.id)+'\')">Salva / integra selezionati</button></div>';
+    var modalBox=document.getElementById('cancelSaleContent'); if(!modalBox){notify('Popup non trovato.');return;} modalBox.innerHTML=html; document.getElementById('cancelSaleModal')&&document.getElementById('cancelSaleModal').classList.add('show');
+    setTimeout(function(){renderRowsForDate(id,c.date)},30);
+  };
+
+  window.saveEditedClosure=async function(id){
+    try{
+      if(!canManageClosure()){notify('Non hai il permesso di modificare le chiusure.');return;}
+      ensure();var c=(db.closures||[]).find(function(x){return String(x.id)===String(id)});if(!c)return;
+      var selectedDate=(document.getElementById('closureRecoverDate')&&document.getElementById('closureRecoverDate').value)||c.date;
+      var idsThisDay=new Set(ordersForDate(selectedDate).map(function(o){return String(o.id)}));
+      var previous=(c.orderIds||[]).filter(function(oid){return !idsThisDay.has(String(oid))});
+      var selected=Array.from(document.querySelectorAll('.closureRecoverCheck:checked')).map(function(x){return x.value});
+      var finalIds=Array.from(new Set(previous.concat(selected).map(String)));
+      var s=summarizeOrderIds(finalIds);
+      var now=new Date();var p=profile();
+      var dates=Array.isArray(c.integratedDates)?c.integratedDates.slice():[c.date];
+      if(dates.indexOf(selectedDate)===-1)dates.push(selectedDate);
+      var rec=Object.assign({},c,{orders:s.orders,items:s.items,total:s.total,payments:s.payments,topProducts:s.topProducts,orderIds:s.orderIds,notes:(document.getElementById('editClosureNotes')&&document.getElementById('editClosureNotes').value)||'',integratedDates:dates,lastIntegratedDate:selectedDate,updatedAtClient:now.toISOString(),employeeName:p.name||p.displayName||c.employeeName||'',employeeRole:p.role||c.employeeRole||''});
+      db.closures=db.closures.filter(function(x){return String(x.id)!==String(id)});db.closures.push(rec);saveLocal();
+      await saveClosureOnline(rec);
+      if(typeof closeCancelSale==='function')closeCancelSale();else document.getElementById('cancelSaleModal')&&document.getElementById('cancelSaleModal').classList.remove('show');
+      if(typeof renderClosures==='function')renderClosures();
+      notify('Chiusura integrata e salvata sul gestionale.','success');
+    }catch(err){console.error(err);notify('Errore modifica chiusura: '+(err.message||err));}
+  };
 })();
 </script>
 
@@ -7479,3 +7793,613 @@ import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "https://
 })();
 </script>
 
+<script id="noor-closures-step1-integrated-badge-detail">
+/* STEP 1C - Badge chiusura integrata + dettaglio ordini con giornata originale.
+   Patch isolata: non tocca Home, Benvenuto, Situazione veloce o homeAlerts. */
+(function(){
+  if(window.__NOOR_CLOSURES_STEP1_INTEGRATED_BADGE_DETAIL__) return;
+  window.__NOOR_CLOSURES_STEP1_INTEGRATED_BADGE_DETAIL__ = true;
+
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]})}
+  function money(v){try{return typeof eur==='function'?eur(Number(v)||0):(Number(v)||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'})}catch(e){return '€0,00'}}
+  function ymd(d){var x=new Date(d); if(isNaN(x)) return String(d||'').slice(0,10); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
+  function dmy(v){try{return new Date(String(v).indexOf('T')>-1?v:(v+'T12:00:00')).toLocaleDateString('it-IT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})}catch(e){return String(v||'')}}
+  function dt(v){try{return new Date(v).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return String(v||'')}}
+  function ensure(){if(typeof db!=='object'||!db)window.db={products:[],sales:[],closures:[]};if(!Array.isArray(db.sales))db.sales=[];if(!Array.isArray(db.closures))db.closures=[]}
+  function modal(html){var c=document.getElementById('cancelSaleContent'); if(!c){try{toast('Popup non trovato.')}catch(e){} return;} c.innerHTML=html; var m=document.getElementById('cancelSaleModal'); if(m)m.classList.add('show')}
+  function closeBtn(){return '<button class="btn secondary" onclick="closeCancelSale()">Chiudi</button>'}
+  function canManageClosure(){
+    try{if(typeof activeEmployee==='function'){var e=activeEmployee(); var r=String(e&&e.role||'').toLowerCase(); if(r) return ['owner','superadmin','super_admin','admin','manager','administrator','amministratore','supervisor','supervisore','master'].indexOf(r)>-1;}}catch(e){}
+    var p=window.currentgestionaleUserProfile||window.currentUserProfile||window.currentProfileData||{};
+    var role=String(p.role||'').toLowerCase();
+    return ['owner','superadmin','super_admin','admin','manager','administrator','amministratore','supervisor','supervisore','master'].indexOf(role)>-1;
+  }
+
+  function allSales(){ensure(); return db.sales||[]}
+  function linesForOrder(orderId){var oid=String(orderId); return allSales().filter(function(s){return String(s.orderId||s.id)===oid})}
+  function orderInfo(orderId){
+    var lines=linesForOrder(orderId);
+    if(!lines.length) return {id:orderId,orderNumber:'ORD-'+String(orderId||'').slice(-6).toUpperCase(),date:'',dateKey:'',qty:0,total:0,payment:'',products:0,missing:true};
+    var first=lines.slice().sort(function(a,b){return new Date(a.date).getTime()-new Date(b.date).getTime()})[0]||lines[0];
+    var qty=lines.reduce(function(a,l){return a+Number(l.qty||1)},0);
+    var total=lines.reduce(function(a,l){return a+Number(l.total||0)},0);
+    return {
+      id:orderId,
+      orderNumber:first.orderNumber||('ORD-'+String(orderId||'').slice(-6).toUpperCase()),
+      date:first.date||'',
+      dateKey:first.date?ymd(first.date):'',
+      qty:qty,
+      total:total,
+      payment:first.payment||'Non specificato',
+      products:lines.length,
+      missing:false
+    };
+  }
+  function orderGroups(c){
+    var ids=(c.orderIds||[]).map(String);
+    var base=[], integrated=[];
+    ids.forEach(function(id){
+      var o=orderInfo(id);
+      if(o.dateKey && String(o.dateKey)===String(c.date)) base.push(o); else integrated.push(o);
+    });
+    return {base:base, integrated:integrated, all:base.concat(integrated)};
+  }
+  function isIntegrated(c){
+    var g=orderGroups(c);
+    if(g.integrated.length>0) return true;
+    if(Array.isArray(c.integratedDates) && c.integratedDates.filter(function(d){return String(d)!==String(c.date)}).length>0) return true;
+    if(c.lastIntegratedDate && String(c.lastIntegratedDate)!==String(c.date)) return true;
+    return false;
+  }
+  function datesIntegrated(c){
+    var set=new Set();
+    orderGroups(c).integrated.forEach(function(o){if(o.dateKey)set.add(o.dateKey)});
+    if(Array.isArray(c.integratedDates)) c.integratedDates.forEach(function(d){if(String(d)!==String(c.date)) set.add(String(d))});
+    if(c.lastIntegratedDate && String(c.lastIntegratedDate)!==String(c.date)) set.add(String(c.lastIntegratedDate));
+    return Array.from(set).sort();
+  }
+  function row(o,type){
+    var badge=type==='integrated'?'<span class="closure-origin-badge integrated">Integrato</span>':'<span class="closure-origin-badge base">Giornata chiusura</span>';
+    return '<div class="closure-order-origin-row"><div><b>'+esc(o.orderNumber||o.id)+'</b><div class="hint">Venduto il: <b>'+esc(o.date?dt(o.date):(o.dateKey?dmy(o.dateKey):'non trovato'))+'</b></div><div class="hint">'+esc(o.qty||0)+' articoli · '+esc(o.products||0)+' prodotti · '+esc(o.payment||'')+'</div></div><div style="text-align:right">'+badge+'<div style="font-weight:950;margin-top:7px">'+money(o.total)+'</div></div></div>';
+  }
+  function installStyle(){
+    if(document.getElementById('closure-integrated-style')) return;
+    var st=document.createElement('style'); st.id='closure-integrated-style';
+    st.textContent='.closure-integrated-badge{display:inline-flex;align-items:center;gap:6px;margin-left:8px;padding:6px 10px;border-radius:999px;background:linear-gradient(135deg,#ffe297,#f2b84b);border:1px solid rgba(242,184,75,.45);color:#3a081f;font-size:12px;font-weight:950}.closure-integrated-note{margin-top:8px;padding:9px 11px;border-radius:16px;background:rgba(242,184,75,.14);border:1px solid rgba(242,184,75,.28);font-size:12px;font-weight:850;color:var(--text)}.closure-order-origin-row{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border:1px solid var(--line);background:var(--panel2);border-radius:18px;padding:12px;margin:8px 0}.closure-origin-badge{display:inline-flex;padding:6px 9px;border-radius:999px;font-size:11px;font-weight:950;border:1px solid var(--line)}.closure-origin-badge.base{background:rgba(232,106,167,.12);color:var(--text)}.closure-origin-badge.integrated{background:linear-gradient(135deg,#ffe297,#f2b84b);color:#3a081f}@media(max-width:620px){.closure-order-origin-row{display:grid}.closure-order-origin-row>div:last-child{text-align:left!important}}';
+    document.head.appendChild(st);
+  }
+  function applyBadges(){
+    ensure(); installStyle();
+    var cards=document.querySelectorAll('#closuresList .closure-card');
+    cards.forEach(function(card){
+      if(card.querySelector('.closure-integrated-badge')) return;
+      var id=(card.textContent||'').match(/CHI-\d{8}-\d{3}/)?.[0]; if(!id) return;
+      var c=(db.closures||[]).find(function(x){return String(x.id)===String(id)}); if(!c || !isIntegrated(c)) return;
+      var title=card.querySelector('h2');
+      if(title) title.insertAdjacentHTML('beforeend',' <span class="closure-integrated-badge">Integrata</span>');
+      var dates=datesIntegrated(c).map(dmy).join(' · ');
+      var head=card.querySelector('.closure-head')||card;
+      if(dates) head.insertAdjacentHTML('afterend','<div class="closure-integrated-note">Ordini integrati da: <b>'+esc(dates)+'</b></div>');
+    });
+  }
+
+  var previousRender=window.renderClosures;
+  window.renderClosures=function(){
+    if(typeof previousRender==='function') previousRender.apply(this,arguments);
+    try{applyBadges()}catch(e){console.warn('Badge chiusura integrata non applicato',e)}
+  };
+
+  window.openClosureDetail=function(id){
+    ensure(); installStyle();
+    var c=(db.closures||[]).find(function(x){return String(x.id)===String(id)}); if(!c) return;
+    var pays=Object.entries(c.payments||{}).map(function(kv){return '<div class="confirm-row"><span>'+esc(kv[0])+'</span><b>'+money(kv[1])+'</b></div>'}).join('')||'<div class="empty">Nessun pagamento.</div>';
+    var top=(c.topProducts||[]).map(function(p,i){return '<div class="confirm-row"><span>'+(i+1)+'. '+esc(p.name)+'</span><b>'+esc(p.qty)+' pz · '+money(p.total)+'</b></div>'}).join('')||'<div class="empty">Nessun prodotto venduto.</div>';
+    var g=orderGroups(c);
+    var baseHtml=g.base.map(function(o){return row(o,'base')}).join('')||'<div class="empty">Nessun ordine della giornata di chiusura.</div>';
+    var integratedHtml=g.integrated.map(function(o){return row(o,'integrated')}).join('')||'<div class="empty">Nessun ordine integrato da altre giornate.</div>';
+    var dates=datesIntegrated(c);
+    var integratedSummary=isIntegrated(c)?'<div class="closure-integrated-note">Questa chiusura contiene ordini integrati'+(dates.length?' da: <b>'+esc(dates.map(dmy).join(' · '))+'</b>':'')+'.</div>':'';
+    var manage=canManageClosure()?'<button class="btn gold" onclick="openEditClosure(\''+esc(c.id)+'\')">Modifica / integra</button>':'';
+    modal('<div class="confirm-row"><span>Chiusura</span><b>'+esc(c.id)+'</b></div><div class="confirm-row"><span>Data chiusura</span><b>'+dmy(c.date)+'</b></div>'+integratedSummary+'<div class="confirm-row"><span>Ordini totali</span><b>'+esc(c.orders||g.all.length)+'</b></div><div class="confirm-row"><span>Ordini della giornata</span><b>'+esc(g.base.length)+'</b></div><div class="confirm-row"><span>Ordini integrati</span><b>'+esc(g.integrated.length)+'</b></div><div class="confirm-row"><span>Articoli</span><b>'+esc(c.items||0)+'</b></div><div class="confirm-row"><span>Totale</span><b>'+money(c.total)+'</b></div>'+(c.employeeName?'<div class="confirm-row"><span>Operatore</span><b>'+esc(c.employeeName)+'</b></div>':'')+'<h2>Ordini della giornata chiusura</h2>'+baseHtml+'<h2>Ordini integrati da altre giornate</h2>'+integratedHtml+'<h2>Pagamenti</h2>'+pays+'<h2>Prodotti più venduti</h2>'+top+(c.notes?'<p class="hint"><b>Note:</b> '+esc(c.notes)+'</p>':'')+'<div class="action-row"><button class="btn secondary" onclick="closeCancelSale()">Chiudi</button><button class="btn gold" onclick="printClosure(\''+esc(c.id)+'\')">Stampa PDF</button>'+manage+'</div>');
+  };
+
+  setTimeout(function(){try{if(typeof window.renderClosures==='function')window.renderClosures()}catch(e){}},400);
+  setTimeout(function(){try{if(typeof window.renderClosures==='function')window.renderClosures()}catch(e){}},1400);
+})();
+</script>
+
+
+
+<!-- PATCH NOOR STEP 2: popup chiusura, blocco vendite, permesso e filtro chiusure - Home non toccata -->
+<style id="noor-closures-step2-style">
+.noor-closure-step2-panel{margin-top:16px;border:1px solid var(--line);background:var(--panel2);border-radius:24px;padding:16px}
+.noor-closure-step2-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:12px}
+.noor-closure-step2-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.noor-closure-warning-modal{position:fixed;inset:0;background:rgba(0,0,0,.58);display:none;align-items:center;justify-content:center;z-index:130000;padding:18px}
+.noor-closure-warning-modal.show{display:flex}
+.noor-closure-warning-card{width:min(520px,100%);background:var(--panel);border:1px solid var(--line);border-radius:28px;box-shadow:var(--shadow);padding:22px;text-align:center}
+.noor-closure-warning-icon{width:64px;height:64px;border-radius:22px;margin:0 auto 12px;display:grid;place-items:center;background:linear-gradient(135deg,#ffe297,var(--gold));font-size:30px;color:#3a081f}
+.noor-closure-warning-title{font-size:23px;font-weight:950;margin-bottom:8px}
+.noor-closure-warning-text{color:var(--muted);font-size:14px;line-height:1.45;margin-bottom:14px;white-space:pre-wrap}
+.noor-closure-search-wrap{display:grid;grid-template-columns:1fr auto;gap:10px;margin:12px 0}
+@media(max-width:820px){.noor-closure-step2-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.noor-closure-step2-grid,.noor-closure-search-wrap{grid-template-columns:1fr}}
+</style>
+<script id="noor-closures-step2-safe-no-home">
+(function(){
+  if(window.__NOOR_CLOSURES_STEP2_SAFE_NO_HOME__) return;
+  window.__NOOR_CLOSURES_STEP2_SAFE_NO_HOME__ = true;
+
+  var FIREBASE_CONFIG = {
+    apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+    authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+    projectId:"gestionalenoor-2fa61",
+    storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+    messagingSenderId:"66670691093",
+    appId:"1:66670691093:web:82d0b2122e600bf5885f1c",
+    measurementId:"G-0HSQB7XLJG"
+  };
+
+  var fb = {ready:false, db:null, fns:null, unsub:null};
+  var DEFAULT_STEP2 = {
+    reminderEnabled:false,
+    blockEnabled:false,
+    startTime:"23:50",
+    endTime:"00:00",
+    text:"Attenzione. Entro le 00:00 deve essere effettuata la chiusura giornaliera. Dopo tale orario le vendite saranno bloccate fino all'esecuzione della chiusura."
+  };
+
+  function $(id){ return document.getElementById(id); }
+  function esc(v){ return String(v == null ? "" : v).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];}); }
+  function notify(msg,type){ try{ if(typeof window.toast === "function") window.toast(String(msg).replace(/Firebase/g,"gestionale").replace(/firebase/g,"gestionale"),type || ""); }catch(e){} }
+  function todayISO(d){ var x = d ? new Date(d) : new Date(); return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
+  function addDays(d,n){ var x = new Date(d); x.setDate(x.getDate()+n); return x; }
+  function minutes(t){ var p = String(t || "00:00").split(":"); return (Number(p[0]) || 0) * 60 + (Number(p[1]) || 0); }
+  function nowMinutes(){ var d = new Date(); return d.getHours()*60+d.getMinutes(); }
+
+  function getCfg(){
+    try{
+      if(!window.settings) window.settings = {};
+      if(!settings.closureStep2) settings.closureStep2 = {};
+      settings.closureStep2 = Object.assign({}, DEFAULT_STEP2, settings.closureStep2 || {});
+      return settings.closureStep2;
+    }catch(e){
+      return Object.assign({}, DEFAULT_STEP2);
+    }
+  }
+
+  function saveLocalSettings(){
+    try{
+      if(typeof SETTINGS_KEY !== "undefined" && window.settings) localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      else if(window.settings) localStorage.setItem("noor_profumi_settings_v1", JSON.stringify(settings));
+    }catch(e){}
+  }
+
+  async function initOnline(){
+    if(fb.ready) return true;
+    try{
+      var mods = await Promise.all([
+        import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js"),
+        import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js")
+      ]);
+      var appMod = mods[0], fsMod = mods[1];
+      var app = appMod.getApps().length ? appMod.getApps()[0] : appMod.initializeApp(FIREBASE_CONFIG);
+      fb.db = fsMod.getFirestore(app);
+      fb.fns = fsMod;
+      fb.ready = true;
+      startSettingsListener();
+      return true;
+    }catch(err){
+      console.warn("Impostazioni chiusure online non disponibili",err);
+      return false;
+    }
+  }
+
+  function startSettingsListener(){
+    if(!fb.ready || fb.unsub) return;
+    try{
+      var ref = fb.fns.doc(fb.db,"settings","closureStep2");
+      fb.unsub = fb.fns.onSnapshot(ref,function(snap){
+        if(snap.exists()){
+          if(!window.settings) window.settings = {};
+          settings.closureStep2 = Object.assign({}, DEFAULT_STEP2, snap.data() || {});
+          saveLocalSettings();
+          fillSettingsPanel();
+          checkReminderPopup();
+        }
+      });
+    }catch(err){ console.warn("Listener impostazioni chiusure:",err); }
+  }
+
+  async function saveStep2Online(){
+    var cfg = getCfg();
+    saveLocalSettings();
+    try{
+      var ok = await initOnline();
+      if(ok && fb.db && fb.fns){
+        await fb.fns.setDoc(fb.fns.doc(fb.db,"settings","closureStep2"), Object.assign({}, cfg, {updatedAt:fb.fns.serverTimestamp()}), {merge:true});
+      }
+    }catch(err){ console.warn("Salvataggio impostazioni chiusure:",err); }
+  }
+
+  function ensurePermissionDefaults(){
+    try{
+      if(!window.settings) window.settings = {};
+      if(!settings.rolePerms) settings.rolePerms = {};
+      ["manager","admin","supervisor","supervisore"].forEach(function(r){
+        if(!settings.rolePerms[r]) settings.rolePerms[r] = {};
+        if(typeof settings.rolePerms[r].closurePopupBlock === "undefined") settings.rolePerms[r].closurePopupBlock = 1;
+      });
+      ["seller","warehouse"].forEach(function(r){
+        if(!settings.rolePerms[r]) settings.rolePerms[r] = {};
+        if(typeof settings.rolePerms[r].closurePopupBlock === "undefined") settings.rolePerms[r].closurePopupBlock = 0;
+      });
+      saveLocalSettings();
+    }catch(e){}
+  }
+
+  function canClosurePopupBlock(){
+    try{ if(typeof window.canAccess === "function" && window.canAccess("closurePopupBlock")) return true; }catch(e){}
+    try{
+      var p = window.currentUserProfile || window.currentgestionaleUserProfile || window.activeEmployee || {};
+      var r = String(p.role || p.userRole || "").toLowerCase();
+      if(["owner","superadmin","super_admin","master","admin","manager","supervisor","supervisore"].indexOf(r) > -1) return true;
+    }catch(e){}
+    return false;
+  }
+
+  function appendPermissionFlag(){
+    ensurePermissionDefaults();
+    var old = window.renderPermissionEditor;
+    if(typeof old === "function" && !old.__NOOR_STEP2_PERMISSION_WRAP__){
+      var wrapped = function(){
+        var r = old.apply(this, arguments);
+        try{
+          var box = $("permissionEditor");
+          if(box && !box.querySelector('input[data-perm="closurePopupBlock"]')){
+            var roleEl = $("permRoleSelect");
+            var role = roleEl ? roleEl.value : "seller";
+            var val = !!(settings.rolePerms && settings.rolePerms[role] && settings.rolePerms[role].closurePopupBlock);
+            var label = document.createElement("label");
+            label.className = "perm-check";
+            label.innerHTML = '<input type="checkbox" data-perm="closurePopupBlock" '+(val ? "checked" : "")+'><span><b>Blocco vendite popup</b><small>Può gestire popup chiusura, orari, testo e blocco vendite dopo l’orario configurato.</small></span>';
+            box.appendChild(label);
+          }
+        }catch(e){}
+        return r;
+      };
+      wrapped.__NOOR_STEP2_PERMISSION_WRAP__ = true;
+      window.renderPermissionEditor = wrapped;
+    }
+    try{ if(typeof window.renderPermissionEditor === "function") window.renderPermissionEditor(); }catch(e){}
+  }
+
+  function installSettingsPanel(){
+    var settingsSec = $("settings");
+    if(!settingsSec || $("closureStep2Panel")) return;
+    var panel = document.createElement("div");
+    panel.id = "closureStep2Panel";
+    panel.className = "noor-closure-step2-panel";
+    panel.innerHTML = '<div class="panel-title" style="margin-bottom:6px"><div><h2>Blocco vendite popup</h2><p class="hint">Configura l’avviso di chiusura e il blocco vendite dopo l’orario scelto. Impostazioni online per tutti.</p></div></div>'+
+      '<div class="noor-closure-step2-grid">'+
+      '<div class="field"><label>Promemoria</label><select id="closureStep2Reminder"><option value="false">Disattivato</option><option value="true">Attivo</option></select></div>'+
+      '<div class="field"><label>Blocco vendite</label><select id="closureStep2Block"><option value="false">Disattivato</option><option value="true">Attivo</option></select></div>'+
+      '<div class="field"><label>Ora inizio avviso</label><input id="closureStep2Start" type="time"></div>'+
+      '<div class="field"><label>Ora fine / blocco</label><input id="closureStep2End" type="time"></div>'+
+      '<div class="field full"><label>Testo popup</label><textarea id="closureStep2Text" placeholder="Testo avviso chiusura"></textarea></div>'+
+      '</div><div class="noor-closure-step2-actions"><button class="btn gold" type="button" onclick="saveClosureStep2Settings()">Salva impostazioni online</button><button class="btn secondary" type="button" onclick="testClosureStep2Popup()">Prova popup</button></div>';
+    var firstPanel = settingsSec.querySelector(".card.panel");
+    if(firstPanel) firstPanel.appendChild(panel);
+    fillSettingsPanel();
+  }
+
+  function fillSettingsPanel(){
+    var cfg = getCfg();
+    if($("closureStep2Reminder")) $("closureStep2Reminder").value = cfg.reminderEnabled ? "true" : "false";
+    if($("closureStep2Block")) $("closureStep2Block").value = cfg.blockEnabled ? "true" : "false";
+    if($("closureStep2Start")) $("closureStep2Start").value = cfg.startTime || "23:50";
+    if($("closureStep2End")) $("closureStep2End").value = cfg.endTime || "00:00";
+    if($("closureStep2Text")) $("closureStep2Text").value = cfg.text || DEFAULT_STEP2.text;
+  }
+
+  window.saveClosureStep2Settings = async function(){
+    if(!canClosurePopupBlock()){ notify("Non hai il permesso Blocco vendite popup."); return; }
+    var cfg = getCfg();
+    cfg.reminderEnabled = $("closureStep2Reminder") ? $("closureStep2Reminder").value === "true" : false;
+    cfg.blockEnabled = $("closureStep2Block") ? $("closureStep2Block").value === "true" : false;
+    cfg.startTime = $("closureStep2Start") ? $("closureStep2Start").value || "23:50" : "23:50";
+    cfg.endTime = $("closureStep2End") ? $("closureStep2End").value || "00:00" : "00:00";
+    cfg.text = $("closureStep2Text") ? $("closureStep2Text").value || DEFAULT_STEP2.text : DEFAULT_STEP2.text;
+    await saveStep2Online();
+    notify("Impostazioni blocco vendite popup salvate online.","success");
+    checkReminderPopup(true);
+  };
+
+  function inReminderWindow(){
+    var cfg = getCfg();
+    if(!cfg.reminderEnabled) return false;
+    var n = nowMinutes(), s = minutes(cfg.startTime), e = minutes(cfg.endTime);
+    if(s === e) return false;
+    if(s < e) return n >= s && n <= e;
+    return n >= s || n <= e;
+  }
+
+  function requiredClosureDate(){
+    var cfg = getCfg();
+    var n = nowMinutes(), s = minutes(cfg.startTime), e = minutes(cfg.endTime);
+    var now = new Date();
+    if(s > e && n <= e) return todayISO(addDays(now,-1));
+    return todayISO(now);
+  }
+
+  function hasClosureFor(dateStr){
+    try{
+      var arr = window.db && Array.isArray(db.closures) ? db.closures : [];
+      return arr.some(function(c){ return String(c.date) === String(dateStr) && c.deleted !== true && c.isDeleted !== true; });
+    }catch(e){ return false; }
+  }
+
+  function shouldBlockSales(){
+    var cfg = getCfg();
+    if(!cfg.blockEnabled) return false;
+    var n = nowMinutes(), s = minutes(cfg.startTime), e = minutes(cfg.endTime);
+    var after = false;
+    if(s > e) after = n <= e || n < s;
+    else after = n >= e;
+    if(!after) return false;
+    return !hasClosureFor(requiredClosureDate());
+  }
+
+  function showPopup(force){
+    var cfg = getCfg();
+    var modal = $("closureStep2WarningModal");
+    if(!modal){
+      modal = document.createElement("div");
+      modal.id = "closureStep2WarningModal";
+      modal.className = "noor-closure-warning-modal";
+      modal.innerHTML = '<div class="noor-closure-warning-card"><div class="noor-closure-warning-icon">⚠️</div><div class="noor-closure-warning-title">Promemoria chiusura</div><div id="closureStep2WarningText" class="noor-closure-warning-text"></div><div class="action-row" style="justify-content:center"><button class="btn gold" type="button" onclick="go(&quot;closures&quot;); closeClosureStep2Popup()">Vai alle chiusure</button><button class="btn secondary" type="button" onclick="closeClosureStep2Popup()">Ho capito</button></div></div>';
+      document.body.appendChild(modal);
+    }
+    var txt = $("closureStep2WarningText");
+    if(txt) txt.textContent = cfg.text || DEFAULT_STEP2.text;
+    if(force || inReminderWindow()) modal.classList.add("show");
+  }
+
+  window.closeClosureStep2Popup = function(){
+    var modal = $("closureStep2WarningModal");
+    if(modal) modal.classList.remove("show");
+  };
+
+  window.testClosureStep2Popup = function(){ showPopup(true); };
+
+  function checkReminderPopup(force){
+    if(force || inReminderWindow()) showPopup(!!force);
+  }
+
+  function installClosureSearch(){
+    var list = $("closuresList");
+    if(!list || $("closureSearchBox")) return;
+    var wrap = document.createElement("div");
+    wrap.id = "closureSearchBox";
+    wrap.className = "noor-closure-search-wrap";
+    wrap.innerHTML = '<input id="closureSearchInput" placeholder="Cerca chiusura per data, totale, utente, stato, integrata, conguagliata..."><button class="btn small secondary" type="button" onclick="clearClosureSearch()">Pulisci ricerca</button>';
+    list.parentNode.insertBefore(wrap, list);
+    var input = $("closureSearchInput");
+    if(input) input.addEventListener("input", applyClosureSearch);
+  }
+
+  function applyClosureSearch(){
+    var q = $("closureSearchInput") ? String($("closureSearchInput").value || "").toLowerCase().trim() : "";
+    var cards = document.querySelectorAll("#closuresList .closure-card");
+    cards.forEach(function(card){
+      var txt = String(card.textContent || "").toLowerCase();
+      card.style.display = !q || txt.indexOf(q) > -1 ? "" : "none";
+    });
+  }
+
+  window.clearClosureSearch = function(){
+    if($("closureSearchInput")) $("closureSearchInput").value = "";
+    applyClosureSearch();
+  };
+
+  function wrapClosuresRender(){
+    var old = window.renderClosures;
+    if(typeof old === "function" && !old.__NOOR_STEP2_SEARCH_WRAP__){
+      var wrapped = function(){
+        var r = old.apply(this, arguments);
+        try{ installClosureSearch(); applyClosureSearch(); }catch(e){}
+        return r;
+      };
+      wrapped.__NOOR_STEP2_SEARCH_WRAP__ = true;
+      window.renderClosures = wrapped;
+    }
+  }
+
+  function wrapConfirmSale(){
+    var old = window.confirmSale;
+    if(typeof old === "function" && !old.__NOOR_STEP2_BLOCK_WRAP__){
+      var wrapped = function(){
+        try{
+          if(shouldBlockSales()){
+            var d = requiredClosureDate().split("-").reverse().join("/");
+            notify("Prima di procedere è necessario effettuare la chiusura giornaliera del "+d+".");
+            try{ go("closures"); }catch(e){}
+            return false;
+          }
+        }catch(e){}
+        return old.apply(this, arguments);
+      };
+      wrapped.__NOOR_STEP2_BLOCK_WRAP__ = true;
+      window.confirmSale = wrapped;
+      try{ confirmSale = wrapped; }catch(e){}
+    }
+  }
+
+  function boot(){
+    ensurePermissionDefaults();
+    appendPermissionFlag();
+    installSettingsPanel();
+    wrapClosuresRender();
+    wrapConfirmSale();
+    installClosureSearch();
+    fillSettingsPanel();
+    checkReminderPopup(false);
+    initOnline();
+    setInterval(checkReminderPopup, 60000);
+  }
+
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
+  window.addEventListener("load", function(){ setTimeout(boot,250); setTimeout(boot,1200); });
+})();
+
+
+/* PATCH NOOR STEP 2B: freccia blocco popup + chiusure eliminate - JS sicuro dentro main script */
+(function(){
+  'use strict';
+  if(window.__NOOR_STEP2B_CLOSURES_DELETED__) return;
+  window.__NOOR_STEP2B_CLOSURES_DELETED__ = true;
+
+  var FIREBASE_CONFIG = {apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",authDomain:"gestionalenoor-2fa61.firebaseapp.com",projectId:"gestionalenoor-2fa61",storageBucket:"gestionalenoor-2fa61.firebasestorage.app",messagingSenderId:"66670691093",appId:"1:66670691093:web:82d0b2122e600bf5885f1c",measurementId:"G-0HSQB7XLJG"};
+  var fb = {ready:false, db:null, fns:null};
+
+  function $(id){ return document.getElementById(id); }
+  function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function money(v){ try{ if(typeof eur === 'function') return eur(Number(v||0)); }catch(e){} try{return Number(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'});}catch(e){return '€ '+Number(v||0).toFixed(2);} }
+  function notify(msg,type){ try{ if(typeof window.toast === 'function') return window.toast(String(msg).replace(/Firebase/g,'gestionale').replace(/firebase/g,'gestionale'),type||''); }catch(e){} alert(String(msg)); }
+  function ensureDb(){ window.db = window.db || {}; if(!Array.isArray(db.closures)) db.closures=[]; if(!Array.isArray(db.deletedClosures)) db.deletedClosures=[]; }
+  function saveLocal(){ try{ if(typeof window.save === 'function') return window.save(); }catch(e){} try{ if(typeof saveLocalData === 'function') return saveLocalData(); }catch(e){} try{ localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1', JSON.stringify(window.db||{})); }catch(e){} }
+  function profile(){ try{return window.currentgestionaleUserProfile||window.currentUserProfile||{};}catch(e){return {};} }
+  function role(){ var p=profile(); return String(p.role||p.userRole||'').toLowerCase(); }
+  function canFull(){
+    try{ if(typeof window.can === 'function' && (window.can('closureFull') || window.can('editClosure') || window.can('closurePopupBlock'))) return true; }catch(e){}
+    var r=role();
+    return ['owner','superadmin','super_admin','admin','manager','administrator','amministratore','supervisor','supervisore','master'].indexOf(r)>-1;
+  }
+  async function initFb(){
+    if(fb.ready) return true;
+    try{
+      var mods = await Promise.all([import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'), import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js')]);
+      var appMod=mods[0], fsMod=mods[1];
+      var app = appMod.getApps().length ? appMod.getApps()[0] : appMod.initializeApp(FIREBASE_CONFIG);
+      fb.db = fsMod.getFirestore(app); fb.fns = fsMod; fb.ready = true; return true;
+    }catch(err){ console.warn('Chiusure eliminate online non disponibile', err); return false; }
+  }
+  async function fetchDeletedOnline(){
+    ensureDb();
+    var ok = await initFb();
+    if(!ok) return db.deletedClosures || [];
+    try{
+      var snap = await fb.fns.getDocs(fb.fns.collection(fb.db,'deletedClosures'));
+      var arr=[]; snap.forEach(function(d){ arr.push(Object.assign({id:d.id}, d.data()||{})); });
+      db.deletedClosures = arr; saveLocal(); return arr;
+    }catch(err){ console.warn(err); return db.deletedClosures || []; }
+  }
+  async function setDeletedOnline(rec){ var ok=await initFb(); if(!ok) return; await fb.fns.setDoc(fb.fns.doc(fb.db,'deletedClosures',String(rec.id)),rec,{merge:true}); }
+  async function deleteDeletedOnline(id){ var ok=await initFb(); if(!ok) return; await fb.fns.deleteDoc(fb.fns.doc(fb.db,'deletedClosures',String(id))); }
+  async function setClosureOnline(rec){ var ok=await initFb(); if(!ok) return; await fb.fns.setDoc(fb.fns.doc(fb.db,'closures',String(rec.id)),rec,{merge:true}); }
+  async function deleteClosureOnline(id){ var ok=await initFb(); if(!ok) return; await fb.fns.deleteDoc(fb.fns.doc(fb.db,'closures',String(id))); }
+
+  function makePopupPanelCollapsible(){
+    var panel = $('closureStep2Panel');
+    if(!panel || panel.classList.contains('noor-step2b-ready')) return;
+    var title = panel.querySelector('.panel-title'); if(!title) return;
+    title.classList.add('noor-step2b-head');
+    var arrow = document.createElement('div'); arrow.className='noor-step2b-arrow'; arrow.textContent='⌄';
+    if(!title.querySelector('.noor-step2b-arrow')) title.appendChild(arrow);
+    var body = document.createElement('div'); body.className='noor-step2b-body';
+    var n = title.nextSibling;
+    while(n){ var next=n.nextSibling; body.appendChild(n); n=next; }
+    panel.appendChild(body); panel.classList.add('noor-step2b-ready');
+    title.addEventListener('click', function(ev){
+      if(ev.target && (ev.target.tagName==='INPUT' || ev.target.tagName==='SELECT' || ev.target.tagName==='TEXTAREA' || ev.target.tagName==='BUTTON')) return;
+      panel.classList.toggle('noor-step2b-collapsed');
+    });
+  }
+
+  function installDeletedButton(){
+    var sec = $('closures'); if(!sec) return;
+    var titles = sec.querySelectorAll('.panel-title'); if(!titles.length) return;
+    var first = titles[0];
+    if($('openDeletedClosuresBtn')) return;
+    var oldBtn = null;
+    var btns = first.querySelectorAll('button');
+    for(var i=0;i<btns.length;i++){ if((btns[i].textContent||'').toLowerCase().indexOf('esegui chiusura')>-1){ oldBtn=btns[i]; break; } }
+    var wrap = document.createElement('div'); wrap.className='noor-step2b-closure-actions';
+    if(oldBtn){ oldBtn.parentNode.insertBefore(wrap, oldBtn); wrap.appendChild(oldBtn); }
+    else { first.appendChild(wrap); }
+    var del = document.createElement('button'); del.id='openDeletedClosuresBtn'; del.className='btn secondary'; del.type='button'; del.textContent='Chiusure eliminate'; del.onclick=function(){ window.openDeletedClosuresPanel(); };
+    wrap.appendChild(del);
+  }
+
+  window.openDeletedClosuresPanel = async function(){
+    if(!canFull()){ notify('Non hai il permesso per gestire le chiusure eliminate.'); return; }
+    ensureDb(); var arr = await fetchDeletedOnline();
+    arr = (arr||[]).slice().sort(function(a,b){ return String(b.deletedAtClient||b.deletedAt||b.date||'').localeCompare(String(a.deletedAtClient||a.deletedAt||a.date||'')); });
+    var rows = arr.map(function(c){
+      return '<div class="noor-deleted-closure-card"><div class="noor-deleted-closure-head"><div><b>'+esc(c.id||'Chiusura')+'</b><p class="hint">Data chiusura: <b>'+esc(c.date||'-')+'</b><br>Eliminata da: <b>'+esc(c.deletedByName||c.employeeName||'-')+'</b><br>Eliminata il: '+esc(c.deletedAtClient||'-')+'</p></div><div style="text-align:right"><b>'+money(c.total||0)+'</b><div class="action-row" style="justify-content:flex-end;margin-top:10px"><button class="btn small gold" type="button" onclick="restoreDeletedClosure(\''+esc(c.id)+'\')">Ripristina</button><button class="btn small red" type="button" onclick="permanentlyDeleteClosure(\''+esc(c.id)+'\')">Elimina definitivamente</button></div></div></div></div>';
+    }).join('') || '<div class="empty">Nessuna chiusura eliminata.</div>';
+    var html = '<h2>Chiusure eliminate</h2><p class="hint">Da qui puoi recuperare una chiusura eliminata per errore oppure eliminarla definitivamente.</p>'+rows+'<div class="action-row"><button class="btn secondary" onclick="closeCancelSale()">Chiudi</button></div>';
+    var box = $('cancelSaleContent'); var modal = $('cancelSaleModal');
+    if(box && modal){ box.innerHTML = html; modal.classList.add('show'); }
+    else { alert('Popup non disponibile.'); }
+  };
+
+  var previousDeleteClosureSmart = window.deleteClosureSmart;
+  window.deleteClosureSmart = async function(id){
+    if(!canFull()){ notify('Non hai il permesso di eliminare le chiusure.'); return; }
+    if(!confirm('Spostare questa chiusura nella lista delle chiusure eliminate?')) return;
+    try{
+      ensureDb();
+      var idx = db.closures.findIndex(function(c){ return String(c.id)===String(id); });
+      if(idx < 0){ if(typeof previousDeleteClosureSmart === 'function') return previousDeleteClosureSmart(id); notify('Chiusura non trovata.'); return; }
+      var p = profile();
+      var rec = Object.assign({}, db.closures[idx], {deleted:true,isDeleted:true,deletedAtClient:new Date().toISOString(),deletedByName:p.name||p.displayName||p.email||'',deletedByRole:p.role||'',deletedByUid:p.uid||p.firebaseUid||''});
+      db.closures.splice(idx,1);
+      db.deletedClosures = (db.deletedClosures||[]).filter(function(c){return String(c.id)!==String(id);});
+      db.deletedClosures.push(rec); saveLocal();
+      await setDeletedOnline(rec); await deleteClosureOnline(id);
+      try{ if(typeof window.renderClosures === 'function') window.renderClosures(); }catch(e){}
+      notify('Chiusura spostata nelle chiusure eliminate.','success');
+    }catch(err){ console.error(err); notify('Errore eliminazione chiusura: '+(err.message||err)); }
+  };
+
+  window.restoreDeletedClosure = async function(id){
+    if(!canFull()){ notify('Non hai il permesso di ripristinare le chiusure.'); return; }
+    try{
+      ensureDb(); var arr = await fetchDeletedOnline();
+      var rec = (arr||[]).find(function(c){return String(c.id)===String(id);});
+      if(!rec){ notify('Chiusura eliminata non trovata.'); return; }
+      delete rec.deleted; delete rec.isDeleted; delete rec.deletedAtClient; delete rec.deletedByName; delete rec.deletedByRole; delete rec.deletedByUid;
+      rec.restoredAtClient = new Date().toISOString();
+      db.closures = (db.closures||[]).filter(function(c){return String(c.id)!==String(id);}); db.closures.push(rec);
+      db.deletedClosures = (db.deletedClosures||[]).filter(function(c){return String(c.id)!==String(id);}); saveLocal();
+      await setClosureOnline(rec); await deleteDeletedOnline(id);
+      try{ if(typeof window.renderClosures === 'function') window.renderClosures(); }catch(e){}
+      await window.openDeletedClosuresPanel();
+      notify('Chiusura ripristinata.','success');
+    }catch(err){ console.error(err); notify('Errore ripristino chiusura: '+(err.message||err)); }
+  };
+
+  window.permanentlyDeleteClosure = async function(id){
+    if(!canFull()){ notify('Non hai il permesso di eliminare definitivamente.'); return; }
+    if(!confirm('Eliminare definitivamente questa chiusura? Questa azione non si può annullare.')) return;
+    try{
+      ensureDb(); db.deletedClosures = (db.deletedClosures||[]).filter(function(c){return String(c.id)!==String(id);}); saveLocal();
+      await deleteDeletedOnline(id);
+      await window.openDeletedClosuresPanel();
+      notify('Chiusura eliminata definitivamente.','success');
+    }catch(err){ console.error(err); notify('Errore eliminazione definitiva: '+(err.message||err)); }
+  };
+
+  function tick(){ try{ makePopupPanelCollapsible(); installDeletedButton(); }catch(e){ console.warn(e); } }
+  var oldGo = window.go;
+  if(typeof oldGo === 'function' && !oldGo.__NOOR_STEP2B_WRAP__){
+    var wrapped = function(id){ var r = oldGo.apply(this,arguments); setTimeout(tick,80); setTimeout(tick,500); return r; };
+    wrapped.__NOOR_STEP2B_WRAP__ = true; window.go = wrapped;
+  }
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(tick,100); setTimeout(tick,900); });
+  window.addEventListener('load', function(){ setTimeout(tick,300); setTimeout(tick,1300); });
+  try{ new MutationObserver(function(){ tick(); }).observe(document.body,{childList:true,subtree:true}); }catch(e){}
+  setTimeout(tick,500); setTimeout(tick,1500);
+})();
+</script>
