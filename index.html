@@ -5074,53 +5074,136 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction, serverTim
     if(!data||!Array.isArray(data.ids)||!data.ids.length){ notify('Nessun articolo selezionato.'); return; }
     const orderId=String(data.orderId);
     const localOrder=getOrderLocal(orderId);
-    let removedQty=0, removedTotal=0;
+    if(!localOrder){ notify('Ordine non trovato.'); return; }
+
     const updates=[];
+    let removedQty=0;
+    let removedTotal=0;
+
     for(const id of data.ids){
-      const s=(db.sales||[]).find(x=>String(x.id)===String(id)); if(!s) continue;
+      const s=(db.sales||[]).find(x=>String(x.id)===String(id));
+      if(!s) continue;
       const maxQty=Math.max(1,Number(s.qty)||1);
-      const input=document.querySelector(`.cancelQtyInput[data-line="${CSS.escape(String(id))}"]`);
-      let q=Math.max(1,Number(input?.value)||1); q=Math.min(q,maxQty);
+      const input=document.querySelector('.cancelQtyInput[data-line="'+CSS.escape(String(id))+'"]');
+      let q=Math.max(1,Number(input&&input.value)||1);
+      q=Math.min(q,maxQty);
       const unitTotal=(Number(s.total)||0)/maxQty;
-      updates.push({lineId:String(id),productId:String(s.productId||''),qty:q,total:unitTotal*q,maxQty});
-      removedQty+=q; removedTotal+=unitTotal*q;
+      updates.push({
+        lineId:String(id),
+        productId:String(s.productId||''),
+        productName:String(s.productName||''),
+        qty:q,
+        total:unitTotal*q,
+        maxQty:maxQty
+      });
+      removedQty+=q;
+      removedTotal+=unitTotal*q;
     }
+    if(!updates.length){ notify('Nessun articolo valido da rimuovere.'); return; }
+
     try{
       await runTransaction(fs,async tx=>{
-        const orderRef=doc(fs,'orders',orderId); const os=await tx.get(orderRef);
+        const orderRef=doc(fs,'orders',orderId);
+        const os=await tx.get(orderRef);
         if(!os.exists()) throw new Error('Ordine non trovato online');
-        const od=os.data()||{}; let items=Array.isArray(od.items)?od.items.map(x=>({...x})):[];
+        const od=os.data()||{};
+        let items=Array.isArray(od.items)?od.items.map(x=>Object.assign({},x)):[];
+        const stockReturn={};
+
         for(const u of updates){
-          const idx=items.findIndex(it=>String(it.lineId)===String(u.lineId));
-          if(idx>-1){
-            const currentQty=Number(items[idx].qty)||0; const q=Math.min(u.qty,currentQty);
-            const lineTotal=Number(items[idx].total)||0; const unit=currentQty?lineTotal/currentQty:0;
-            if(u.productId){ const pref=doc(fs,'products',u.productId); const ps=await tx.get(pref); if(ps.exists()) tx.update(pref,{qty:(Number(ps.data().qty)||0)+q,updatedAt:serverTimestamp(),updatedAtClient:new Date().toISOString()}); }
-            if(q>=currentQty) items.splice(idx,1); else { items[idx].qty=currentQty-q; items[idx].total=Math.max(0,lineTotal-(unit*q)); }
+          let idx=items.findIndex(it=>String(it.lineId||it.id||'')===String(u.lineId));
+          if(idx<0 && u.productId){
+            idx=items.findIndex(it=>String(it.productId||'')===String(u.productId));
+          }
+          if(idx<0 && u.productName){
+            idx=items.findIndex(it=>String(it.productName||it.name||'')===String(u.productName));
+          }
+          if(idx<0) continue;
+
+          const currentQty=Math.max(0,Number(items[idx].qty)||0);
+          if(!currentQty) continue;
+          const q=Math.min(Number(u.qty)||0,currentQty);
+          if(!q) continue;
+          const lineTotal=Number(items[idx].total)||((Number(items[idx].price)||0)*currentQty);
+          const unit=currentQty?lineTotal/currentQty:0;
+          const pid=String(items[idx].productId||u.productId||'');
+          if(pid) stockReturn[pid]=(stockReturn[pid]||0)+q;
+
+          if(q>=currentQty){
+            items.splice(idx,1);
+          }else{
+            items[idx].qty=currentQty-q;
+            items[idx].total=Math.max(0,lineTotal-(unit*q));
           }
         }
+
+        for(const pid of Object.keys(stockReturn)){
+          const pref=doc(fs,'products',pid);
+          const ps=await tx.get(pref);
+          if(ps.exists()){
+            tx.update(pref,{
+              qty:(Number(ps.data().qty)||0)+Number(stockReturn[pid]||0),
+              updatedAt:serverTimestamp(),
+              updatedAtClient:new Date().toISOString(),
+              updatedBy:auth.currentUser?.uid||'',
+              updatedByEmail:auth.currentUser?.email||''
+            });
+          }
+        }
+
         const newTotal=items.reduce((a,it)=>a+Number(it.total||0),0);
-        tx.update(orderRef,{items,total:newTotal,subtotal:newTotal,status:items.length?'completed':'cancelled',updatedAt:serverTimestamp(),updatedAtClient:new Date().toISOString(),updatedBy:auth.currentUser?.uid||'',updatedByEmail:auth.currentUser?.email||''});
+        const payload={
+          items:items,
+          total:newTotal,
+          subtotal:newTotal,
+          status:items.length?'completed':'cancelled',
+          updatedAt:serverTimestamp(),
+          updatedAtClient:new Date().toISOString(),
+          updatedBy:auth.currentUser?.uid||'',
+          updatedByEmail:auth.currentUser?.email||''
+        };
+        if(!items.length){
+          payload.cancelledAt=serverTimestamp();
+          payload.cancelledAtClient=new Date().toISOString();
+          payload.cancelledBy=auth.currentUser?.uid||'';
+          payload.cancelledByEmail=auth.currentUser?.email||'';
+        }
+        tx.update(orderRef,payload);
       });
-      // Aggiornamento locale immediato
-      if(localOrder){
-        for(const u of updates){
-          const p=(db.products||[]).find(x=>String(x.id)===String(u.productId)); if(p)p.qty=Number(p.qty||0)+u.qty;
-          const s=(db.sales||[]).find(x=>String(x.id)===String(u.lineId)); if(s){
-            if(u.qty>=Number(s.qty||0)) s.__remove=true; else { const unit=(Number(s.total)||0)/(Number(s.qty)||1); s.qty=Number(s.qty)-u.qty; s.total=Math.max(0,Number(s.total)-unit*u.qty); }
+
+      // Aggiornamento locale immediato: rimuove solo le righe selezionate e rimette lo stock.
+      for(const u of updates){
+        const p=(db.products||[]).find(x=>String(x.id)===String(u.productId));
+        if(p) p.qty=Number(p.qty||0)+Number(u.qty||0);
+        const s=(db.sales||[]).find(x=>String(x.id)===String(u.lineId));
+        if(s){
+          const currentQty=Number(s.qty)||0;
+          if(Number(u.qty)>=currentQty){
+            s.__remove=true;
+          }else{
+            const unit=(Number(s.total)||0)/(currentQty||1);
+            s.qty=currentQty-Number(u.qty||0);
+            s.total=Math.max(0,Number(s.total||0)-(unit*Number(u.qty||0)));
           }
         }
-        db.sales=(db.sales||[]).filter(s=>!s.__remove);
-        const remaining=(db.sales||[]).filter(s=>String(s.orderId||s.id)===String(orderId));
-        const newTotal=remaining.reduce((a,s)=>a+Number(s.total||0),0);
-        db.sales=(db.sales||[]).map(s=>String(s.orderId||s.id)===String(orderId)?{...s,orderTotal:newTotal,cartFinalTotal:newTotal}:s);
-        saveLocalRender();
       }
+      db.sales=(db.sales||[]).filter(s=>!s.__remove);
+      const remaining=(db.sales||[]).filter(s=>String(s.orderId||s.id)===String(orderId));
+      const newTotal=remaining.reduce((a,s)=>a+Number(s.total||0),0);
+      db.sales=(db.sales||[]).map(s=>String(s.orderId||s.id)===String(orderId)?Object.assign({},s,{orderTotal:newTotal,cartFinalTotal:newTotal}):s);
+      saveLocalRender();
+
       window.pendingPartialCancel=null;
       $('cancelReturnMsg')?.classList.add('show');
-      notify(`Annullate ${removedQty} unità online. Dopo refresh resta corretto.`, 'success');
-      setTimeout(()=>{ const rem=(db.sales||[]).some(s=>String(s.orderId||s.id)===String(orderId)); rem?openOrderDetail(orderId):closeCancelSale(); },700);
-    }catch(err){ console.error('Annulla parziale online:',err); notify('Errore annullamento online: '+(err.message||err)); }
+      notify('Articoli rimossi dall’ordine e stock aggiornato sul gestionale.', 'success');
+      setTimeout(()=>{
+        const rem=(db.sales||[]).some(s=>String(s.orderId||s.id)===String(orderId));
+        rem?openOrderDetail(orderId):closeCancelSale();
+      },700);
+    }catch(err){
+      console.error('Rimozione articoli ordine:',err);
+      notify('Errore rimozione articoli: '+(err.message||err));
+    }
   };
 
   // Home finale sicura: mai barcode, EAN, ID, codici sconto o codici prodotto.
@@ -6688,6 +6771,229 @@ import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "https://
   setTimeout(tick,200); setTimeout(tick,1500);
 })();
 </script>
+
+<script type="module" id="noor-order-edit-online-atomic-final-safe">
+/* Noor Splendori - fix SAFE: aggiunta/rimozione prodotti su ordine esistente online.
+   Inserito solo a fine file: non modifica Home, homeAlerts o funzioni di stampa. */
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { getFirestore, doc, getDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+(function(){
+  if(window.__NOOR_ORDER_EDIT_ATOMIC_FINAL_SAFE__) return;
+  window.__NOOR_ORDER_EDIT_ATOMIC_FINAL_SAFE__ = true;
+
+  var FIREBASE_CONFIG = {
+    apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",
+    authDomain:"gestionalenoor-2fa61.firebaseapp.com",
+    projectId:"gestionalenoor-2fa61",
+    storageBucket:"gestionalenoor-2fa61.firebasestorage.app",
+    messagingSenderId:"66670691093",
+    appId:"1:66670691093:web:5a2b4a46dd1b28f3b3b0ab"
+  };
+
+  var app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG);
+  var auth = getAuth(app);
+  var fs = getFirestore(app);
+
+  function $(id){ return document.getElementById(id); }
+  function msg(t,type){ try{ toast(t,type||''); }catch(e){ alert(t); } }
+  function esc(v){ return String(v==null?'':v).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function eur2(v){ try{ if(typeof eur==='function') return eur(Number(v)||0); }catch(e){} return (Number(v)||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'}); }
+  function uid2(){ try{ if(typeof uid==='function') return uid(); }catch(e){} return Date.now().toString(36)+Math.random().toString(36).slice(2); }
+  function priceOf(p){ try{ if(typeof currentSellPrice==='function') return Number(currentSellPrice(p))||0; }catch(e){} try{ if(typeof currentPrice==='function') return Number(currentPrice(p))||0; }catch(e){} return Number(p.finalPrice || p.price || 0); }
+  function localSaveNoHome(){
+    try{ localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1', JSON.stringify(window.db||{})); }catch(e){}
+    try{ if(typeof renderStats==='function') renderStats(); }catch(e){}
+    try{ if(typeof renderProducts==='function') renderProducts(); }catch(e){}
+    try{ if(typeof renderStock==='function') renderStock(); }catch(e){}
+    try{ if(typeof renderSales==='function') renderSales(); }catch(e){}
+  }
+  function findOrderLocal(orderId){
+    try{ if(typeof getOrderById==='function'){ var o=getOrderById(orderId); if(o) return o; } }catch(e){}
+    var lines=((window.db&&db.sales)||[]).filter(function(s){ return String(s.orderId||s.id)===String(orderId); });
+    if(!lines.length) return null;
+    return {id:String(orderId), orderNumber:lines[0].orderNumber||String(orderId), date:lines[0].date, payment:lines[0].payment, lines:lines, qty:lines.reduce(function(a,l){return a+(Number(l.qty)||0);},0), total:lines.reduce(function(a,l){return a+(Number(l.total)||0);},0)};
+  }
+  function productThumb(p){
+    var photo = p && p.photo ? '<img src="'+esc(p.photo)+'" class="cart-product-photo" style="width:46px;height:46px;border-radius:14px;object-fit:cover">' : '<div class="cart-product-placeholder" style="width:46px;height:46px;border-radius:14px;display:grid;place-items:center">'+esc((p&&p.name?p.name:'P').charAt(0).toUpperCase())+'</div>';
+    return photo;
+  }
+  function setModalHtml(html){ var box=$('cancelSaleContent'); if(box) box.innerHTML=html; var m=$('cancelSaleModal'); if(m) m.classList.add('show'); }
+  function lineIdMatches(item, idx, orderId, id){ return String(item.lineId || (String(orderId)+'_'+idx)) === String(id); }
+
+  window.openAddProductsToOrder = function(orderId){
+    var o=findOrderLocal(orderId);
+    if(!o){ msg('Ordine non trovato.'); return; }
+    window.pendingAddOrder = String(o.id);
+    var html = ''+
+      '<div class="confirm-row"><span>Ordine</span><b>'+esc(o.orderNumber||o.id)+'</b></div>'+
+      '<div class="confirm-row"><span>Totale attuale</span><b>'+eur2(o.total||0)+'</b></div>'+
+      '<div class="order-add-box">'+
+        '<label>Cerca prodotto da aggiungere</label>'+
+        '<input id="orderAddSearch" placeholder="Cerca nome, marca o barcode..." oninput="renderOrderAddList(false)">'+
+        '<p class="hint">Mostra solo prodotti con stock disponibile. L\'aggiunta viene salvata online nell\'ordine e scala il magazzino.</p>'+
+        '<div id="orderAddList" class="order-add-list"></div>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">'+
+        '<button class="btn secondary" type="button" onclick="openOrderDetail(\''+esc(o.id)+'\')">Indietro</button>'+
+        '<button class="btn secondary" type="button" onclick="renderOrderAddList(true)">Mostra prodotti</button>'+
+      '</div>';
+    setModalHtml(html);
+    setTimeout(function(){ window.renderOrderAddList(true); }, 30);
+  };
+
+  window.renderOrderAddList = function(force){
+    var box=$('orderAddList'); if(!box) return;
+    var q=($('orderAddSearch') && $('orderAddSearch').value || '').toLowerCase().trim();
+    if(!force && !q){ box.innerHTML=''; return; }
+    var products = ((window.db&&db.products)||[]).filter(function(p){
+      var hay=[p.name,p.brand,p.barcode,p.category,p.size,p.description].join(' ').toLowerCase();
+      return Number(p.qty||0)>0 && (!q || hay.indexOf(q)>-1);
+    }).slice(0,80);
+    if(!products.length){ box.innerHTML='<div class="empty">Nessun prodotto disponibile.</div>'; return; }
+    box.innerHTML = products.map(function(p){
+      var pid=String(p.id);
+      return ''+
+        '<div class="order-add-row" style="display:grid;grid-template-columns:minmax(0,1fr) 84px auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:16px;padding:10px;background:var(--panel)">'+
+          '<div class="cart-product" style="display:flex;align-items:center;gap:10px;min-width:0">'+productThumb(p)+'<div style="min-width:0"><b>'+esc(p.name||'Prodotto')+'</b><div class="hint">'+esc(p.brand||'')+' · '+esc(p.barcode||'—')+' · stock '+esc(Number(p.qty)||0)+' · '+eur2(priceOf(p))+'</div></div></div>'+
+          '<input id="orderAddQty_'+esc(pid)+'" class="qty-mini" type="number" min="1" max="'+esc(Number(p.qty)||0)+'" value="1">'+
+          '<button class="btn small gold" type="button" data-add-product="'+esc(pid)+'">Aggiungi</button>'+
+        '</div>';
+    }).join('');
+    box.querySelectorAll('[data-add-product]').forEach(function(btn){ btn.onclick=function(){ window.addProductToExistingOrder(this.getAttribute('data-add-product')); }; });
+  };
+
+  window.addProductToExistingOrder = function(productId){
+    var orderId=window.pendingAddOrder || window.pendingOrder;
+    var o=findOrderLocal(orderId);
+    var p=((window.db&&db.products)||[]).find(function(x){ return String(x.id)===String(productId); });
+    if(!o){ msg('Ordine non trovato.'); return; }
+    if(!p){ msg('Prodotto non trovato.'); return; }
+    var qtyEl=$('orderAddQty_'+String(productId));
+    var qty=Math.max(1, Number(qtyEl && qtyEl.value)||1);
+    if(qty>Number(p.qty||0)){ msg('Quantità insufficiente in magazzino.'); return; }
+    var price=priceOf(p), lineTotal=qty*price;
+    window.pendingOrderAdd = { orderId:String(o.id), productId:String(p.id), qty:qty, price:price, lineTotal:lineTotal };
+    var html = ''+
+      '<div class="confirm-row"><span>Ordine</span><b>'+esc(o.orderNumber||o.id)+'</b></div>'+
+      '<div class="confirm-row"><span>Prodotto da aggiungere</span><b>'+esc(p.name||'Prodotto')+'</b></div>'+
+      '<div class="confirm-row"><span>Quantità</span><b>'+esc(qty)+'</b></div>'+
+      '<div class="confirm-row"><span>Totale aggiunta</span><b>'+eur2(lineTotal)+'</b></div>'+
+      '<p class="hint">Confermi di aggiungere questo prodotto all\'ordine? Verrà salvato online e scalato dal magazzino.</p>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+        '<button class="btn secondary" type="button" onclick="openAddProductsToOrder(\''+esc(o.id)+'\')">Annulla</button>'+
+        '<button class="btn gold" type="button" onclick="finalizeAddProductToExistingOrder()">Conferma aggiunta</button>'+
+      '</div>';
+    setModalHtml(html);
+  };
+
+  window.finalizeAddProductToExistingOrder = async function(){
+    var data=window.pendingOrderAdd;
+    if(!data){ msg('Nessuna aggiunta da confermare.'); return; }
+    try{
+      if(!auth.currentUser) throw new Error('Accesso non disponibile. Rientra nel gestionale.');
+      var orderRef=doc(fs,'orders',String(data.orderId));
+      var productRef=doc(fs,'products',String(data.productId));
+      var result = await runTransaction(fs, async function(tx){
+        var orderSnap=await tx.get(orderRef);
+        var productSnap=await tx.get(productRef);
+        if(!orderSnap.exists()) throw new Error('Ordine non trovato online.');
+        if(!productSnap.exists()) throw new Error('Prodotto non trovato online.');
+        var order=orderSnap.data()||{};
+        var product=productSnap.data()||{};
+        var stock=Number(product.qty)||0;
+        var qty=Number(data.qty)||1;
+        if(stock<qty) throw new Error('Quantità insufficiente online per '+(product.name||'prodotto'));
+        var items=Array.isArray(order.items)?order.items.slice():[];
+        var price=Number(data.price)||Number(product.finalPrice||product.price||0)||0;
+        var lineTotal=qty*price;
+        var lineId=String(data.orderId)+'_extra_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);
+        var item={lineId:lineId, productId:String(data.productId), productName:product.name||'Prodotto', barcode:product.barcode||'', photo:product.photo||'', qty:qty, price:price, total:lineTotal, basePrice:Number(product.price)||price, manualDiscountCode:'', manualDiscountAmount:0, productDiscountActive:!!product.discountActive, addedLater:true, addedAtClient:new Date().toISOString()};
+        items.push(item);
+        var newTotal=items.reduce(function(a,i){ return a+(Number(i.total)||((Number(i.qty)||0)*(Number(i.price)||0))); },0);
+        tx.update(productRef,{ qty:stock-qty, updatedAt:serverTimestamp(), updatedAtClient:new Date().toISOString(), updatedBy:auth.currentUser.uid });
+        tx.update(orderRef,{ items:items, total:newTotal, subtotal:newTotal, updatedAt:serverTimestamp(), updatedAtClient:new Date().toISOString(), editedAtClient:new Date().toISOString() });
+        return {item:item, stock:stock-qty, total:newTotal, order:order};
+      });
+      var p=((window.db&&db.products)||[]).find(function(x){ return String(x.id)===String(data.productId); });
+      if(p) p.qty=Number(result.stock)||0;
+      var o=findOrderLocal(data.orderId);
+      var line={ id:result.item.lineId, orderId:String(data.orderId), orderNumber:(o&&o.orderNumber)||result.order.orderNumber||String(data.orderId), productId:result.item.productId, productName:result.item.productName, barcode:result.item.barcode, photo:result.item.photo, qty:result.item.qty, price:result.item.price, payment:(o&&o.payment)||result.order.paymentMethod||result.order.payment||'Contanti', total:result.item.total, date:(o&&o.date)||result.order.createdAtClient||result.order.date||new Date().toISOString(), orderTotal:result.total, cartFinalTotal:result.total, addedLater:true };
+      db.sales = (db.sales||[]).filter(function(s){ return String(s.id)!==String(line.id); });
+      db.sales.push(line);
+      db.sales = db.sales.map(function(s){ return String(s.orderId||s.id)===String(data.orderId) ? Object.assign({},s,{orderTotal:result.total,cartFinalTotal:result.total}) : s; });
+      window.pendingOrderAdd=null;
+      localSaveNoHome();
+      msg('Prodotto aggiunto all\'ordine e salvato online.','success');
+      setTimeout(function(){ try{ openOrderDetail(String(data.orderId)); }catch(e){} }, 150);
+    }catch(err){ console.error(err); msg('Errore aggiunta prodotto: '+(err.message||err)); }
+  };
+
+  window.cancelSelectedOrderItems = function(){
+    var ids=[].slice.call(document.querySelectorAll('#cancelSaleContent .orderLineCheck:checked')).map(function(x){return String(x.value);});
+    if(!ids.length){ msg('Seleziona almeno un articolo da annullare.'); return; }
+    var selected=((window.db&&db.sales)||[]).filter(function(s){ return ids.indexOf(String(s.id))>-1; });
+    if(!selected.length){ msg('Articoli non trovati.'); return; }
+    var orderId=String(selected[0].orderId||selected[0].id);
+    var o=findOrderLocal(orderId);
+    window.pendingCancelLines={orderId:orderId, ids:ids};
+    var removedQty=selected.reduce(function(a,s){return a+(Number(s.qty)||0);},0);
+    var removedTotal=selected.reduce(function(a,s){return a+(Number(s.total)||0);},0);
+    var rows=selected.map(function(s){ return '<div class="confirm-item"><span><b>'+esc(s.productName||'Prodotto')+'</b><br><small>'+esc(s.qty||0)+' x '+eur2(s.price||0)+'</small></span><b>'+eur2(s.total||0)+'</b></div>'; }).join('');
+    setModalHtml(''+
+      '<div class="confirm-row"><span>Ordine</span><b>'+esc(o&&o.orderNumber||orderId)+'</b></div>'+
+      '<div class="confirm-row"><span>Articoli da rimuovere</span><b>'+esc(removedQty)+'</b></div>'+
+      '<div class="confirm-row"><span>Totale da scalare</span><b>'+eur2(removedTotal)+'</b></div>'+
+      '<div class="confirm-items">'+rows+'</div>'+
+      '<p class="hint">Gli articoli selezionati saranno rimossi dall\'ordine e torneranno in magazzino online.</p>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+        '<button class="btn secondary" onclick="openOrderDetail(\''+esc(orderId)+'\')">Indietro</button>'+
+        '<button class="btn red" onclick="finalizeCancelSelectedOrderItems()">Conferma rimozione</button>'+
+      '</div>');
+  };
+
+  window.finalizeCancelSelectedOrderItems = async function(){
+    var data=window.pendingCancelLines;
+    if(!data || !data.ids || !data.ids.length){ msg('Nessun articolo selezionato.'); return; }
+    try{
+      if(!auth.currentUser) throw new Error('Accesso non disponibile. Rientra nel gestionale.');
+      var orderId=String(data.orderId);
+      var ids=data.ids.map(String);
+      var orderRef=doc(fs,'orders',orderId);
+      var result = await runTransaction(fs, async function(tx){
+        var orderSnap=await tx.get(orderRef);
+        if(!orderSnap.exists()) throw new Error('Ordine non trovato online.');
+        var order=orderSnap.data()||{};
+        var items=Array.isArray(order.items)?order.items.slice():[];
+        var removed=[];
+        var remaining=[];
+        items.forEach(function(item,idx){ if(ids.indexOf(String(item.lineId || (orderId+'_'+idx)))>-1) removed.push(item); else remaining.push(item); });
+        if(!removed.length) throw new Error('Articolo non trovato online nell\'ordine.');
+        var productRefs={};
+        removed.forEach(function(item){ if(item.productId) productRefs[String(item.productId)] = doc(fs,'products',String(item.productId)); });
+        var productSnaps={};
+        for(var pid in productRefs){ productSnaps[pid] = await tx.get(productRefs[pid]); }
+        var addBack={};
+        removed.forEach(function(item){ var pid=String(item.productId||''); if(pid) addBack[pid]=(addBack[pid]||0)+(Number(item.qty)||0); });
+        for(var pid2 in addBack){ var snap=productSnaps[pid2]; if(snap && snap.exists()){ var cur=Number(snap.data().qty)||0; tx.update(productRefs[pid2],{ qty:cur+addBack[pid2], updatedAt:serverTimestamp(), updatedAtClient:new Date().toISOString(), updatedBy:auth.currentUser.uid }); } }
+        var newTotal=remaining.reduce(function(a,i){ return a+(Number(i.total)||((Number(i.qty)||0)*(Number(i.price)||0))); },0);
+        tx.update(orderRef,{ items:remaining, total:newTotal, subtotal:newTotal, updatedAt:serverTimestamp(), updatedAtClient:new Date().toISOString(), editedAtClient:new Date().toISOString(), status:remaining.length?'completed':'cancelled' });
+        return {removed:removed, remaining:remaining, total:newTotal, order:order};
+      });
+      result.removed.forEach(function(item){ var p=((window.db&&db.products)||[]).find(function(x){ return String(x.id)===String(item.productId); }); if(p) p.qty=(Number(p.qty)||0)+(Number(item.qty)||0); });
+      db.sales=(db.sales||[]).filter(function(s){ return data.ids.map(String).indexOf(String(s.id))<0; });
+      db.sales=db.sales.map(function(s){ return String(s.orderId||s.id)===String(data.orderId) ? Object.assign({},s,{orderTotal:result.total,cartFinalTotal:result.total}) : s; });
+      window.pendingCancelLines=null;
+      localSaveNoHome();
+      msg('Articoli rimossi. Stock aggiornato online.','success');
+      setTimeout(function(){ result.remaining.length ? openOrderDetail(String(data.orderId)) : (typeof closeCancelSale==='function'?closeCancelSale():null); }, 180);
+    }catch(err){ console.error(err); msg('Errore rimozione articolo: '+(err.message||err)); }
+  };
+
+})();
+</script>
+
 </body>
 </html>
 <!-- PATCH NOOR: Filtro ordini annullati + immagini prodotto + popup pulito -->
