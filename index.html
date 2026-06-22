@@ -6567,6 +6567,127 @@ window.saveOrderPayment=async function(){
 };
 </script>
 
+
+
+<!-- PATCH NOOR: popup blocco vendite chiuso al refresh + logo accesso salvato online subito -->
+<style id="noor-step2-popup-closed-login-logo-online-css">
+  #closureStep2Panel.noor-step2b-ready.noor-step2b-collapsed .noor-step2b-body{display:none!important;}
+  #closureStep2Panel.noor-step2b-ready.noor-step2b-collapsed .noor-step2b-arrow{transform:rotate(-90deg)!important;}
+  #closureStep2Panel.noor-step2b-ready .noor-step2b-head{cursor:pointer;}
+  .login-logo.has-image{background:transparent!important;padding:0!important;overflow:hidden!important;}
+  .login-logo.has-image img{width:100%;height:100%;object-fit:contain;display:block;}
+</style>
+<script type="module" id="noor-step2-popup-closed-login-logo-online-js">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+(function(){
+  'use strict';
+  if(window.__NOOR_STEP2_POPUP_CLOSED_LOGIN_LOGO_ONLINE__) return;
+  window.__NOOR_STEP2_POPUP_CLOSED_LOGIN_LOGO_ONLINE__ = true;
+
+  const FIREBASE_CONFIG = {apiKey:"AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg",authDomain:"gestionalenoor-2fa61.firebaseapp.com",projectId:"gestionalenoor-2fa61",storageBucket:"gestionalenoor-2fa61.firebasestorage.app",messagingSenderId:"66670691093",appId:"1:66670691093:web:82d0b2122e600bf5885f1c",measurementId:"G-0HSQB7XLJG"};
+  const app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG);
+  const fs = getFirestore(app);
+  const identityRef = doc(fs, 'settings', 'identity');
+  let userOpenedPopupPanel = false;
+
+  function safeToast(msg,type){ try{ if(typeof toast === 'function') toast(String(msg).replace(/Firebase/gi,'gestionale'), type||''); }catch(e){} }
+  function esc(v){ return String(v == null ? '' : v).replace(/"/g,'&quot;'); }
+
+  function forcePopupPanelClosedOnce(){
+    const panel = document.getElementById('closureStep2Panel');
+    if(!panel) return;
+    if(!panel.dataset.noorDefaultClosedApplied && !userOpenedPopupPanel){
+      panel.classList.add('noor-step2b-collapsed');
+      panel.dataset.noorDefaultClosedApplied = '1';
+    }
+    const head = panel.querySelector('.noor-step2b-head,.panel-title');
+    if(head && !head.dataset.noorUserToggleBound){
+      head.dataset.noorUserToggleBound = '1';
+      head.addEventListener('click', function(ev){
+        if(ev.target && ev.target.closest && ev.target.closest('input,select,textarea,button')) return;
+        userOpenedPopupPanel = true;
+      }, true);
+    }
+  }
+
+  function applyLoginLogo(src){
+    const logo = document.querySelector('.login-logo');
+    if(logo){
+      if(src){ logo.classList.add('has-image'); logo.innerHTML = '<img src="'+esc(src)+'" alt="Logo accesso">'; }
+      else { logo.classList.remove('has-image'); logo.textContent = 'N'; }
+    }
+    const preview = document.getElementById('loginLogoPreview');
+    if(preview) preview.innerHTML = src ? '<img src="'+esc(src)+'" alt="Logo accesso">' : 'N';
+  }
+
+  function resizeImage(file,max=700,quality=.86){
+    return new Promise((resolve,reject)=>{
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Errore lettura immagine'));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error('Immagine non valida'));
+        img.onload = () => {
+          let w = img.width, h = img.height;
+          const scale = Math.min(1, max / Math.max(w,h));
+          w = Math.round(w*scale); h = Math.round(h*scale);
+          const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img,0,0,w,h);
+          resolve(canvas.toDataURL('image/png', quality));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function saveLoginLogoOnline(src, silent){
+    await setDoc(identityRef, {loginLogo: src || '', updatedAt: serverTimestamp(), updatedAtClient: new Date().toISOString()}, {merge:true});
+    applyLoginLogo(src || '');
+    if(!silent) safeToast(src ? 'Logo accesso salvato online.' : 'Logo accesso rimosso online.', 'success');
+  }
+
+  function bindLoginLogoUpload(){
+    const input = document.getElementById('setLoginLogoFile');
+    if(input && !input.dataset.noorImmediateOnline){
+      input.dataset.noorImmediateOnline = '1';
+      input.addEventListener('change', async function(ev){
+        const file = ev.target.files && ev.target.files[0];
+        if(!file) return;
+        try{
+          const data = await resizeImage(file,700,.86);
+          if(data.length > 850000){ safeToast('Logo accesso troppo grande. Carica un’immagine più leggera.'); return; }
+          await saveLoginLogoOnline(data, false);
+        }catch(err){ console.error('Logo accesso online:', err); safeToast('Errore salvataggio logo accesso online.'); }
+      });
+    }
+    const remove = document.getElementById('removeLoginLogoBtn');
+    if(remove && !remove.dataset.noorImmediateOnline){
+      remove.dataset.noorImmediateOnline = '1';
+      remove.addEventListener('click', async function(){
+        try{ await saveLoginLogoOnline('', false); }catch(err){ console.error(err); safeToast('Errore rimozione logo accesso online.'); }
+      }, true);
+    }
+  }
+
+  try{
+    onSnapshot(identityRef, function(snap){
+      if(snap.exists()) applyLoginLogo((snap.data() || {}).loginLogo || '');
+    });
+  }catch(e){ console.warn('Logo accesso online non disponibile:', e); }
+
+  function tick(){
+    forcePopupPanelClosedOnce();
+    bindLoginLogoUpload();
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(tick,80); setTimeout(tick,700); });
+  window.addEventListener('load', function(){ setTimeout(tick,150); setTimeout(tick,1200); });
+  try{ new MutationObserver(tick).observe(document.body,{childList:true,subtree:true}); }catch(e){}
+  setTimeout(tick,200); setTimeout(tick,1500);
+})();
+</script>
 </body>
 </html>
 <!-- PATCH NOOR: Filtro ordini annullati + immagini prodotto + popup pulito -->
