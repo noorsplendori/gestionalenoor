@@ -473,7 +473,7 @@ body.login-active .nav{
 
   <section id="products" class="section">
     <div class="card panel">
-      <div class="panel-title"><div><h2>Lista prodotti</h2><p class="hint">Gestisci quantità, prezzi, foto e codici a barre.</p></div><button class="btn gold" onclick="openAddProduct()">Aggiungi prodotto</button></div>
+      <div class="panel-title"><div><h2>Lista prodotti</h2><p class="hint">Gestisci quantità, prezzi, foto e codici a barre.</p></div><div class="action-row"><button class="btn secondary" type="button" onclick="openShopifyCsvImport()">Importa Shopify CSV</button><button class="btn secondary" type="button" onclick="hideShopifyProducts()">Nascondi Shopify</button><button class="btn secondary" type="button" onclick="showShopifyProducts()">Mostra Shopify</button><button class="btn red" type="button" onclick="deleteShopifyProducts()">Elimina Shopify</button><button class="btn gold" onclick="openAddProduct()">Aggiungi prodotto</button></div></div>
       <div class="field" style="margin-bottom:12px"><input id="searchProduct" placeholder="Cerca prodotto, marca o codice a barre..." oninput="renderProducts()"></div>
       <div class="table-wrap"><table><thead><tr><th>Foto</th><th>Prodotto</th><th>Barcode</th><th>Formato</th><th>Prezzo</th><th>Quantità</th><th>Stato</th><th>Azioni</th></tr></thead><tbody id="productsTable"></tbody></table></div>
     </div>
@@ -550,7 +550,7 @@ body.login-active .nav{
 
   <section id="stock" class="section">
     <div class="card panel">
-      <div class="panel-title"><div><h2>Magazzino</h2><p class="hint">Controllo scorte disponibili, esaurite e quasi finite.</p></div></div>
+      <div class="panel-title"><div><h2>Magazzino</h2><p class="hint">Controllo scorte disponibili, esaurite e quasi finite.</p></div><button class="btn gold" type="button" onclick="openShopifyCsvImport()">Importa Shopify CSV</button></div>
       <div id="stockList" class="grid"></div>
     </div>
   </section>
@@ -971,7 +971,7 @@ function getLowStockMax(){return Math.max(1,Number(settings.lowStockMax)||5)}
 function statusBadge(q){q=Number(q)||0;const low=getLowStockMax();if(q<=0)return'<span class="badge status-danger"><span class="status-dot status-danger"></span>Esaurito</span>';if(q<=low)return'<span class="badge status-warn"><span class="status-dot status-warn"></span>In esaurimento</span>';return'<span class="badge status-ok"><span class="status-dot status-ok"></span>Disponibile</span>'}
 function discountBadge(p){if(!p||!p.discountActive)return '';const pct=Number(p.discountPercent)||0;const amount=Number(p.discountAmount)||0;const label=pct?('Sconto '+pct.toFixed(pct%1?1:0)+'%'):'Sconto attivo';return `<span class="discount-badge">🏷 ${label}${amount?' · '+eur(amount):''}</span>`}
 function img(p){return p.photo?`<img class="product-img" src="${p.photo}">`:`<div class="product-img" style="display:grid;place-items:center;color:var(--muted);font-weight:900">${(p.name||'?')[0]}</div>`}
-function renderProducts(){const q=(document.getElementById('searchProduct')?.value||'').toLowerCase();const rows=db.products.filter(p=>[p.name,p.brand,p.barcode,p.category,p.season,p.description,p.pyramid].join(' ').toLowerCase().includes(q)).map(p=>`<tr><td>${img(p)}</td><td><b>${p.name}</b><br><span style="color:var(--muted)">${p.brand||''} · ${p.category||''}</span><div style="margin-top:7px">${discountBadge(p)}</div></td><td><span class="badge">${p.barcode||'—'}</span></td><td>${p.size||'—'}</td><td>${p.discountActive?`<span style="text-decoration:line-through;color:var(--muted)">${eur(p.initialPrice||p.price)}</span><br><b>${eur(p.finalPrice||p.price)}</b>`:eur(p.price)}</td><td><b>${p.qty}</b></td><td>${statusBadge(p.qty)}</td><td><div class="action-row"><button class="btn small secondary" onclick="viewProduct('${p.id}')">Visualizza</button><button class="btn small secondary" onclick="editProduct('${p.id}')">Modifica</button><button class="btn small blue" onclick="duplicateProduct('${p.id}')">Duplica</button><button class="btn small red" onclick="deleteProduct('${p.id}')">Elimina</button></div></td></tr>`).join('');document.getElementById('productsTable').innerHTML=rows||`<tr><td colspan="8" class="empty">Nessun prodotto trovato.</td></tr>`}
+function renderProducts(){const q=(document.getElementById('searchProduct')?.value||'').toLowerCase();const rows=db.products.filter(p=>!p.shopifyHidden&&!p.hiddenShopify).filter(p=>[p.name,p.brand,p.barcode,p.category,p.season,p.description,p.pyramid].join(' ').toLowerCase().includes(q)).map(p=>`<tr><td>${img(p)}</td><td><b>${p.name}</b><br><span style="color:var(--muted)">${p.brand||''} · ${p.category||''}</span><div style="margin-top:7px">${discountBadge(p)}</div></td><td><span class="badge">${p.barcode||'—'}</span></td><td>${p.size||'—'}</td><td>${p.discountActive?`<span style="text-decoration:line-through;color:var(--muted)">${eur(p.initialPrice||p.price)}</span><br><b>${eur(p.finalPrice||p.price)}</b>`:eur(p.price)}</td><td><b>${p.qty}</b></td><td>${statusBadge(p.qty)}</td><td><div class="action-row"><button class="btn small secondary" onclick="viewProduct('${p.id}')">Visualizza</button><button class="btn small secondary" onclick="editProduct('${p.id}')">Modifica</button><button class="btn small blue" onclick="duplicateProduct('${p.id}')">Duplica</button><button class="btn small red" onclick="deleteProduct('${p.id}')">Elimina</button></div></td></tr>`).join('');document.getElementById('productsTable').innerHTML=rows||`<tr><td colspan="8" class="empty">Nessun prodotto trovato.</td></tr>`}
 function getFilteredSales(){let list=[...db.sales];const from=document.getElementById('filterFrom')?.value;const to=document.getElementById('filterTo')?.value;const payment=document.getElementById('filterPayment')?.value;const q=(document.getElementById('filterSearch')?.value||'').toLowerCase().trim();if(from){const d=new Date(from+'T00:00:00');list=list.filter(s=>new Date(s.date)>=d)}if(to){const d=new Date(to+'T23:59:59');list=list.filter(s=>new Date(s.date)<=d)}if(payment)list=list.filter(s=>(s.payment||'')===payment);if(q)list=list.filter(s=>[s.productName,s.barcode,s.payment,s.orderNumber,s.orderId].join(' ').toLowerCase().includes(q));return list.sort((a,b)=>new Date(b.date)-new Date(a.date))}
 function buildOrdersFromSales(sales){const map=new Map();sales.forEach(s=>{const id=s.orderId||s.id; if(!map.has(id)){map.set(id,{id,date:s.date,payment:s.payment||'',orderNumber:s.orderNumber||('ORD-'+String(s.id).slice(-6).toUpperCase()),discountCode:s.discountCode||'',discountAmount:Number(s.discountAmount)||0,lines:[]})}map.get(id).lines.push(s)});return [...map.values()].map(o=>{o.qty=o.lines.reduce((a,l)=>a+Number(l.qty||0),0);o.products=o.lines.length;o.total=Number(o.lines[0]?.orderTotal||o.lines[0]?.cartFinalTotal)||o.lines.reduce((a,l)=>a+Number(l.total||0),0);return o}).sort((a,b)=>new Date(b.date)-new Date(a.date))}
 function getFilteredOrders(){return buildOrdersFromSales(getFilteredSales())}
@@ -987,13 +987,13 @@ function renderRevenueIfOpen(){const panel=document.getElementById('revenuePanel
 function renderRevenue(from,to,label){const sales=(db.sales||[]).filter(s=>{const d=new Date(s.date);return d>=from&&d<=to});const orders=buildOrdersFromSales(sales);const total=orders.reduce((a,o)=>a+Number(o.total||0),0);const qty=orders.reduce((a,o)=>a+Number(o.qty||0),0);const cash=orders.filter(o=>(o.payment||'').toLowerCase().includes('contanti')).reduce((a,o)=>a+Number(o.total||0),0);const card=orders.filter(o=>(o.payment||'').toLowerCase().includes('elettronico')).reduce((a,o)=>a+Number(o.total||0),0);const discounts=orders.reduce((a,o)=>a+Number(o.discountAmount||0),0);const products=new Set();orders.forEach(o=>(o.lines||[]).forEach(l=>products.add(l.productId||l.barcode||l.productName)));const avg=orders.length?total/orders.length:0;const set=(id,val)=>{const el=document.getElementById(id);if(el)el.innerHTML=val};set('revTotal',eur(total));set('revOrders',orders.length);set('revItems',qty);set('revAverage',eur(avg));set('revCash',eur(cash));set('revCard',eur(card));set('revDiscounts',eur(discounts));set('revProducts',products.size);const rl=document.getElementById('revenueRangeLabel');if(rl)rl.innerHTML=`Periodo: <b>${label}</b> · ${from.toLocaleDateString('it-IT')} - ${to.toLocaleDateString('it-IT')}`}
 
 function resetSalesFilters(){['filterFrom','filterTo','filterSearch'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});const p=document.getElementById('filterPayment');if(p)p.value='';renderSales()}
-function renderStock(){const sorted=[...db.products].sort((a,b)=>a.qty-b.qty);document.getElementById('stockList').innerHTML=sorted.map(p=>`<div class="card panel stock-card" onclick="viewProduct('${p.id}')" style="box-shadow:none"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div style="display:flex;gap:12px;align-items:center">${img(p)}<div><b>${p.name}</b><div class="hint">${p.brand||''} · Barcode ${p.barcode||'—'}</div><div style="margin:8px 0">${discountBadge(p)}</div><div class="hint">Valore vendita: ${money((p.price||0)*(p.qty||0))} · Valore costo: ${money((p.cost||0)*(p.qty||0))}</div><div class="hint">Tocca per aprire la scheda prodotto completa.</div></div></div><div style="text-align:right"><div style="font-size:24px;font-weight:950">${p.qty}</div>${statusBadge(p.qty)}</div></div></div>`).join('')||'<div class="empty">Nessun prodotto in magazzino.</div>'}
+function renderStock(){const sorted=[...db.products].filter(p=>!p.shopifyHidden&&!p.hiddenShopify).sort((a,b)=>a.qty-b.qty);document.getElementById('stockList').innerHTML=sorted.map(p=>`<div class="card panel stock-card" onclick="viewProduct('${p.id}')" style="box-shadow:none"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div style="display:flex;gap:12px;align-items:center">${img(p)}<div><b>${p.name}</b><div class="hint">${p.brand||''} · Barcode ${p.barcode||'—'}</div><div style="margin:8px 0">${discountBadge(p)}</div><div class="hint">Valore vendita: ${money((p.price||0)*(p.qty||0))} · Valore costo: ${money((p.cost||0)*(p.qty||0))}</div><div class="hint">Tocca per aprire la scheda prodotto completa.</div></div></div><div style="text-align:right"><div style="font-size:24px;font-weight:950">${p.qty}</div>${statusBadge(p.qty)}</div></div></div>`).join('')||'<div class="empty">Nessun prodotto in magazzino.</div>'}
 function renderHomeAlerts(){
   // HOME DEFINITIVA: solo scorte basse e ultime vendite. Mai codici/sconti/barcode/ID.
   try{
     const box=document.getElementById('homeAlerts');
     if(!box)return;
-    const products=Array.isArray(window.db&&db.products)?db.products:[];
+    const products=Array.isArray(window.db&&db.products)?db.products.filter(p=>!p.shopifyHidden&&!p.hiddenShopify):[];
     const sales=Array.isArray(window.db&&db.sales)?db.sales:[];
     const esc=(v)=>String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
     const money=(v)=>{try{return typeof eur==='function'?eur(v):Number(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'})}catch(e){return '€ '+Number(v||0).toFixed(2)}};
@@ -1075,8 +1075,8 @@ function viewProduct(id){const p=db.products.find(x=>x.id===id); if(!p)return;co
 function duplicateProduct(id){const p=db.products.find(x=>x.id===id); if(!p)return;const copy={...p,id:uid(),name:(p.name||'Prodotto')+' - copia',barcode:'',qty:Number(p.qty)||0};db.products.push(copy); save(); toast('Prodotto duplicato. Inserisci un nuovo EAN13 nella copia.'); editProduct(copy.id)}
 function currentSellPrice(p){return p&&p.discountActive&&Number(p.finalPrice)>0?Number(p.finalPrice):Number(p?.price)||0}
 function selectProduct(id){const p=db.products.find(x=>x.id===id);if(!p)return;selectedProduct=p;barcodeInput.value=p.barcode||'';renderSalePreview(p)}
-function renderSalePicker(force=false){const box=document.getElementById('saleProductList');if(!box)return;const q=(document.getElementById('saleSearch')?.value||'').toLowerCase();if(!force&&!q){box.innerHTML='';return}const list=db.products.filter(p=>[p.name,p.brand,p.barcode,p.category,p.season,p.description,p.pyramid].join(' ').toLowerCase().includes(q)).slice(0,30);box.innerHTML=list.map(p=>`<div class="product-pick"><button style="flex:1;border:0;background:transparent;color:var(--text);text-align:left;cursor:pointer" onclick="selectProduct('${p.id}')"><span><b>${p.name}</b><br><small>${p.brand||''} · ${p.size||''} · ${p.barcode||'senza barcode'}</small><br>${discountBadge(p)}</span></button><span style="text-align:right"><b>${p.qty}</b> pz<br><small>${eur(currentSellPrice(p))}</small></span><button class="btn small gold flash-add" onclick="addFlashToCart('${p.id}')">+ Aggiunta Flash</button></div>`).join('')||'<div class="empty">Nessun prodotto trovato.</div>'}
-function findByBarcode(){const code=barcodeInput.value.trim();if(!code){toast('Inserisci o scansiona un barcode.');return} if(!isValidEAN13(code)){toast('EAN13 non valido: deve avere 13 numeri corretti.');return}const p=db.products.find(x=>(x.barcode||'').toLowerCase()===code.toLowerCase());if(!p){salePreview.className='sale-preview empty';salePreview.innerHTML='Prodotto non trovato. Puoi aggiungerlo dalla sezione Prodotti.';toast('Prodotto non trovato.');return}selectedProduct=p;renderSalePreview(p)}
+function renderSalePicker(force=false){const box=document.getElementById('saleProductList');if(!box)return;const q=(document.getElementById('saleSearch')?.value||'').toLowerCase();if(!force&&!q){box.innerHTML='';return}const list=db.products.filter(p=>!p.shopifyHidden&&!p.hiddenShopify).filter(p=>[p.name,p.brand,p.barcode,p.category,p.season,p.description,p.pyramid].join(' ').toLowerCase().includes(q)).slice(0,30);box.innerHTML=list.map(p=>`<div class="product-pick"><button style="flex:1;border:0;background:transparent;color:var(--text);text-align:left;cursor:pointer" onclick="selectProduct('${p.id}')"><span><b>${p.name}</b><br><small>${p.brand||''} · ${p.size||''} · ${p.barcode||'senza barcode'}</small><br>${discountBadge(p)}</span></button><span style="text-align:right"><b>${p.qty}</b> pz<br><small>${eur(currentSellPrice(p))}</small></span><button class="btn small gold flash-add" onclick="addFlashToCart('${p.id}')">+ Aggiunta Flash</button></div>`).join('')||'<div class="empty">Nessun prodotto trovato.</div>'}
+function findByBarcode(){const code=barcodeInput.value.trim();if(!code){toast('Inserisci o scansiona un barcode.');return} if(!isValidEAN13(code)){toast('EAN13 non valido: deve avere 13 numeri corretti.');return}const p=db.products.find(x=>!x.shopifyHidden&&!x.hiddenShopify&&(x.barcode||'').toLowerCase()===code.toLowerCase());if(!p){salePreview.className='sale-preview empty';salePreview.innerHTML='Prodotto non trovato. Puoi aggiungerlo dalla sezione Prodotti.';toast('Prodotto non trovato.');return}selectedProduct=p;renderSalePreview(p)}
 function renderSalePreview(p){salePreview.className='sale-preview';selectedLineDiscountCode=null;const base=currentSellPrice(p);salePreview.innerHTML=`<div class="preview-product">${p.photo?`<img src="${p.photo}">`:`<div style="width:82px;height:82px;border-radius:20px;background:var(--panel2);display:grid;place-items:center;font-size:34px;font-weight:950">${(p.name||'?')[0]}</div>`}<div><h2>${p.name}</h2><p class="hint">${p.brand||''} · ${p.size||''}</p><div class="kpi-row"><span class="pill">Prezzo ${eur(base)}</span><span class="pill">Stock ${p.qty}</span><span class="pill">Barcode ${p.barcode||'—'}</span></div><div class="sale-discount-note">${discountBadge(p)}</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px"><div class="field"><label>Quantità da aggiungere</label><input id="sellQty" type="number" min="1" max="${p.qty}" value="1"></div><div class="field"><label>Prezzo unitario</label><input id="sellPrice" type="number" step="0.01" min="0" value="${base}"></div></div><div class="line-discount-box"><label><b>Codice sconto per questo prodotto</b></label><div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-top:8px"><input id="lineDiscountCode" placeholder="Inserisci codice prima del carrello"><button class="btn small secondary" onclick="applyLineDiscount()">Applica</button><button class="btn small red" onclick="removeLineDiscount()">Rimuovi</button></div><div id="lineDiscountMsg" class="hint">Questo sconto vale solo per il prodotto selezionato. Se applichi uno sconto a tutto il carrello, gli sconti manuali vengono annullati.</div></div><button class="btn gold" style="width:100%;margin-top:14px" onclick="addSelectedToCart()">Aggiungi al carrello</button>`;renderCart()}
 function discountAmountFor(d,base){base=Number(base)||0;if(!d||base<=0)return 0;let amount=d.type==='percent'?base*(Number(d.value)||0)/100:Number(d.value)||0;return Math.max(0,Math.min(base,amount))}
 function applyLineDiscount(){if(!selectedProduct)return;const code=String(document.getElementById('lineDiscountCode')?.value||'').trim().toUpperCase();if(!code){removeLineDiscount();return}const d=getDiscountByCode(code);if(!d){toast('Codice sconto non trovato o non attivo.');return}if(d.rule==='only_clean' && selectedProduct.discountActive){toast('Questo codice vale solo sui prodotti non scontati.');return}const base=currentSellPrice(selectedProduct);const amount=discountAmountFor(d,base);document.getElementById('sellPrice').value=(base-amount).toFixed(2);selectedLineDiscountCode=d.code;const msg=document.getElementById('lineDiscountMsg');if(msg)msg.innerHTML=`<span class="applied-code">✓ ${d.code} applicato a questo prodotto · -${eur(amount)}</span>`;toast('Sconto applicato al prodotto.','success')}
@@ -4122,6 +4122,17 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
     out.discountAmount = Number(out.discountAmount)||0;
     out.discountPercent = Number(out.discountPercent)||0;
     out.discountActive = !!out.discountActive;
+    // Campi extra per import Shopify CSV e gestione visibilità
+    out.sku = String(out.sku || '').trim();
+    out.source = String(out.source || '').trim();
+    out.importSource = String(out.importSource || '').trim();
+    out.shopifyHandle = String(out.shopifyHandle || '');
+    out.shopifyVariantKey = String(out.shopifyVariantKey || '');
+    out.shopifyOptionNames = String(out.shopifyOptionNames || '');
+    out.warehouseId = out.warehouseId == null ? '' : String(out.warehouseId);
+    out.shopifyHidden = !!out.shopifyHidden;
+    out.hiddenShopify = !!out.hiddenShopify;
+    out.importedAtClient = String(out.importedAtClient || '');
     out.updatedAtClient = nowIso();
     return out;
   }
@@ -8828,5 +8839,784 @@ import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "https://
   window.addEventListener('load', function(){ setTimeout(tick,300); setTimeout(tick,1300); });
   try{ new MutationObserver(function(){ tick(); }).observe(document.body,{childList:true,subtree:true}); }catch(e){}
   setTimeout(tick,500); setTimeout(tick,1500);
+})();
+</script>
+
+
+<script id="noor-shopify-csv-importer">
+/*
+  Noor Splendori - Importazione CSV Shopify
+  Aggiunge import catalogo Shopify con descrizione prodotto e stock nel magazzino "Shopify Online".
+*/
+(function(){
+  if(window.__NOOR_SHOPIFY_CSV_IMPORTER__) return;
+  window.__NOOR_SHOPIFY_CSV_IMPORTER__ = true;
+
+  function $(id){return document.getElementById(id);}
+  function esc(v){return String(v ?? '').replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
+  function notify(msg,type){
+    try{
+      if(typeof safeToast === 'function') safeToast(msg,type||'');
+      else if(typeof toast === 'function') toast(msg,type||'');
+      else alert(msg);
+    }catch(e){ alert(msg); }
+  }
+  function clean(v){return String(v ?? '').trim();}
+  function num(v){
+    var s=String(v ?? '').trim();
+    if(!s) return 0;
+    s=s.replace(/[€\s]/g,'').replace(/\.(?=\d{3}(\D|$))/g,'').replace(',','.');
+    var n=Number(s);
+    return isNaN(n)?0:n;
+  }
+  function stripHtml(html){
+    var s=String(html ?? '');
+    s=s.replace(/<br\s*\/?>/gi,'\n').replace(/<\/p>/gi,'\n').replace(/<\/li>/gi,'\n');
+    s=s.replace(/<[^>]*>/g,' ');
+    var t=document.createElement('textarea');
+    t.innerHTML=s;
+    return t.value.replace(/\u00a0/g,' ').replace(/[ \t]+/g,' ').replace(/\n\s+/g,'\n').trim();
+  }
+  function normalizeKey(k){return String(k||'').toLowerCase().replace(/^\ufeff/,'').replace(/[^a-z0-9]+/g,' ').trim();}
+  function rowGet(row,names){
+    for(var i=0;i<names.length;i++){
+      var wanted=normalizeKey(names[i]);
+      for(var k in row){
+        if(normalizeKey(k)===wanted) return row[k];
+      }
+    }
+    return '';
+  }
+  function parseCsv(text){
+    var rows=[], row=[], cell='', inQuotes=false;
+    for(var i=0;i<text.length;i++){
+      var ch=text[i], next=text[i+1];
+      if(inQuotes){
+        if(ch==='"' && next==='"'){ cell+='"'; i++; }
+        else if(ch==='"'){ inQuotes=false; }
+        else cell+=ch;
+      }else{
+        if(ch==='"') inQuotes=true;
+        else if(ch===','){ row.push(cell); cell=''; }
+        else if(ch==='\n'){
+          row.push(cell); rows.push(row); row=[]; cell='';
+        }else if(ch==='\r'){
+          // ignora CR
+        }else cell+=ch;
+      }
+    }
+    row.push(cell); rows.push(row);
+    rows=rows.filter(function(r){return r.some(function(c){return String(c||'').trim()!=='';});});
+    if(!rows.length) return [];
+    var header=rows.shift().map(function(h){return String(h||'').replace(/^\ufeff/,'').trim();});
+    return rows.map(function(r){
+      var obj={};
+      header.forEach(function(h,i){ obj[h]=r[i] ?? ''; });
+      return obj;
+    });
+  }
+  function ensureShopifyWarehouse(){
+    if(!window.settings) window.settings={};
+    if(!Array.isArray(settings.warehouses)) settings.warehouses=[];
+    var found=settings.warehouses.find(function(w){return String(w.name||'').toLowerCase().trim()==='shopify online';});
+    if(!found){
+      found={id:'shopify_online',name:'Shopify Online'};
+      if(settings.warehouses.some(function(w){return String(w.id)===found.id;})){
+        found.id='wh_shopify_online_'+Date.now().toString(36);
+      }
+      settings.warehouses.push(found);
+      try{ if(typeof saveSettings==='function') saveSettings(); else localStorage.setItem('noor_profumi_settings_v2',JSON.stringify(settings)); }catch(e){}
+    }
+    return found.id;
+  }
+  function firstImageByHandle(rows){
+    var map={};
+    rows.forEach(function(r){
+      var h=clean(rowGet(r,['Handle']));
+      var img=clean(rowGet(r,['Image Src','Image URL','Image']));
+      if(h && img && !map[h]) map[h]=img;
+    });
+    return map;
+  }
+  function productKeyFromImport(p){
+    if(p.barcode) return 'barcode:'+p.barcode;
+    if(p.sku) return 'sku:'+p.sku.toLowerCase();
+    if(p.shopifyHandle && p.shopifyVariantKey) return 'shopify:'+p.shopifyHandle+':'+p.shopifyVariantKey;
+    return 'name:'+String(p.name||'').toLowerCase();
+  }
+  function sameImportedProduct(existing, imported, shopifyWh){
+    if(!existing) return false;
+    var exWh=existing.warehouseId || (settings && settings.defaultWarehouseId) || '';
+    if(String(exWh)!==String(shopifyWh)) return false;
+    if(imported.barcode && clean(existing.barcode)===imported.barcode) return true;
+    if(imported.sku && clean(existing.sku).toLowerCase()===imported.sku.toLowerCase()) return true;
+    if(imported.shopifyHandle && clean(existing.shopifyHandle)===imported.shopifyHandle && clean(existing.shopifyVariantKey)===imported.shopifyVariantKey) return true;
+    return clean(existing.name).toLowerCase()===clean(imported.name).toLowerCase();
+  }
+  function buildImportedProducts(rows){
+    var shopifyWh=ensureShopifyWarehouse();
+    var imageMap=firstImageByHandle(rows);
+    var out=[], seen={};
+    rows.forEach(function(r,idx){
+      var handle=clean(rowGet(r,['Handle']));
+      var title=clean(rowGet(r,['Title']));
+      var body=stripHtml(rowGet(r,['Body (HTML)','Body HTML','Description','Descrizione']));
+      var vendor=clean(rowGet(r,['Vendor','Brand','Marca']));
+      var type=clean(rowGet(r,['Type','Product Type','Categoria']));
+      var productCategory=clean(rowGet(r,['Product Category','Category']));
+      var sku=clean(rowGet(r,['Variant SKU','SKU']));
+      var barcode=clean(rowGet(r,['Variant Barcode','Barcode','EAN','EAN13']));
+      var qty=num(rowGet(r,['Variant Inventory Qty','Inventory Qty','Quantità','Quantity']));
+      var price=num(rowGet(r,['Variant Price','Price','Prezzo']));
+      var compare=num(rowGet(r,['Variant Compare At Price','Compare At Price','Prezzo di confronto']));
+      var image=clean(rowGet(r,['Image Src','Image URL','Image'])) || (handle?imageMap[handle]:'') || '';
+      var option1Name=clean(rowGet(r,['Option1 Name']));
+      var option1=clean(rowGet(r,['Option1 Value']));
+      var option2Name=clean(rowGet(r,['Option2 Name']));
+      var option2=clean(rowGet(r,['Option2 Value']));
+      var option3Name=clean(rowGet(r,['Option3 Name']));
+      var option3=clean(rowGet(r,['Option3 Value']));
+      var optionValues=[option1,option2,option3].filter(function(x){return x && x.toLowerCase()!=='default title';});
+      var optionNames=[option1Name,option2Name,option3Name].filter(function(x){return x && x.toLowerCase()!=='title';});
+      if(!title && !sku && !barcode) return;
+      var size=optionValues.join(' / ');
+      var name=title || sku || barcode || ('Prodotto Shopify '+(idx+1));
+      if(optionValues.length && optionValues.join(' / ').toLowerCase()!==name.toLowerCase()){
+        name += ' - '+optionValues.join(' / ');
+      }
+      var variantKey=[sku,barcode,optionValues.join('|')].filter(Boolean).join('|') || String(idx);
+      var imported={
+        id:'',
+        name:name,
+        brand:vendor,
+        size:size,
+        price:price,
+        cost:0,
+        qty:qty,
+        barcode:barcode,
+        sku:sku,
+        category:productCategory || type,
+        season:'',
+        description:body,
+        pyramid:'',
+        notes:'Importato da Shopify CSV',
+        photo:image,
+        warehouseId:shopifyWh,
+        shopifyHandle:handle,
+        shopifyVariantKey:variantKey,
+        shopifyOptionNames:optionNames.join(' / '),
+        source:'shopify',
+        shopifyHidden:false,
+        hiddenShopify:false,
+        importedAtClient:new Date().toISOString()
+      };
+      if(compare>price && price>0){
+        imported.discountActive=true;
+        imported.initialPrice=compare;
+        imported.finalPrice=price;
+        imported.discountAmount=Math.max(0,compare-price);
+        imported.discountPercent=compare>0?(imported.discountAmount/compare)*100:0;
+      }else{
+        imported.discountActive=false;
+        imported.initialPrice=0;
+        imported.finalPrice=0;
+        imported.discountAmount=0;
+        imported.discountPercent=0;
+      }
+      var key=productKeyFromImport(imported);
+      if(seen[key]){
+        // Somma le quantità solo se Shopify esporta righe duplicate della stessa variante.
+        seen[key].qty = Number(seen[key].qty||0) + Number(imported.qty||0);
+        if(!seen[key].photo && imported.photo) seen[key].photo=imported.photo;
+        if(!seen[key].description && imported.description) seen[key].description=imported.description;
+        return;
+      }
+      seen[key]=imported;
+      out.push(imported);
+    });
+    return out;
+  }
+  function upsertImportedProducts(imported){
+    if(!window.db) window.db={products:[],sales:[],discounts:[],drafts:[]};
+    if(!Array.isArray(db.products)) db.products=[];
+    var shopifyWh=ensureShopifyWarehouse();
+    var created=0, updated=0, skipped=0, conflicts=[];
+    imported.forEach(function(imp){
+      var existing=db.products.find(function(p){return sameImportedProduct(p,imp,shopifyWh);});
+      var crossWarehouseConflict=null;
+      if(!existing){
+        crossWarehouseConflict=db.products.find(function(p){
+          var pWh=p.warehouseId || (settings && settings.defaultWarehouseId) || '';
+          if(String(pWh)===String(shopifyWh)) return false;
+          return (imp.barcode && clean(p.barcode)===imp.barcode) || (imp.sku && clean(p.sku).toLowerCase()===imp.sku.toLowerCase());
+        });
+      }
+      if(crossWarehouseConflict){
+        skipped++;
+        conflicts.push(imp.name+' già presente in '+(settings.warehouses.find(function(w){return String(w.id)===String(crossWarehouseConflict.warehouseId);})?.name||'altro magazzino'));
+        return;
+      }
+      if(existing){
+        var oldId=existing.id;
+        var keepCost=Number(existing.cost)||0;
+        var keepNotes=clean(existing.notes)||imp.notes;
+        Object.assign(existing, imp, {id:oldId, cost:keepCost, notes:keepNotes, warehouseId:shopifyWh, source:'shopify', shopifyHidden:false, hiddenShopify:false});
+        updated++;
+      }else{
+        imp.id = (typeof uid==='function') ? uid() : ('p_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7));
+        db.products.push(imp);
+        created++;
+      }
+    });
+    try{
+      if(typeof save === 'function') save();
+      else {
+        localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db));
+        if(typeof renderAll==='function') renderAll();
+      }
+    }catch(e){ console.warn(e); }
+    try{ if(typeof renderProducts==='function') renderProducts(); if(typeof renderStock==='function') renderStock(); if(typeof renderStats==='function') renderStats(); }catch(e){}
+    return {created:created, updated:updated, skipped:skipped, conflicts:conflicts};
+  }
+  window.openShopifyCsvImport=function(){
+    installModal();
+    var f=$('shopifyCsvFile'); if(f) f.value='';
+    var res=$('shopifyCsvResult'); if(res) res.innerHTML='<div class="empty">Seleziona il CSV esportato da Shopify. Verranno importati anche descrizione prodotto, SKU, barcode, prezzo, immagine e quantità.</div>';
+    $('shopifyCsvModal')?.classList.add('show');
+  };
+  window.closeShopifyCsvImport=function(){ $('shopifyCsvModal')?.classList.remove('show'); };
+  window.handleShopifyCsvImport=function(){
+    var file=$('shopifyCsvFile')?.files?.[0];
+    if(!file){ notify('Seleziona prima il file CSV Shopify.'); return; }
+    var reader=new FileReader();
+    reader.onload=function(){
+      try{
+        var rows=parseCsv(String(reader.result||''));
+        if(!rows.length){ notify('CSV vuoto o non valido.'); return; }
+        var products=buildImportedProducts(rows);
+        if(!products.length){ notify('Non ho trovato prodotti validi nel CSV.'); return; }
+        var result=upsertImportedProducts(products);
+        var html='<div class="confirm-box">'+
+          '<div class="confirm-row"><span>Prodotti letti dal CSV</span><b>'+products.length+'</b></div>'+
+          '<div class="confirm-row"><span>Creati in Shopify Online</span><b>'+result.created+'</b></div>'+
+          '<div class="confirm-row"><span>Aggiornati</span><b>'+result.updated+'</b></div>'+
+          '<div class="confirm-row"><span>Saltati per conflitto SKU/EAN in altro magazzino</span><b>'+result.skipped+'</b></div>'+
+          '</div>';
+        if(result.conflicts.length){
+          html+='<div class="hint" style="margin-top:12px"><b>Attenzione:</b> alcuni prodotti avevano stesso SKU/EAN in un altro magazzino e non sono stati duplicati per evitare errori barcode in vendita.</div>'+
+          '<div class="product-select-list" style="max-height:160px">'+result.conflicts.slice(0,30).map(function(x){return '<div class="product-pick">'+esc(x)+'</div>';}).join('')+'</div>';
+        }
+        $('shopifyCsvResult').innerHTML=html;
+        notify('Importazione Shopify completata.','success');
+      }catch(err){
+        console.error(err);
+        notify('Errore importazione CSV Shopify: '+(err.message||err));
+      }
+    };
+    reader.readAsText(file,'UTF-8');
+  };
+  function installModal(){
+    if(!$('shopifyCsvModal')){
+      var modal=document.createElement('div');
+      modal.id='shopifyCsvModal';
+      modal.className='modal';
+      modal.innerHTML='<div class="modal-card" style="width:min(760px,100%)">'+
+        '<div class="panel-title"><div><h2>Importa catalogo Shopify CSV</h2><p class="hint">Carica il CSV esportato da Shopify. Lo stock viene inserito nel magazzino <b>Shopify Online</b>. La descrizione del prodotto viene importata dal campo Body (HTML).</p></div><button class="btn secondary" type="button" onclick="closeShopifyCsvImport()">Chiudi</button></div>'+
+        '<div class="form" style="grid-template-columns:1fr">'+
+        '<div class="field"><label>File CSV Shopify</label><input id="shopifyCsvFile" type="file" accept=".csv,text/csv"></div>'+
+        '<div class="action-row"><button class="btn gold" type="button" onclick="handleShopifyCsvImport()">Importa prodotti</button><button class="btn secondary" type="button" onclick="closeShopifyCsvImport()">Annulla</button></div>'+
+        '</div><div id="shopifyCsvResult" style="margin-top:14px"></div>'+
+        '</div>';
+      document.body.appendChild(modal);
+    }
+  }
+
+  function isShopifyImportedProduct(p){
+    if(!p) return false;
+    var s=String(p.source||p.importSource||'').toLowerCase();
+    return s==='shopify' || s==='shopify_csv' || !!p.shopifyHandle || !!p.shopifyVariantKey || String(p.notes||'').toLowerCase().includes('importato da shopify');
+  }
+  function persistShopifyToolsLocal(){
+    try{ if(typeof save==='function') save(); else localStorage.setItem(typeof LS_KEY!=='undefined'?LS_KEY:'noor_profumi_pro_v1',JSON.stringify(db)); }catch(e){}
+    try{ if(typeof renderAll==='function') renderAll(); else { if(typeof renderProducts==='function') renderProducts(); if(typeof renderStock==='function') renderStock(); if(typeof renderStats==='function') renderStats(); if(typeof renderSalePicker==='function') renderSalePicker(true); } }catch(e){}
+  }
+  async function updateShopifyProductsOnline(products, hidden){
+    try{
+      if(!products.length) return;
+      var appMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
+      var authMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js');
+      var fsMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js');
+      var cfg={apiKey:'AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg',authDomain:'gestionalenoor-2fa61.firebaseapp.com',projectId:'gestionalenoor-2fa61',storageBucket:'gestionalenoor-2fa61.firebasestorage.app',messagingSenderId:'66670691093',appId:'1:66670691093:web:82d0b2122e600bf5885f1c',measurementId:'G-0HSQB7XLJG'};
+      var app=appMod.getApps().length?appMod.getApps()[0]:appMod.initializeApp(cfg);
+      var auth=authMod.getAuth(app);
+      if(!auth.currentUser) return;
+      var dbx=fsMod.getFirestore(app);
+      for(var i=0;i<products.length;i++){
+        await fsMod.setDoc(fsMod.doc(dbx,'products',String(products[i].id)),{shopifyHidden:!!hidden,hiddenShopify:!!hidden,source:'shopify',updatedAt:fsMod.serverTimestamp(),updatedBy:auth.currentUser.uid,updatedByEmail:auth.currentUser.email||''},{merge:true});
+      }
+    }catch(err){ console.warn('Aggiornamento online prodotti Shopify non completato:',err); }
+  }
+  async function deleteShopifyProductsOnline(products){
+    try{
+      if(!products.length) return;
+      var appMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
+      var authMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js');
+      var fsMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js');
+      var cfg={apiKey:'AIzaSyDA4hDmgNs6C10TAI_SHwa-84NNjiMDCEg',authDomain:'gestionalenoor-2fa61.firebaseapp.com',projectId:'gestionalenoor-2fa61',storageBucket:'gestionalenoor-2fa61.firebasestorage.app',messagingSenderId:'66670691093',appId:'1:66670691093:web:82d0b2122e600bf5885f1c',measurementId:'G-0HSQB7XLJG'};
+      var app=appMod.getApps().length?appMod.getApps()[0]:appMod.initializeApp(cfg);
+      var auth=authMod.getAuth(app);
+      if(!auth.currentUser) return;
+      var dbx=fsMod.getFirestore(app);
+      for(var i=0;i<products.length;i++){
+        await fsMod.deleteDoc(fsMod.doc(dbx,'products',String(products[i].id)));
+      }
+    }catch(err){ console.warn('Eliminazione online prodotti Shopify non completata:',err); }
+  }
+  window.hideShopifyProducts=async function(){
+    if(!window.db||!Array.isArray(db.products)){notify('Nessun prodotto trovato.');return;}
+    var list=db.products.filter(isShopifyImportedProduct);
+    if(!list.length){notify('Non ho trovato prodotti importati da Shopify.');return;}
+    if(!confirm('Nascondere '+list.length+' prodotti importati da Shopify? Non verranno eliminati.')) return;
+    list.forEach(function(p){p.shopifyHidden=true;p.hiddenShopify=true;p.source='shopify';});
+    persistShopifyToolsLocal();
+    await updateShopifyProductsOnline(list,true);
+    notify('Prodotti Shopify nascosti.','success');
+  };
+  window.showShopifyProducts=async function(){
+    if(!window.db||!Array.isArray(db.products)){notify('Nessun prodotto trovato.');return;}
+    var list=db.products.filter(isShopifyImportedProduct);
+    if(!list.length){notify('Non ho trovato prodotti importati da Shopify.');return;}
+    list.forEach(function(p){p.shopifyHidden=false;p.hiddenShopify=false;p.source='shopify';});
+    persistShopifyToolsLocal();
+    await updateShopifyProductsOnline(list,false);
+    notify('Prodotti Shopify mostrati.','success');
+  };
+  window.deleteShopifyProducts=async function(){
+    if(!window.db||!Array.isArray(db.products)){notify('Nessun prodotto trovato.');return;}
+    var list=db.products.filter(isShopifyImportedProduct);
+    if(!list.length){notify('Non ho trovato prodotti importati da Shopify.');return;}
+    if(!confirm('ATTENZIONE: eliminare '+list.length+' prodotti importati da Shopify? I prodotti manuali e lo storico vendite non verranno toccati.')) return;
+    if(!confirm('Conferma finale: vuoi davvero eliminare solo i prodotti Shopify importati?')) return;
+    db.products=db.products.filter(function(p){return !isShopifyImportedProduct(p);});
+    persistShopifyToolsLocal();
+    await deleteShopifyProductsOnline(list);
+    notify('Prodotti Shopify eliminati.','success');
+  };
+
+  function installButton(){
+    var menu=$('topMenu');
+    if(!menu || $('shopifyCsvImportMenuBtn')) return;
+    var btn=document.createElement('button');
+    btn.id='shopifyCsvImportMenuBtn';
+    btn.className='btn secondary';
+    btn.type='button';
+    btn.textContent='Importa Shopify CSV';
+    btn.onclick=function(){ try{closeTopMenu();}catch(e){} openShopifyCsvImport(); };
+    var importBtn=[].slice.call(menu.querySelectorAll('button')).find(function(b){return (b.textContent||'').trim().toLowerCase()==='importa';});
+    if(importBtn && importBtn.nextSibling) menu.insertBefore(btn, importBtn.nextSibling); else menu.insertBefore(btn, menu.firstChild);
+    if(!document.getElementById('shopifyHideMenuBtn')){
+      var hide=document.createElement('button'); hide.id='shopifyHideMenuBtn'; hide.className='btn secondary'; hide.type='button'; hide.textContent='Nascondi prodotti Shopify'; hide.onclick=function(){try{closeTopMenu();}catch(e){} hideShopifyProducts();};
+      var show=document.createElement('button'); show.id='shopifyShowMenuBtn'; show.className='btn secondary'; show.type='button'; show.textContent='Mostra prodotti Shopify'; show.onclick=function(){try{closeTopMenu();}catch(e){} showShopifyProducts();};
+      var del=document.createElement('button'); del.id='shopifyDeleteMenuBtn'; del.className='btn red'; del.type='button'; del.textContent='Elimina prodotti Shopify'; del.onclick=function(){try{closeTopMenu();}catch(e){} deleteShopifyProducts();};
+      if(btn.nextSibling){menu.insertBefore(del,btn.nextSibling);menu.insertBefore(show,del);menu.insertBefore(hide,show);}else{menu.appendChild(hide);menu.appendChild(show);menu.appendChild(del);}
+    }
+  }
+  function boot(){
+    installButton();
+    installModal();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+  setTimeout(boot,300); setTimeout(boot,1200); setTimeout(boot,2500);
+})();
+</script>
+
+
+<script id="noor-home-limiti-menu-fix-reale">
+(function(){
+  function byId(id){ return document.getElementById(id); }
+  function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];}); }
+  function euro(v){ try{ return (typeof eur === 'function') ? eur(v) : Number(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'}); }catch(e){ return '€ '+Number(v||0).toFixed(2); } }
+  function notify(msg,type){ try{ if(typeof toast === 'function') toast(msg,type||'success'); }catch(e){} }
+  function getSettingsObj(){ try{ if(typeof settings === 'object' && settings) return settings; }catch(e){} if(!window.settings) window.settings={}; return window.settings; }
+  function saveSettingsSafe(){ try{ if(typeof saveSettings === 'function') saveSettings(); else if(typeof SETTINGS_KEY !== 'undefined') localStorage.setItem(SETTINGS_KEY, JSON.stringify(getSettingsObj())); }catch(e){} }
+  function numSetting(key, fallback){ var s=getSettingsObj(); var n=Number(s[key]); if(!isFinite(n) || n<1) n=fallback; return Math.max(1, Math.floor(n)); }
+  function lowThreshold(){ try{ if(typeof getLowStockMax === 'function') return Number(getLowStockMax()) || 5; }catch(e){} var s=getSettingsObj(); return Math.max(1, Number(s.lowStockMax)||5); }
+  function imgHtml(p,name){ var photo=p && (p.photo || p.image || p.imageUrl); if(photo) return '<img src="'+esc(photo)+'" alt="'+esc(name||'Prodotto')+'">'; return esc((String(name||'N').trim()[0]||'N').toUpperCase()); }
+  function cleanProducts(){ try{ return (Array.isArray(db.products)?db.products:[]).filter(function(p){ return !p.shopifyHidden && !p.hiddenShopify; }); }catch(e){ return []; } }
+  function cleanSales(){ try{ return (Array.isArray(db.sales)?db.sales:[]).filter(function(s){ return String(s.status||'') !== 'cancelled' && !s.cancelled; }); }catch(e){ return []; } }
+
+  function removeShopifyFromHamburger(){
+    var menu=byId('topMenu'); if(!menu) return;
+    var ids=['shopifyCsvImportMenuBtnStatic','shopifyHideMenuBtnStatic','shopifyShowMenuBtnStatic','shopifyDeleteMenuBtnStatic','shopifyCsvImportMenuBtn','shopifyHideMenuBtn','shopifyShowMenuBtn','shopifyDeleteMenuBtn'];
+    ids.forEach(function(id){ var el=byId(id); if(el && el.parentNode===menu) el.parentNode.removeChild(el); });
+    Array.prototype.slice.call(menu.querySelectorAll('button')).forEach(function(btn){
+      var t=(btn.textContent||'').toLowerCase();
+      if(t.indexOf('shopify')>-1){ btn.parentNode.removeChild(btn); }
+    });
+  }
+  window.noorRemoveShopifyFromHamburger=removeShopifyFromHamburger;
+
+  function ensureHomeLimitSettingsUI(){
+    var sec=byId('settings'); if(!sec || byId('homeQuickLimitsBox')) return;
+    var holder=sec.querySelector('.card.panel') || sec;
+    var details=document.createElement('details');
+    details.id='homeQuickLimitsBox';
+    details.className='settings-accordion';
+    details.innerHTML=''
+      +'<summary>'
+      +'<div class="summary-left"><span class="summary-title">🏠 Situazione veloce Home</span><span class="summary-sub">Scegli quanti elementi mostrare in Home e usa i pulsanti rapidi.</span></div>'
+      +'<span class="summary-arrow">⌄</span>'
+      +'</summary>'
+      +'<div class="settings-accordion-body">'
+      +'<div class="settings-manager">'
+      +'<div class="form" style="grid-template-columns:repeat(2,minmax(0,1fr))">'
+      +'<div class="field"><label>Scorte basse in Home</label><input id="homeLowStockLimitInput" type="number" min="1" step="1"><div class="hint">Numero massimo di prodotti con scorte basse da mostrare.</div></div>'
+      +'<div class="field"><label>Ultime vendite in Home</label><input id="homeSalesLimitInput" type="number" min="1" step="1"><div class="hint">Numero massimo di ultime vendite da mostrare.</div></div>'
+      +'</div>'
+      +'<div class="action-row" style="margin-top:14px"><button class="btn gold" type="button" onclick="saveHomeQuickLimits()">Salva situazione veloce</button><button class="btn secondary" type="button" onclick="resetHomeQuickLimits()">Ripristina 5 / 5</button></div>'
+      +'</div>'
+      +'</div>';
+    holder.appendChild(details);
+    fillHomeLimitInputs();
+  }
+  function fillHomeLimitInputs(){ var a=byId('homeLowStockLimitInput'); var b=byId('homeSalesLimitInput'); if(a) a.value=numSetting('homeLowStockLimit',5); if(b) b.value=numSetting('homeSalesLimit',5); }
+  window.saveHomeQuickLimits=function(){ var s=getSettingsObj(); s.homeLowStockLimit=Math.max(1,Number(byId('homeLowStockLimitInput')&&byId('homeLowStockLimitInput').value)||5); s.homeSalesLimit=Math.max(1,Number(byId('homeSalesLimitInput')&&byId('homeSalesLimitInput').value)||5); saveSettingsSafe(); fillHomeLimitInputs(); renderHomeWithLimits(); notify('Limiti Home salvati.','success'); };
+  window.resetHomeQuickLimits=function(){ var s=getSettingsObj(); s.homeLowStockLimit=5; s.homeSalesLimit=5; saveSettingsSafe(); fillHomeLimitInputs(); renderHomeWithLimits(); notify('Limiti Home ripristinati.','success'); };
+
+  function renderHomeWithLimits(){
+    var box=byId('homeAlerts'); if(!box) return;
+    var products=cleanProducts();
+    var sales=cleanSales();
+    var threshold=lowThreshold();
+    var lowLimit=numSetting('homeLowStockLimit',5);
+    var salesLimit=numSetting('homeSalesLimit',5);
+    var lowAll=products.filter(function(p){ return Number(p.qty||0)<=threshold; }).sort(function(a,b){ return Number(a.qty||0)-Number(b.qty||0); });
+    var low=lowAll.slice(0,lowLimit);
+    var lastAll=sales.slice().sort(function(a,b){ return new Date(b.date||0)-new Date(a.date||0); });
+    var last=lastAll.slice(0,salesLimit);
+    var total=last.reduce(function(a,s){ return a+Number(s.total||0); },0);
+    var html='<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">';
+    html+='<div class="card panel home-stock-card"><div class="home-stock-head"><div><h2>📦 Scorte basse</h2><p class="hint">Mostro '+esc(low.length)+' di '+esc(lowAll.length)+' prodotti sotto soglia</p></div><span class="home-stock-total">Soglia '+esc(threshold)+' pz</span></div>';
+    if(low.length){
+      html+='<div class="home-stock-list">'+low.map(function(p){
+        var name=p.name||'Prodotto';
+        var badge=''; try{ badge=(typeof statusBadge==='function')?statusBadge(p.qty):'<span class="badge">'+esc(p.qty)+' pz</span>'; }catch(e){ badge='<span class="badge">'+esc(p.qty)+' pz</span>'; }
+        return '<div class="home-stock-item"><div class="home-stock-photo">'+imgHtml(p,name)+'</div><div><div class="home-stock-name">'+esc(name)+'</div><div class="home-stock-meta">'+esc(p.brand||p.line||'Noor Profumi')+' · '+esc(p.size||p.format||'Formato —')+'</div><div style="margin-top:6px">'+badge+'</div><div class="home-stock-actions"><button class="btn small secondary" onclick="event.stopPropagation();viewProduct(\''+esc(p.id)+'\')">Apri</button><button class="btn small secondary" onclick="event.stopPropagation();editProduct(\''+esc(p.id)+'\')">Modifica</button></div></div><div class="home-stock-qty">'+esc(Number(p.qty)||0)+'<span>pezzi</span></div></div>';
+      }).join('')+'</div>';
+    }else{
+      html+='<div class="home-empty-stock">Tutto ok: nessun prodotto sotto la soglia impostata.</div>';
+    }
+    html+='<div class="action-row" style="padding:0 12px 12px"><button class="btn secondary" type="button" onclick="noorGoLowStock()">Vai alle scorte basse</button></div></div>';
+    html+='<div class="card panel home-sales-card"><div class="home-sales-head"><div><h2>🧾 Ultime vendite</h2><p class="hint">Mostro '+esc(last.length)+' di '+esc(lastAll.length)+' movimenti recenti</p></div><span class="home-sales-total">Totale '+euro(total)+'</span></div>';
+    if(last.length){
+      html+='<div class="home-sales-list">'+last.map(function(s){
+        var name=s.productName||'Prodotto';
+        var p=products.find(function(x){ return String(x.id)===String(s.productId)||String(x.barcode)===String(s.barcode); });
+        var d=new Date(s.date||Date.now());
+        return '<div class="home-sale-item"><div class="home-sale-icon">'+imgHtml(p,name)+'</div><div><div class="home-sale-name">'+esc(name)+'</div><div class="home-sale-meta">'+esc(d.toLocaleDateString('it-IT'))+' · '+esc(d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}))+' · Quantità '+esc(s.qty||1)+'</div></div><div class="home-sale-total">'+euro(s.total||0)+'<br><span class="home-sale-pay">'+esc(s.payment||'Pagamento —')+'</span></div></div>';
+      }).join('')+'</div>';
+    }else{
+      html+='<div class="home-empty-sales">Nessuna vendita recente.</div>';
+    }
+    html+='<div class="action-row" style="padding:0 12px 12px"><button class="btn secondary" type="button" onclick="noorGoSalesHistory()">Vai allo storico ordini</button></div></div></div>';
+    box.innerHTML=html;
+  }
+  window.renderHomeAlerts=renderHomeWithLimits;
+  try{ renderHomeAlerts=renderHomeWithLimits; }catch(e){}
+
+  var originalRenderStock=window.renderStock;
+  function renderStockFiltered(){
+    if(!window.__noorLowStockOnly){ if(typeof originalRenderStock==='function') return originalRenderStock.apply(this,arguments); return; }
+    var list=cleanProducts().filter(function(p){ return Number(p.qty||0)<=lowThreshold(); }).sort(function(a,b){ return Number(a.qty||0)-Number(b.qty||0); });
+    var target=byId('stockList'); if(!target) return;
+    var title=document.querySelector('#stock h2'); if(title) title.textContent='Magazzino - Scorte basse';
+    var html='<div class="card panel" style="box-shadow:none"><div class="panel-title"><div><h2>Prodotti con scorte basse</h2><p class="hint">Sono mostrati solo i prodotti sotto la soglia impostata.</p></div><button class="btn secondary" type="button" onclick="noorShowAllStock()">Mostra tutto il magazzino</button></div></div>';
+    if(list.length){ html+=list.map(function(p){ var name=p.name||'Prodotto'; var badge=''; try{ badge=(typeof statusBadge==='function')?statusBadge(p.qty):'<span class="badge">'+esc(p.qty)+' pz</span>'; }catch(e){ badge='<span class="badge">'+esc(p.qty)+' pz</span>'; } return '<div class="card panel stock-card" onclick="viewProduct(\''+esc(p.id)+'\')" style="box-shadow:none"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div style="display:flex;gap:12px;align-items:center"><div class="home-stock-photo">'+imgHtml(p,name)+'</div><div><b>'+esc(name)+'</b><div class="hint">'+esc(p.brand||'')+' · Barcode '+esc(p.barcode||'—')+'</div><div class="hint">Tocca per aprire la scheda prodotto.</div></div></div><div style="text-align:right"><div style="font-size:24px;font-weight:950">'+esc(p.qty||0)+'</div>'+badge+'</div></div></div>'; }).join(''); } else { html+='<div class="empty">Nessun prodotto con scorte basse.</div>'; }
+    target.innerHTML=html;
+  }
+  window.renderStock=renderStockFiltered;
+  try{ renderStock=renderStockFiltered; }catch(e){}
+  window.noorGoLowStock=function(){ window.__noorLowStockOnly=true; try{ go('stock'); }catch(e){} renderStockFiltered(); };
+  window.noorShowAllStock=function(){ window.__noorLowStockOnly=false; var title=document.querySelector('#stock h2'); if(title) title.textContent='Magazzino'; if(typeof originalRenderStock==='function') originalRenderStock(); };
+  window.noorGoSalesHistory=function(){ try{ resetSalesFilters(); }catch(e){} try{ go('history'); }catch(e){} try{ renderSales(); }catch(e){} };
+
+  var oldRenderSettings=window.renderSettingsPanel;
+  if(typeof oldRenderSettings==='function'){
+    window.renderSettingsPanel=function(){ var r=oldRenderSettings.apply(this,arguments); ensureHomeLimitSettingsUI(); fillHomeLimitInputs(); removeShopifyFromHamburger(); return r; };
+    try{ renderSettingsPanel=window.renderSettingsPanel; }catch(e){}
+  }
+  var oldRenderAll=window.renderAll;
+  if(typeof oldRenderAll==='function'){
+    window.renderAll=function(){ var r=oldRenderAll.apply(this,arguments); removeShopifyFromHamburger(); ensureHomeLimitSettingsUI(); renderHomeWithLimits(); return r; };
+    try{ renderAll=window.renderAll; }catch(e){}
+  }
+  var oldGo=window.go;
+  if(typeof oldGo==='function'){
+    window.go=function(id){ if(id!=='stock') window.__noorLowStockOnly=false; var r=oldGo.apply(this,arguments); removeShopifyFromHamburger(); if(id==='settings'){ ensureHomeLimitSettingsUI(); fillHomeLimitInputs(); } if(id==='home'){ renderHomeWithLimits(); } return r; };
+    try{ go=window.go; }catch(e){}
+  }
+  function bootFinal(){ removeShopifyFromHamburger(); ensureHomeLimitSettingsUI(); try{ if(byId('home') && byId('home').classList.contains('active')) renderHomeWithLimits(); }catch(e){} }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', bootFinal); else bootFinal();
+  [100,400,900,1500,2600,4200].forEach(function(ms){ setTimeout(bootFinal,ms); });
+  try{ var menu=byId('topMenu'); if(menu && window.MutationObserver){ new MutationObserver(function(){ removeShopifyFromHamburger(); }).observe(menu,{childList:true,subtree:true}); } }catch(e){}
+})();
+</script>
+
+
+<!-- PATCH NOOR V5 DEFINITIVA: Home con limiti bloccati, pulsanti rapidi e menu Shopify pulito -->
+<script id="noor-home-limits-v5-lock-final">
+(function(){
+  'use strict';
+  if(window.__NOOR_HOME_LIMITS_V5_FINAL__) return;
+  window.__NOOR_HOME_LIMITS_V5_FINAL__ = true;
+
+  var lockedBox = null;
+  var nativeInner = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+  var allowHomeSet = false;
+
+  function byId(id){ return document.getElementById(id); }
+  function esc(v){
+    return String(v == null ? '' : v).replace(/[&<>"']/g,function(m){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+    });
+  }
+  function euro(v){
+    try{ if(typeof eur === 'function') return eur(v); }catch(e){}
+    try{ return Number(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR'}); }catch(e){ return '€ '+Number(v||0).toFixed(2); }
+  }
+  function settingsObj(){
+    try{ if(typeof settings === 'object' && settings) return settings; }catch(e){}
+    window.settings = window.settings || {};
+    return window.settings;
+  }
+  function saveSettingsObj(){
+    try{ if(typeof saveSettings === 'function') { saveSettings(); return; } }catch(e){}
+    try{ if(typeof SETTINGS_KEY !== 'undefined') localStorage.setItem(SETTINGS_KEY, JSON.stringify(settingsObj())); }catch(e){}
+  }
+  function numSetting(key,def){
+    var s=settingsObj();
+    var n=Number(s[key]);
+    return (isFinite(n) && n>0) ? Math.floor(n) : def;
+  }
+  function lowThreshold(){
+    try{ if(typeof getLowStockMax === 'function') return Number(getLowStockMax()) || 5; }catch(e){}
+    return Number(settingsObj().lowStockMax)||5;
+  }
+  function products(){
+    try{ if(window.db && Array.isArray(db.products)) return db.products.filter(function(p){return p && !p.shopifyHidden && !p.hiddenShopify;}); }catch(e){}
+    return [];
+  }
+  function sales(){
+    try{ if(window.db && Array.isArray(db.sales)) return db.sales.filter(function(s){return s && !s.cancelled && String(s.status||'')!=='cancelled';}); }catch(e){}
+    return [];
+  }
+  function img(p,name){
+    var photo = p && (p.photo || p.image || p.imageUrl || p.img || '');
+    var n = String(name || (p && p.name) || 'N').trim();
+    if(photo) return '<img src="'+esc(photo)+'" alt="'+esc(n)+'">';
+    return esc((n.charAt(0)||'N').toUpperCase());
+  }
+  function status(qty){
+    try{ if(typeof statusBadge === 'function') return statusBadge(qty); }catch(e){}
+    return '<span class="badge">'+esc(qty)+' pz</span>';
+  }
+  function latestOrders(){
+    var rows=sales().slice().sort(function(a,b){ return new Date(b.date||b.createdAt||0)-new Date(a.date||a.createdAt||0); });
+    var map=[];
+    var seen={};
+    rows.forEach(function(r){
+      var oid = String(r.orderId || r.orderNumber || r.id || '');
+      if(!oid) oid = 'r_'+map.length;
+      if(!seen[oid]){
+        seen[oid]={
+          id:oid,
+          orderNumber:r.orderNumber || ('Ordine '+oid),
+          date:r.date || r.createdAt || new Date().toISOString(),
+          payment:r.payment || '',
+          total:Number(r.orderTotal || r.cartFinalTotal || r.total || 0),
+          qty:Number(r.orderQty || r.qty || 1),
+          first:r
+        };
+        map.push(seen[oid]);
+      }else{
+        var o=seen[oid];
+        if(!o.total || Number(r.orderTotal||r.cartFinalTotal||0)>0) o.total=Number(r.orderTotal||r.cartFinalTotal||o.total||0);
+        if(!r.orderTotal && !r.cartFinalTotal) o.total += Number(r.total||0);
+        o.qty += Number(r.qty||1);
+      }
+    });
+    return map.sort(function(a,b){return new Date(b.date||0)-new Date(a.date||0);});
+  }
+  function buildHomeHtml(){
+    var prods=products();
+    var threshold=lowThreshold();
+    var lowLimit=numSetting('homeLowStockLimit',5);
+    var salesLimit=numSetting('homeSalesLimit',5);
+    var lowAll=prods.filter(function(p){ return Number(p.qty||0) <= threshold; }).sort(function(a,b){ return Number(a.qty||0)-Number(b.qty||0); });
+    var low=lowAll.slice(0,lowLimit);
+    var ordersAll=latestOrders();
+    var orders=ordersAll.slice(0,salesLimit);
+    var total=orders.reduce(function(a,o){ return a+Number(o.total||0); },0);
+
+    var html='<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">';
+
+    html+='<div class="card panel home-stock-card">';
+    html+='<div class="home-stock-head"><div><h2>📦 Scorte basse</h2><p class="hint">Mostro '+esc(low.length)+' di '+esc(lowAll.length)+' prodotti sotto soglia</p></div><span class="home-stock-total">Soglia '+esc(threshold)+' pz</span></div>';
+    if(low.length){
+      html+='<div class="home-stock-list">';
+      low.forEach(function(p){
+        var name=p.name||'Prodotto';
+        html+='<div class="home-stock-item"><div class="home-stock-photo">'+img(p,name)+'</div><div><div class="home-stock-name">'+esc(name)+'</div><div class="home-stock-meta">'+esc(p.brand||p.line||'Noor Profumi')+' · '+esc(p.size||p.format||'Formato —')+'</div><div style="margin-top:6px">'+status(p.qty)+'</div><div class="home-stock-actions"><button class="btn small secondary" onclick="event.stopPropagation();viewProduct(\''+esc(p.id)+'\')">Apri</button><button class="btn small secondary" onclick="event.stopPropagation();editProduct(\''+esc(p.id)+'\')">Modifica</button></div></div><div class="home-stock-qty">'+esc(Number(p.qty)||0)+'<span>pezzi</span></div></div>';
+      });
+      html+='</div>';
+    }else{
+      html+='<div class="home-empty-stock">Tutto ok: nessun prodotto sotto la soglia impostata.</div>';
+    }
+    html+='<div class="action-row" style="padding:0 12px 12px"><button class="btn secondary" type="button" onclick="noorGoLowStock()">Vai alle scorte basse</button></div></div>';
+
+    html+='<div class="card panel home-sales-card">';
+    html+='<div class="home-sales-head"><div><h2>🧾 Ultime vendite</h2><p class="hint">Mostro '+esc(orders.length)+' di '+esc(ordersAll.length)+' ordini recenti</p></div><span class="home-sales-total">Totale '+euro(total)+'</span></div>';
+    if(orders.length){
+      html+='<div class="home-sales-list">';
+      orders.forEach(function(o){
+        var first=o.first||{};
+        var p=prods.find(function(x){ return String(x.id)===String(first.productId) || String(x.barcode||'')===String(first.barcode||''); });
+        var name=first.productName || first.name || o.orderNumber || 'Ordine';
+        var d=new Date(o.date||Date.now());
+        html+='<div class="home-sale-item"><div class="home-sale-icon">'+img(p,name)+'</div><div><div class="home-sale-name">'+esc(o.orderNumber||'Ordine')+'</div><div class="home-sale-meta">'+esc(d.toLocaleDateString('it-IT'))+' · '+esc(d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}))+' · Articoli '+esc(o.qty||1)+'</div></div><div class="home-sale-total">'+euro(o.total||0)+'<br><span class="home-sale-pay">'+esc(o.payment||'Pagamento —')+'</span></div></div>';
+      });
+      html+='</div>';
+    }else{
+      html+='<div class="home-empty-sales">Nessuna vendita recente.</div>';
+    }
+    html+='<div class="action-row" style="padding:0 12px 12px"><button class="btn secondary" type="button" onclick="noorGoSalesHistory()">Vai allo storico ordini</button></div></div>';
+    html+='</div>';
+    return html;
+  }
+  function setHomeHtml(html){
+    var box=byId('homeAlerts');
+    if(!box || !nativeInner || !nativeInner.set) return;
+    allowHomeSet=true;
+    try{ nativeInner.set.call(box,html); }catch(e){}
+    allowHomeSet=false;
+  }
+  function renderFinalHome(){
+    var box=byId('homeAlerts');
+    if(!box) return;
+    setHomeHtml(buildHomeHtml());
+  }
+  window.noorRenderHomeLimitsFinal = renderFinalHome;
+  window.renderHomeAlerts = renderFinalHome;
+  window.renderHomeSafe = renderFinalHome;
+  window.renderCleanHome = renderFinalHome;
+  window.renderHomeWithLimits = renderFinalHome;
+  try{ renderHomeAlerts=renderFinalHome; }catch(e){}
+  try{ renderHomeSafe=renderFinalHome; }catch(e){}
+
+  function lockHomeBox(){
+    var box=byId('homeAlerts');
+    if(!box || box.__NOOR_HOME_LIMITS_LOCKED__) return;
+    box.__NOOR_HOME_LIMITS_LOCKED__=true;
+    try{
+      Object.defineProperty(box,'innerHTML',{
+        configurable:true,
+        get:function(){ return nativeInner.get.call(box); },
+        set:function(v){
+          if(allowHomeSet){ nativeInner.set.call(box,v); return; }
+          // Qualunque vecchio renderer prova a riscrivere la Home: lo sostituiamo subito con quello definitivo.
+          setTimeout(renderFinalHome,0);
+        }
+      });
+    }catch(e){}
+  }
+
+  function removeShopifyFromHamburger(){
+    var menu=byId('topMenu');
+    if(!menu) return;
+    Array.prototype.slice.call(menu.querySelectorAll('button')).forEach(function(btn){
+      var t=(btn.textContent||'').toLowerCase();
+      if(t.indexOf('shopify')>-1){ btn.parentNode && btn.parentNode.removeChild(btn); }
+    });
+  }
+  window.noorRemoveShopifyFromHamburger = removeShopifyFromHamburger;
+
+  window.noorGoSalesHistory=function(){
+    try{ resetSalesFilters(); }catch(e){}
+    try{ go('history'); }catch(e){}
+    try{ renderSales(); }catch(e){}
+  };
+  var originalStockRenderer = window.renderStock;
+  window.noorGoLowStock=function(){
+    window.__noorLowStockOnly=true;
+    try{ go('stock'); }catch(e){}
+    setTimeout(function(){
+      try{ window.__noorLowStockOnly=true; renderLowStockOnly(); }catch(e){}
+    },50);
+  };
+  window.noorShowAllStock=function(){
+    window.__noorLowStockOnly=false;
+    try{ if(typeof originalStockRenderer==='function') originalStockRenderer(); else if(typeof renderStock==='function') renderStock(); }catch(e){}
+  };
+  function renderLowStockOnly(){
+    var target=byId('stockList'); if(!target) return;
+    var list=products().filter(function(p){ return Number(p.qty||0)<=lowThreshold(); }).sort(function(a,b){return Number(a.qty||0)-Number(b.qty||0);});
+    var html='<div class="card panel" style="box-shadow:none"><div class="panel-title"><div><h2>Prodotti con scorte basse</h2><p class="hint">Sono mostrati solo i prodotti sotto la soglia impostata.</p></div><button class="btn secondary" type="button" onclick="noorShowAllStock()">Mostra tutto il magazzino</button></div></div>';
+    if(list.length){
+      list.forEach(function(p){ var name=p.name||'Prodotto'; html+='<div class="card panel stock-card" onclick="viewProduct(\''+esc(p.id)+'\')" style="box-shadow:none"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div style="display:flex;gap:12px;align-items:center"><div class="home-stock-photo">'+img(p,name)+'</div><div><b>'+esc(name)+'</b><div class="hint">'+esc(p.brand||'')+' · Barcode '+esc(p.barcode||'—')+'</div></div></div><div style="text-align:right"><div style="font-size:24px;font-weight:950">'+esc(p.qty||0)+'</div>'+status(p.qty)+'</div></div></div>'; });
+    }else{
+      html+='<div class="empty">Nessun prodotto con scorte basse.</div>';
+    }
+    target.innerHTML=html;
+  }
+  var oldRenderStock=window.renderStock;
+  if(typeof oldRenderStock==='function'){
+    window.renderStock=function(){ if(window.__noorLowStockOnly) return renderLowStockOnly(); return oldRenderStock.apply(this,arguments); };
+    try{ renderStock=window.renderStock; }catch(e){}
+  }
+
+  function ensureSettingsUI(){
+    var sec=byId('settings'); if(!sec) return;
+    var a=byId('homeLowStockLimitInput'), b=byId('homeSalesLimitInput');
+    if(a) a.value=numSetting('homeLowStockLimit',5);
+    if(b) b.value=numSetting('homeSalesLimit',5);
+  }
+  window.saveHomeQuickLimits=function(){
+    var s=settingsObj();
+    var a=byId('homeLowStockLimitInput'), b=byId('homeSalesLimitInput');
+    s.homeLowStockLimit=Math.max(1, Number(a && a.value)||5);
+    s.homeSalesLimit=Math.max(1, Number(b && b.value)||5);
+    saveSettingsObj();
+    ensureSettingsUI();
+    renderFinalHome();
+    try{ toast('Limiti Home salvati.'); }catch(e){}
+  };
+  window.resetHomeQuickLimits=function(){
+    var s=settingsObj(); s.homeLowStockLimit=5; s.homeSalesLimit=5; saveSettingsObj(); ensureSettingsUI(); renderFinalHome();
+  };
+
+  var oldGo=window.go;
+  if(typeof oldGo==='function' && !oldGo.__NOOR_HOME_V5_WRAPPED__){
+    var goWrapped=function(id){
+      if(id!=='stock') window.__noorLowStockOnly=false;
+      var r=oldGo.apply(this,arguments);
+      removeShopifyFromHamburger();
+      if(id==='settings') ensureSettingsUI();
+      if(id==='home') setTimeout(renderFinalHome,0);
+      if(id==='stock' && window.__noorLowStockOnly) setTimeout(renderLowStockOnly,20);
+      return r;
+    };
+    goWrapped.__NOOR_HOME_V5_WRAPPED__=true;
+    window.go=goWrapped;
+    try{ go=goWrapped; }catch(e){}
+  }
+
+  function boot(){ lockHomeBox(); removeShopifyFromHamburger(); ensureSettingsUI(); renderFinalHome(); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
+  window.addEventListener('load',function(){ setTimeout(boot,80); setTimeout(boot,600); setTimeout(boot,1600); });
+  [250,900,1800,3200,5200].forEach(function(ms){ setTimeout(boot,ms); });
+  try{
+    var menu=byId('topMenu');
+    if(menu && window.MutationObserver){ new MutationObserver(removeShopifyFromHamburger).observe(menu,{childList:true,subtree:true}); }
+  }catch(e){}
 })();
 </script>
