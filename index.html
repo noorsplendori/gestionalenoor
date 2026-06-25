@@ -851,6 +851,32 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙'!important;}
 .associate-product-meta{font-size:12px;color:var(--muted);margin-top:2px}
 </style>
 
+
+<style id="noor-v25-mobile-notifiche-css">
+@media(max-width:980px){
+  body{padding-left:0!important;padding-bottom:92px!important;}
+  .noor-sidebar{display:none!important;visibility:hidden!important;pointer-events:none!important;}
+  .nav{display:grid!important;pointer-events:auto!important;z-index:30000!important;}
+  .nav button{pointer-events:auto!important;touch-action:manipulation!important;cursor:pointer!important;}
+  .header{z-index:20000!important;}
+  .menu-wrap,.hamburger,.menu-dropdown{pointer-events:auto!important;z-index:31000!important;}
+  .modal{z-index:40000!important;}
+  .modal.show{display:flex!important;}
+  .toast{z-index:45000!important;}
+}
+.noor-center-confirm{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;align-items:center;justify-content:center;z-index:50000;padding:18px}
+.noor-center-confirm.show{display:flex}
+.noor-center-card{width:min(460px,100%);background:var(--panel);border:1px solid var(--line);border-radius:28px;box-shadow:var(--shadow);padding:20px;text-align:center}
+.noor-center-card h2{margin:0 0 8px}
+.noor-center-card p{margin:0 0 14px;color:var(--muted);line-height:1.45;font-weight:800}
+.noor-center-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.barcode-product-row{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer;text-align:left}
+.barcode-product-row:hover{background:rgba(232,106,167,.08)}
+.barcode-product-left{display:flex;align-items:center;gap:10px;min-width:0}
+.barcode-product-left b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.barcode-product-left small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+</style>
+
 </head>
 <body class="session-checking noor-sidebar-collapsed">
 <div id="firebaseBootLoading" class="route-loading"><div class="boot-card"><div class="boot-title">Verifica sessione in corso...</div><div class="boot-sub">Sto controllando l’accesso al gestionale. Attendi qualche secondo senza ricaricare la pagina.</div></div></div>
@@ -1413,7 +1439,7 @@ Note di fondo:"></textarea></div>
     <div class="panel-title">
       <div>
         <h2>Barcode non trovato</h2>
-        <p class="hint">Questo EAN13 non è presente nel magazzino.</p>
+        <p class="hint">Nessun prodotto trovato. Vuoi associare questo barcode a un prodotto già esistente?</p>
       </div>
       <button class="btn secondary" type="button" onclick="closeBarcodeMissingModal()">Chiudi</button>
     </div>
@@ -1434,6 +1460,18 @@ Note di fondo:"></textarea></div>
         </div>
         <div id="barcodeProductSearchResults" class="product-select-list"></div>
       </div>
+    </div>
+  </div>
+</div>
+
+
+<div id="noorCenterConfirm" class="noor-center-confirm">
+  <div class="noor-center-card">
+    <h2 id="noorCenterConfirmTitle">Conferma</h2>
+    <p id="noorCenterConfirmText">Sei sicuro?</p>
+    <div class="noor-center-actions">
+      <button id="noorCenterConfirmYes" class="btn gold" type="button">Conferma</button>
+      <button id="noorCenterConfirmNo" class="btn secondary" type="button">Annulla</button>
     </div>
   </div>
 </div>
@@ -1741,7 +1779,7 @@ async function confirmBarcodeAssociation(){
   const p=(db.products||[]).find(x=>String(x.id)===String(id));
   if(!p){openBarcodeAssociateModal(code);return;}
   if(p.barcode && String(p.barcode)!==code){
-    const ok=confirm('Questo prodotto ha già un barcode: '+p.barcode+'. Vuoi sostituirlo con '+code+'?');
+    const ok=await noorCenterConfirm('Questo prodotto ha già un barcode: '+p.barcode+'. Vuoi sostituirlo con '+code+'?','Sostituire barcode?');
     if(!ok)return;
   }
   await updateProductBarcodeOnline(p,code);
@@ -1795,7 +1833,7 @@ async function associateMissingBarcodeToProduct(id){
   const used=(db.products||[]).find(x=>String(x.barcode||'')===code&&String(x.id)!==String(id));
   if(used){toast('Questo barcode è già associato a '+(used.name||'un altro prodotto')+'.');return;}
   if(p.barcode&&String(p.barcode)!==code){
-    if(!confirm('Questo prodotto ha già un barcode: '+p.barcode+'. Vuoi sostituirlo con '+code+'?'))return;
+    if(!(await noorCenterConfirm('Questo prodotto ha già un barcode: '+p.barcode+'. Vuoi sostituirlo con '+code+'?','Sostituire barcode?')))return;
   }
   p.barcode=code;
   try{
@@ -1808,7 +1846,44 @@ async function associateMissingBarcodeToProduct(id){
   toast('Barcode associato al prodotto.','success');
 }
 
-function findByBarcode(){const code=barcodeInput.value.trim();if(!code){toast('Inserisci o scansiona un barcode.');return} if(!isValidEAN13(code)){toast('EAN13 non valido: deve avere 13 numeri corretti.');return}const p=db.products.find(x=>!x.shopifyHidden&&!x.hiddenShopify&&(x.barcode||'').toLowerCase()===code.toLowerCase());if(!p){salePreview.className='sale-preview empty';salePreview.innerHTML='Barcode non trovato nel magazzino.';openBarcodeMissingModal(code);return}selectedProduct=p;renderSalePreview(p)}
+
+function noorCenterConfirm(message,title){
+  return new Promise(function(resolve){
+    const overlay=document.getElementById('noorCenterConfirm');
+    const t=document.getElementById('noorCenterConfirmTitle');
+    const p=document.getElementById('noorCenterConfirmText');
+    const y=document.getElementById('noorCenterConfirmYes');
+    const n=document.getElementById('noorCenterConfirmNo');
+    if(!overlay||!y||!n){resolve(confirm(message));return;}
+    if(t)t.textContent=title||'Conferma';
+    if(p)p.textContent=message||'Sei sicuro?';
+    overlay.classList.add('show');
+    const done=function(v){overlay.classList.remove('show');y.onclick=null;n.onclick=null;overlay.onclick=null;resolve(v)};
+    y.onclick=function(){done(true)};
+    n.onclick=function(){done(false)};
+    overlay.onclick=function(e){if(e.target===overlay)done(false)};
+  });
+}
+
+
+function noorOpenMissingBarcodeAssociation(code){
+  code=String(code||'').trim();
+  if(!code)return;
+  if(typeof openBarcodeMissingModal==='function'){
+    openBarcodeMissingModal(code);
+    setTimeout(function(){
+      if(typeof openBarcodeProductSearch==='function')openBarcodeProductSearch();
+    },120);
+    return;
+  }
+  if(typeof openBarcodeAssociateModal==='function'){
+    openBarcodeAssociateModal(code);
+    return;
+  }
+  toast('Nessun prodotto trovato. Vuoi associare questo barcode a un prodotto esistente?');
+}
+
+function findByBarcode(){const code=barcodeInput.value.trim();if(!code){toast('Inserisci o scansiona un barcode.');return} if(!isValidEAN13(code)){toast('EAN13 non valido: deve avere 13 numeri corretti.');return}const p=db.products.find(x=>!x.shopifyHidden&&!x.hiddenShopify&&(x.barcode||'').toLowerCase()===code.toLowerCase());if(!p){salePreview.className='sale-preview empty';salePreview.innerHTML='Barcode non trovato nel magazzino.';noorOpenMissingBarcodeAssociation(code);return}selectedProduct=p;renderSalePreview(p)}
 function renderSalePreview(p){salePreview.className='sale-preview';selectedLineDiscountCode=null;const base=currentSellPrice(p);salePreview.innerHTML=`<div class="preview-product">${p.photo?`<img src="${p.photo}">`:`<div style="width:82px;height:82px;border-radius:20px;background:var(--panel2);display:grid;place-items:center;font-size:34px;font-weight:950">${(p.name||'?')[0]}</div>`}<div><h2>${p.name}</h2><p class="hint">${p.brand||''} · ${p.size||''}</p><div class="kpi-row"><span class="pill">Prezzo ${eur(base)}</span><span class="pill">Stock ${p.qty}</span><span class="pill">Barcode ${p.barcode||'—'}</span></div><div class="sale-discount-note">${discountBadge(p)}</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px"><div class="field"><label>Quantità da aggiungere</label><input id="sellQty" type="number" min="1" max="${p.qty}" value="1"></div><div class="field"><label>Prezzo unitario</label><input id="sellPrice" type="number" step="0.01" min="0" value="${base}"></div></div><div class="line-discount-box"><label><b>Codice sconto per questo prodotto</b></label><div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-top:8px"><input id="lineDiscountCode" placeholder="Inserisci codice prima del carrello"><button class="btn small secondary" onclick="applyLineDiscount()">Applica</button><button class="btn small red" onclick="removeLineDiscount()">Rimuovi</button></div><div id="lineDiscountMsg" class="hint">Questo sconto vale solo per il prodotto selezionato. Se applichi uno sconto a tutto il carrello, gli sconti manuali vengono annullati.</div></div><button class="btn gold" style="width:100%;margin-top:14px" onclick="addSelectedToCart()">Aggiungi al carrello</button>`;renderCart()}
 function discountAmountFor(d,base){base=Number(base)||0;if(!d||base<=0)return 0;let amount=d.type==='percent'?base*(Number(d.value)||0)/100:Number(d.value)||0;return Math.max(0,Math.min(base,amount))}
 function applyLineDiscount(){if(!selectedProduct)return;const code=String(document.getElementById('lineDiscountCode')?.value||'').trim().toUpperCase();if(!code){removeLineDiscount();return}const d=getDiscountByCode(code);if(!d){toast('Codice sconto non trovato o non attivo.');return}if(d.rule==='only_clean' && selectedProduct.discountActive){toast('Questo codice vale solo sui prodotti non scontati.');return}const base=currentSellPrice(selectedProduct);const amount=discountAmountFor(d,base);document.getElementById('sellPrice').value=(base-amount).toFixed(2);selectedLineDiscountCode=d.code;const msg=document.getElementById('lineDiscountMsg');if(msg)msg.innerHTML=`<span class="applied-code">✓ ${d.code} applicato a questo prodotto · -${eur(amount)}</span>`;toast('Sconto applicato al prodotto.','success')}
@@ -12539,7 +12614,7 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙';}
           setTimeout(function(){
             if(!findProductByBarcodeLocal(code)){
               if(typeof openBarcodeMissingModal==='function') openBarcodeMissingModal(code);
-              else alert('Barcode non trovato nel magazzino: '+code);
+              else toast('Barcode non trovato nel magazzino.');
             }
           },120);
         });
@@ -12549,7 +12624,7 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙';}
           setTimeout(function(){
             if(!findProductByBarcodeLocal(code)){
               if(typeof openBarcodeMissingModal==='function') openBarcodeMissingModal(code);
-              else alert('Barcode non trovato nel magazzino: '+code);
+              else toast('Barcode non trovato nel magazzino.');
             }
           },180);
         });
@@ -12558,7 +12633,60 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙';}
   }
   document.addEventListener('DOMContentLoaded',function(){
     attachProductSearchBarcodePopup();
-    setInterval(attachProductSearchBarcodePopup,1200);
+    
+  });
+})();
+
+
+
+/* Noor mobile safe nav fix */
+(function(){
+  function bindMobileNav(){
+    if(window.innerWidth>980)return;
+    document.querySelectorAll('.nav button,[data-target][onclick]').forEach(function(btn){
+      if(btn.dataset.noorMobileSafe)return;
+      btn.dataset.noorMobileSafe='1';
+      btn.addEventListener('touchstart',function(){btn.dataset.touched='1';},{passive:true});
+    });
+  }
+  document.addEventListener('DOMContentLoaded',function(){bindMobileNav();setTimeout(bindMobileNav,800);});
+  window.addEventListener('resize',bindMobileNav);
+})();
+
+
+
+/* Noor: EAN13 non trovato apre associazione prodotto */
+(function(){
+  function isEAN13(v){return /^\d{13}$/.test(String(v||'').trim());}
+  function existsBarcode(code){
+    return (db.products||[]).some(function(p){
+      return !p.shopifyHidden && !p.hiddenShopify && String(p.barcode||'').trim().toLowerCase()===String(code||'').trim().toLowerCase();
+    });
+  }
+  function attachMissingBarcodeAssociation(){
+    document.querySelectorAll('input').forEach(function(inp){
+      if(inp.dataset.noorMissingBarcodeAssociation)return;
+      var ph=(inp.getAttribute('placeholder')||'').toLowerCase();
+      var id=(inp.id||'').toLowerCase();
+      if(ph.includes('cerca') || ph.includes('barcode') || id.includes('search') || id.includes('barcode')){
+        inp.dataset.noorMissingBarcodeAssociation='1';
+        function check(){
+          var code=String(inp.value||'').trim();
+          if(!isEAN13(code))return;
+          setTimeout(function(){
+            if(!existsBarcode(code) && typeof noorOpenMissingBarcodeAssociation==='function'){
+              noorOpenMissingBarcodeAssociation(code);
+            }
+          },180);
+        }
+        inp.addEventListener('keydown',function(e){if(e.key==='Enter')check();});
+        inp.addEventListener('change',check);
+      }
+    });
+  }
+  document.addEventListener('DOMContentLoaded',function(){
+    attachMissingBarcodeAssociation();
+    setTimeout(attachMissingBarcodeAssociation,700);
   });
 })();
 
