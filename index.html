@@ -851,30 +851,67 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙'!important;}
 .associate-product-meta{font-size:12px;color:var(--muted);margin-top:2px}
 </style>
 
-
-<style id="noor-v25-mobile-notifiche-css">
+<style id="noor-mobile-only-unblock-clean">
 @media(max-width:980px){
-  body{padding-left:0!important;padding-bottom:92px!important;}
-  .noor-sidebar{display:none!important;visibility:hidden!important;pointer-events:none!important;}
-  .nav{display:grid!important;pointer-events:auto!important;z-index:30000!important;}
-  .nav button{pointer-events:auto!important;touch-action:manipulation!important;cursor:pointer!important;}
-  .header{z-index:20000!important;}
-  .menu-wrap,.hamburger,.menu-dropdown{pointer-events:auto!important;z-index:31000!important;}
-  .modal{z-index:40000!important;}
+  body{
+    padding-left:0!important;
+    padding-bottom:96px!important;
+    overflow-x:hidden!important;
+  }
+
+  .noor-sidebar,
+  aside.noor-sidebar{
+    display:none!important;
+    visibility:hidden!important;
+    opacity:0!important;
+    pointer-events:none!important;
+  }
+
+  body.noor-sidebar-ready,
+  body.noor-sidebar-collapsed{
+    padding-left:0!important;
+  }
+
+  main,.app,.section,.panel,.card,
+  button,.btn,input,select,textarea,a{
+    pointer-events:auto!important;
+    touch-action:manipulation!important;
+  }
+
+  .nav{
+    display:grid!important;
+    visibility:visible!important;
+    opacity:1!important;
+    pointer-events:auto!important;
+    z-index:60000!important;
+  }
+
+  .nav button{
+    pointer-events:auto!important;
+    touch-action:manipulation!important;
+    cursor:pointer!important;
+    -webkit-tap-highlight-color:rgba(232,106,167,.18)!important;
+  }
+
+  .modal{z-index:70000!important;}
   .modal.show{display:flex!important;}
-  .toast{z-index:45000!important;}
+  .toast{z-index:80000!important;}
+
+  #loginScreen.hidden,
+  #firebaseBootLoading.hidden,
+  .route-loading.hidden{
+    display:none!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+  }
+
+  body:not(.login-active):not(.session-checking) #loginScreen,
+  body:not(.login-active):not(.session-checking) #firebaseBootLoading{
+    display:none!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+  }
 }
-.noor-center-confirm{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;align-items:center;justify-content:center;z-index:50000;padding:18px}
-.noor-center-confirm.show{display:flex}
-.noor-center-card{width:min(460px,100%);background:var(--panel);border:1px solid var(--line);border-radius:28px;box-shadow:var(--shadow);padding:20px;text-align:center}
-.noor-center-card h2{margin:0 0 8px}
-.noor-center-card p{margin:0 0 14px;color:var(--muted);line-height:1.45;font-weight:800}
-.noor-center-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
-.barcode-product-row{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);cursor:pointer;text-align:left}
-.barcode-product-row:hover{background:rgba(232,106,167,.08)}
-.barcode-product-left{display:flex;align-items:center;gap:10px;min-width:0}
-.barcode-product-left b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.barcode-product-left small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
 </style>
 
 </head>
@@ -1463,17 +1500,6 @@ Note di fondo:"></textarea></div>
     </div>
   </div>
 </div>
-
-
-<div id="noorCenterConfirm" class="noor-center-confirm">
-  <div class="noor-center-card">
-    <h2 id="noorCenterConfirmTitle">Conferma</h2>
-    <p id="noorCenterConfirmText">Sei sicuro?</p>
-    <div class="noor-center-actions">
-      <button id="noorCenterConfirmYes" class="btn gold" type="button">Conferma</button>
-      <button id="noorCenterConfirmNo" class="btn secondary" type="button">Annulla</button>
-    </div>
-  </div>
 </div>
 
 <div id="toast" class="toast"></div>
@@ -12636,25 +12662,6 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙';}
     
   });
 })();
-
-
-
-/* Noor mobile safe nav fix */
-(function(){
-  function bindMobileNav(){
-    if(window.innerWidth>980)return;
-    document.querySelectorAll('.nav button,[data-target][onclick]').forEach(function(btn){
-      if(btn.dataset.noorMobileSafe)return;
-      btn.dataset.noorMobileSafe='1';
-      btn.addEventListener('touchstart',function(){btn.dataset.touched='1';},{passive:true});
-    });
-  }
-  document.addEventListener('DOMContentLoaded',function(){bindMobileNav();setTimeout(bindMobileNav,800);});
-  window.addEventListener('resize',bindMobileNav);
-})();
-
-
-
 /* Noor: EAN13 non trovato apre associazione prodotto */
 (function(){
   function isEAN13(v){return /^\d{13}$/.test(String(v||'').trim());}
@@ -12688,6 +12695,40 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙';}
     attachMissingBarcodeAssociation();
     setTimeout(attachMissingBarcodeAssociation,700);
   });
+})();
+
+
+
+/* Noor mobile clean click fix */
+(function(){
+  function fixNoorMobile(){
+    if(window.innerWidth>980)return;
+
+    document.body.classList.remove('noor-sidebar-ready');
+    document.body.classList.remove('noor-sidebar-collapsed');
+
+    document.querySelectorAll('.noor-sidebar').forEach(function(el){
+      el.style.display='none';
+      el.style.pointerEvents='none';
+      el.style.visibility='hidden';
+    });
+
+    document.querySelectorAll('.nav button[data-target]').forEach(function(btn){
+      if(btn.dataset.noorMobileCleanReady)return;
+      btn.dataset.noorMobileCleanReady='1';
+      btn.addEventListener('click',function(){
+        var target=btn.getAttribute('data-target');
+        if(target && typeof go==='function') go(target);
+      },false);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){
+    fixNoorMobile();
+    setTimeout(fixNoorMobile,500);
+    setTimeout(fixNoorMobile,1500);
+  });
+  window.addEventListener('resize',fixNoorMobile);
 })();
 
 </script>
