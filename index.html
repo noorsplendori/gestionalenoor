@@ -227,7 +227,6 @@ body.dark .revenue-panel{background:rgba(255,255,255,.035)}
   .order-actions-responsive .btn{width:100%;}
 }
 
-
 /* FIX stabile carrello + popup ordine responsive */
 .cart-row{grid-template-columns:minmax(0,1fr) 82px auto!important;overflow:hidden}
 .cart-product,.order-product-line{display:flex;align-items:center;gap:10px;min-width:0;max-width:100%}
@@ -309,13 +308,11 @@ body.dark .home-stock-item,body.dark .home-empty-stock{background:rgba(255,255,2
 .employee-note{padding:12px 14px;border-radius:18px;border:1px solid rgba(242,184,75,.34);background:rgba(242,184,75,.12);font-size:13px;color:var(--text);margin:12px 0}
 body.dark .permission-box{background:rgba(255,255,255,.04)}
 
-
 .settings-manager{margin-top:16px;border:1px solid var(--line);background:var(--panel2);border-radius:24px;padding:16px}
 .settings-list-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .settings-manager textarea{min-height:120px}
 .default-pay-box{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
 @media(max-width:760px){.settings-list-grid,.default-pay-box{grid-template-columns:1fr}}
-
 
 /* Identità gestionale */
 .identity-logo-tools{display:grid;grid-template-columns:180px 1fr;gap:16px;align-items:start}
@@ -324,8 +321,6 @@ body.dark .permission-box{background:rgba(255,255,255,.04)}
 .logo.has-image{background:transparent!important;padding:0;overflow:hidden}
 .logo.has-image img{width:100%;height:100%;object-fit:contain;display:block}
 @media(max-width:620px){.identity-logo-tools{grid-template-columns:1fr}.identity-logo-preview{width:100%;height:130px}}
-
-
 
 /* Chiusure giornaliere */
 .closure-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:14px 0}
@@ -349,7 +344,6 @@ body.dark .permission-box{background:rgba(255,255,255,.04)}
 <style id="stable-login-style">
 html,body{overflow-x:hidden!important}.login-screen{position:fixed;inset:0;z-index:50000;display:flex;align-items:center;justify-content:center;padding:22px;background:radial-gradient(circle at 20% 10%,rgba(255,179,210,.55),transparent 32%),radial-gradient(circle at 85% 15%,rgba(242,184,75,.22),transparent 28%),linear-gradient(145deg,#fffafd,#fff0f7 58%,#ffe4f1);overflow-y:auto;overflow-x:hidden}.login-screen.hidden{display:none!important}.login-card{width:min(530px,100%);border:1px solid rgba(143,45,90,.18);background:rgba(255,255,255,.94);backdrop-filter:blur(18px);border-radius:32px;box-shadow:0 28px 80px rgba(143,45,90,.22);padding:24px}.login-brand{display:flex;align-items:center;gap:12px;margin-bottom:18px}.login-logo{width:58px;height:58px;border-radius:20px;background:linear-gradient(135deg,var(--green2),var(--gold));display:grid;place-items:center;font-weight:950;font-size:28px;color:#3a081f}.login-card h1{margin:0;font-size:24px}.login-note{margin-top:14px;padding:13px 14px;border-radius:18px;border:1px solid rgba(232,63,118,.24);background:rgba(232,63,118,.08);color:#5a1230;font-size:13px;line-height:1.45;font-weight:850}.password-wrap{display:grid;grid-template-columns:1fr auto;gap:8px}.login-actions{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:14px}.reset-login-box{display:none;margin-top:12px;border:1px solid rgba(143,45,90,.16);background:rgba(255,255,255,.72);border-radius:20px;padding:14px}.reset-login-box.show{display:grid;gap:10px}.reset-code-output{margin-top:10px;padding:12px;border-radius:16px;border:1px dashed rgba(232,106,167,.45);background:rgba(232,106,167,.08);font-weight:900;word-break:break-word}.access-log-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}.access-log-kpi{border:1px solid var(--line);background:var(--panel2);border-radius:20px;padding:14px}.access-log-kpi b{display:block;font-size:22px;margin-top:4px}.log-success{color:#128a3a;font-weight:950}.log-fail{color:#b51545;font-weight:950}.log-logout{color:#8a5700;font-weight:950}body.dark .login-screen{background:radial-gradient(circle at 15% 10%,rgba(232,106,167,.23),transparent 30%),linear-gradient(145deg,#160611,#241020 55%,#12050d)}body.dark .login-card{background:rgba(35,16,29,.96);color:var(--text)}body.dark .login-note{background:rgba(232,63,118,.12);color:#ffd3e6}body.dark .reset-login-box{background:rgba(255,255,255,.05)}@media(max-width:700px){.login-card{padding:18px;border-radius:24px}.access-log-kpis{grid-template-columns:1fr 1fr}}@media(max-width:430px){.password-wrap{grid-template-columns:1fr}.password-wrap .btn{width:100%}.access-log-kpis{grid-template-columns:1fr}}
 </style>
-
 
 <style id="firebase-phase1-login-fix-style">
   #loginDemoHint{display:none!important;}
@@ -461,7 +455,6 @@ body.login-active .nav{
 body.session-checking .noor-sidebar,body.login-active .noor-sidebar{display:none!important}
 </style>
 
-
 <style id="noor-sidebar-v7-no-flash-navigation">
 /* V7: sidebar pronta subito su desktop, senza flash del menu hamburger originale */
 @media(min-width:981px){
@@ -509,7 +502,6 @@ body.login-active .noor-sidebar{display:none!important;}
   }catch(e){}
 })();
 </script>
-
 
 <style id="noor-home-quick-search-v10-style">
 .noor-home-search-card{margin:0 0 16px;padding:16px;border:1px solid var(--line);border-radius:24px;background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(255,240,247,.92));box-shadow:0 12px 30px rgba(143,45,90,.08)}
@@ -593,7 +585,6 @@ body.dark .logo[data-title]:hover::before,
 body.dark .noor-sidebar-toggle[data-title]:hover::before,
 body.dark .noor-side-btn[data-title]:hover::before{background:#fff;border-color:rgba(143,45,90,.16);}
 </style>
-
 
 <style id="noor-v19-tooltip-solo-chiuso-tema-centrato">
 /* V19 - Rifinitura sicura solo CSS/HTML: tooltip sidebar solo da chiusa + tema centrato */
@@ -693,7 +684,6 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙'!important;}
 }
 </style>
 
-
 <style id="noor-v22-tooltip-fix-visibile-menu-chiuso">
 /* V22: tooltip icone sidebar realmente visibile quando il menu laterale è chiuso */
 @media (min-width:981px) and (hover:hover){
@@ -753,8 +743,6 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙'!important;}
 }
 </style>
 
-
-
 <style id="noor-v23-collapsed-hide-sidebar-bottom">
 /* V23: quando il menu laterale è chiuso mostra solo le icone principali del menu */
 @media(min-width:981px){
@@ -791,7 +779,6 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙'!important;}
 }
 </style>
 
-
 <style id="noor-v24-mini-logout-final">
 @media(min-width:981px){
  body.noor-sidebar-collapsed #noorMiniLogoutCollapsed{display:flex!important}
@@ -799,8 +786,6 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙'!important;}
  body.noor-sidebar-collapsed #noorMiniLogoutCollapsed .noor-side-label{display:none!important}
 }
 </style>
-
-
 
 <style id="noor-v25-sidebar-icone-piu-grandi">
 @media(min-width:981px){
@@ -815,7 +800,6 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙'!important;}
  body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover::before{left:60px!important;}
 }
 </style>
-
 
 <style id="noor-v28-identita-social-integrata-css">
 .identity-social-accordion{margin-top:16px;border:1px solid var(--line);background:var(--panel2);border-radius:24px;overflow:hidden}
@@ -841,7 +825,6 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙'!important;}
 .identity-og-preview-domain{color:var(--muted);font-size:12px;margin-top:8px;text-transform:uppercase;letter-spacing:.4px}
 @media(max-width:760px){.identity-social-grid{grid-template-columns:1fr}.identity-img-preview.wide{height:150px}}
 </style>
-
 
 <style id="noor-v29-barcode-associa-css">
 .associate-product-row{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);padding:12px;cursor:pointer;text-align:left}
@@ -914,6 +897,84 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙'!important;}
 }
 </style>
 
+<style id="noor-v27-product-photos-css">
+.product-photo-gallery{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.product-photo-thumb{width:74px;height:74px;border-radius:16px;border:1px solid var(--line);background:var(--panel2);object-fit:cover;cursor:pointer}
+.product-photo-thumb:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(143,45,90,.16)}
+.noor-photo-viewer{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:90000;padding:18px}
+.noor-photo-viewer.show{display:flex}
+.noor-photo-viewer-card{width:min(760px,100%);max-height:90vh;background:var(--panel);border:1px solid var(--line);border-radius:26px;box-shadow:var(--shadow);padding:14px;display:grid;gap:10px}
+.noor-photo-viewer-card img{max-width:100%;max-height:72vh;object-fit:contain;border-radius:20px;background:var(--panel2)}
+.noor-photo-help{font-size:12px;color:var(--muted);font-weight:800;margin-top:6px}
+</style>
+
+<style id="noor-v28-photo-gallery-cover-css">
+.product-photo-item{position:relative;display:inline-grid;gap:6px;justify-items:center}
+.product-photo-item.cover .product-photo-thumb{outline:3px solid var(--gold);box-shadow:0 0 0 5px rgba(242,184,75,.22)}
+.cover-radio{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:950;color:var(--muted);cursor:pointer}
+.cover-radio input{width:auto;margin:0}
+.noor-photo-viewer-main{position:relative;display:grid;place-items:center}
+.noor-photo-arrow{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.92);color:#3b1027;font-size:26px;font-weight:950;cursor:pointer;box-shadow:0 12px 30px rgba(0,0,0,.18);z-index:2}
+.noor-photo-arrow.left{left:8px}
+.noor-photo-arrow.right{right:8px}
+.noor-photo-counter{text-align:center;color:var(--muted);font-size:13px;font-weight:900}
+body.dark .noor-photo-arrow{background:#fff;color:#3b1027}
+</style>
+
+<style id="noor-v29-archive-save-buttons-css">
+.archive-manual-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.archive-save-btn{white-space:nowrap}
+@media(max-width:620px){.archive-manual-row{grid-template-columns:1fr}.archive-save-btn{width:100%}}
+</style>
+
+
+<style id="noor-minimal-confirm-theme-fix">
+.noor-center-confirm{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;align-items:center;justify-content:center;z-index:95000;padding:18px}
+.noor-center-confirm.show{display:flex}
+.noor-center-card{width:min(460px,100%);background:var(--panel);border:1px solid var(--line);border-radius:28px;box-shadow:var(--shadow);padding:20px;text-align:center}
+.noor-center-card h2{margin:0 0 8px;font-size:22px;font-weight:950;color:var(--text)}
+.noor-center-card p{margin:0 0 15px;color:var(--muted);line-height:1.45;font-weight:800}
+.noor-center-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+
+/* Icona tema centrata */
+#themeBtn,
+#themeBtn.theme-toggle{
+  width:46px!important;
+  height:46px!important;
+  min-width:46px!important;
+  max-width:46px!important;
+  padding:0!important;
+  margin:0!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  position:relative!important;
+  line-height:1!important;
+  font-size:0!important;
+  overflow:visible!important;
+}
+#themeBtn::before,
+#themeBtn.theme-toggle::before{
+  content:'☀️'!important;
+  position:absolute!important;
+  inset:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:100%!important;
+  height:100%!important;
+  font-size:20px!important;
+  line-height:1!important;
+  margin:0!important;
+  padding:0!important;
+  transform:none!important;
+}
+body.dark #themeBtn::before,
+body.dark #themeBtn.theme-toggle::before{content:'🌙'!important;}
+#themeBtn > span,
+#themeBtn.theme-toggle > span{display:none!important;}
+</style>
+
 </head>
 <body class="session-checking noor-sidebar-collapsed">
 <div id="firebaseBootLoading" class="route-loading"><div class="boot-card"><div class="boot-title">Verifica sessione in corso...</div><div class="boot-sub">Sto controllando l’accesso al gestionale. Attendi qualche secondo senza ricaricare la pagina.</div></div></div>
@@ -983,7 +1044,7 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙'!important;}
     </div>
     <div class="noor-sidebar-user"><b id="noorSidebarUserName">Utente Noor</b><span id="noorSidebarUserRole">Sessione attiva</span></div>
     <button class="noor-side-btn noor-logout-btn" data-title="Esci" type="button" onclick="confirmLogoutUser()"><span class="noor-side-ico">⏻</span><span class="noor-side-label">Esci</span></button>
-  
+
     <button id="noorCollapsedLogout" class="noor-side-btn" data-title="Esci dal gestionale" type="button" onclick="confirmLogoutUser()"><span class="noor-side-ico">⏻</span><span class="noor-side-label">Esci</span></button>
 </div>
 </aside>
@@ -1103,7 +1164,6 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙'!important;}
       <div class="table-wrap" style="margin-top:16px"><table><thead><tr><th>Codice</th><th>Tipo</th><th>Valore</th><th>Regola</th><th>Stato</th><th>Note</th><th>Azioni</th></tr></thead><tbody id="discountsTable"></tbody></table></div>
     </div>
   </section>
-
 
   <section id="cancelledOrders" class="section">
     <div class="card panel">
@@ -1398,8 +1458,8 @@ Bonifico"></textarea></div>
     <form id="productForm" class="form" onsubmit="saveProduct(event)">
       <input id="productId" type="hidden">
       <div class="field two"><label>Nome prodotto</label><input id="pName" required placeholder="Es. Musk Tahara"></div>
-      <div class="field two"><label>Marca / Linea</label><div style="display:grid;grid-template-columns:1fr;gap:8px"><select id="pBrandSelect" onchange="applyProductPreset('pBrand',this.value)"></select><input id="pBrand" placeholder="Oppure scrivi marchio/linea manualmente"></div><div class="hint">Puoi scegliere un marchio salvato oppure scriverlo manualmente.</div></div>
-      <div class="field"><label>Formato</label><div style="display:grid;grid-template-columns:1fr;gap:8px"><select id="pSizeSelect" onchange="applyProductPreset('pSize',this.value)"></select><input id="pSize" placeholder="Oppure scrivi formato manualmente"></div></div>
+      <div class="field two"><label>Marca / Linea</label><div style="display:grid;grid-template-columns:1fr;gap:8px"><select id="pBrandSelect" onchange="applyProductPreset('pBrand',this.value)"></select><div class="archive-manual-row"><input id="pBrand" placeholder="Oppure scrivi marchio/linea manualmente" oninput="toggleArchiveSaveButtons()"><button id="saveBrandArchiveBtn" class="btn small secondary archive-save-btn" type="button" onclick="saveManualBrandArchive()" style="display:none">Salva nel gestionale</button></div></div><div class="hint">Puoi scegliere un marchio salvato oppure scriverlo manualmente.</div></div>
+      <div class="field"><label>Formato</label><div style="display:grid;grid-template-columns:1fr;gap:8px"><select id="pSizeSelect" onchange="applyProductPreset('pSize',this.value)"></select><div class="archive-manual-row"><input id="pSize" placeholder="Oppure scrivi formato manualmente" oninput="toggleArchiveSaveButtons()"><button id="saveSizeArchiveBtn" class="btn small secondary archive-save-btn" type="button" onclick="saveManualSizeArchive()" style="display:none">Salva nel gestionale</button></div></div></div>
       <div class="field"><label>Prezzo vendita €</label><input id="pPrice" type="number" step="0.01" min="0" required oninput="syncInitialPriceFromSalePrice()"></div>
       <div class="field"><label>Costo €</label><input id="pCost" type="number" step="0.01" min="0"></div>
       <div class="field"><label>Quantità</label><input id="pQty" type="number" step="1" min="0" required></div>
@@ -1407,14 +1467,11 @@ Bonifico"></textarea></div>
       <div class="field two"><label>Categoria</label><div style="display:grid;grid-template-columns:1fr;gap:8px"><select id="pCategorySelect" onchange="applyProductPreset('pCategory',this.value)"></select><input id="pCategory" placeholder="Oppure scrivi categoria manualmente"></div></div>
       <div class="field two"><label>Stagione</label><select id="pSeason"><option value="">Seleziona stagione</option><option>Primavera</option><option>Estate</option><option>Autunno</option><option>Inverno</option><option>Tutto l'anno</option></select></div>
       <div class="field full"><label>Descrizione prodotto</label><textarea id="pDescription" placeholder="Descrizione commerciale del profumo, sensazioni, pubblico ideale..."></textarea></div>
-      <div class="field full"><label>Piramide olfattiva</label><textarea id="pPyramid" placeholder="Note di testa:
-Note di cuore:
-Note di fondo:"></textarea></div>
       <div class="field full"><label>Sconto prodotto</label><div class="switch-row"><div><b id="discountStateText">Sconto non attivo</b><div class="hint">Attivalo solo se vuoi mostrare prezzo iniziale, prezzo finale, percentuale e totale sconto.</div></div><label class="switch"><input id="pDiscountActive" type="checkbox" onchange="toggleDiscount()"><span class="track"></span><span>Attiva</span></label></div></div>
       <div class="field"><label>Prezzo iniziale € <span class="hint">automatico dal prezzo vendita</span></label><input id="pInitialPrice" type="number" step="0.01" min="0" readonly></div>
       <div class="field"><label>Prezzo finale €</label><input id="pFinalPrice" type="number" step="0.01" min="0" oninput="calcProductDiscount()" placeholder="Prezzo scontato"></div>
       <div class="field two"><label>Sconto calcolato</label><div id="discountBox" class="discount-box discount-disabled"><b id="discountPercent">0%</b><br><span id="discountAmount" class="hint">Sconto non attivo</span></div></div>
-      <div class="field full"><div id="productCameraBox" class="camera-box"><video id="productVideo" autoplay playsinline></video><div class="camera-note">Inquadra il codice EAN13. Se il browser non supporta la scansione da fotocamera, usa un lettore barcode USB o scrivilo manualmente.</div><button type="button" class="btn secondary" style="margin:10px" onclick="stopProductBarcodeScan()">Ferma scanner</button></div></div><div class="field full"><label>Foto prodotto</label><input id="pPhoto" type="file" accept="image/*" onchange="previewPhoto(event)"><input id="pPhotoData" type="hidden"></div>
+      <div class="field full"><div id="productCameraBox" class="camera-box"><video id="productVideo" autoplay playsinline></video><div class="camera-note">Inquadra il codice EAN13. Se il browser non supporta la scansione da fotocamera, usa un lettore barcode USB o scrivilo manualmente.</div><button type="button" class="btn secondary" style="margin:10px" onclick="stopProductBarcodeScan()">Ferma scanner</button></div></div><div class="field full"><label>Foto prodotto</label><input id="pPhoto" type="file" accept="image/*" multiple onchange="previewPhoto(event)"><input id="pPhotoData" type="hidden"><input id="pPhotosData" type="hidden"><div class="noor-photo-help">Puoi caricare più foto. Vengono compresse automaticamente per evitare errori Firebase.</div><div id="pPhotoPreviewGallery" class="product-photo-gallery"></div></div>
       <div class="field full"><label>Note interne</label><textarea id="pNotes" placeholder="Fornitore, lotto, info interne..."></textarea></div>
       <div class="field full"><button class="btn gold" type="submit">Salva prodotto</button></div>
       <datalist id="brandOptions"></datalist>
@@ -1470,7 +1527,6 @@ Note di fondo:"></textarea></div>
   </div>
 </div>
 
-
 <div id="barcodeMissingModal" class="modal">
   <div class="modal-card" style="width:min(720px,100%)">
     <div class="panel-title">
@@ -1500,6 +1556,28 @@ Note di fondo:"></textarea></div>
     </div>
   </div>
 </div>
+</div>
+
+<div id="noorPhotoViewer" class="noor-photo-viewer">
+  <div class="noor-photo-viewer-card">
+    <div class="panel-title" style="margin-bottom:0">
+      <div><h2>Foto prodotto</h2><p class="hint">Anteprima immagine grande.</p></div>
+      <button class="btn secondary" type="button" onclick="closeNoorPhotoViewer()">Chiudi</button>
+    </div>
+    <div class="noor-photo-viewer-main"><button class="noor-photo-arrow left" type="button" onclick="prevNoorPhoto()">‹</button><img id="noorPhotoViewerImg" src="" alt="Foto prodotto"><button class="noor-photo-arrow right" type="button" onclick="nextNoorPhoto()">›</button></div><div id="noorPhotoCounter" class="noor-photo-counter">1 / 1</div>
+  </div>
+</div>
+
+
+<div id="noorCenterConfirm" class="noor-center-confirm">
+  <div class="noor-center-card">
+    <h2 id="noorCenterConfirmTitle">Conferma operazione</h2>
+    <p id="noorCenterConfirmText">Sei sicuro?</p>
+    <div class="noor-center-actions">
+      <button id="noorCenterConfirmYes" class="btn gold" type="button">Conferma</button>
+      <button id="noorCenterConfirmNo" class="btn secondary" type="button">Annulla</button>
+    </div>
+  </div>
 </div>
 
 <div id="toast" class="toast"></div>
@@ -1640,7 +1718,7 @@ function getLowStockMax(){return Math.max(1,Number(settings.lowStockMax)||5)}
 function statusBadge(q){q=Number(q)||0;const low=getLowStockMax();if(q<=0)return'<span class="badge status-danger"><span class="status-dot status-danger"></span>Esaurito</span>';if(q<=low)return'<span class="badge status-warn"><span class="status-dot status-warn"></span>In esaurimento</span>';return'<span class="badge status-ok"><span class="status-dot status-ok"></span>Disponibile</span>'}
 function discountBadge(p){if(!p||!p.discountActive)return '';const pct=Number(p.discountPercent)||0;const amount=Number(p.discountAmount)||0;const label=pct?('Sconto '+pct.toFixed(pct%1?1:0)+'%'):'Sconto attivo';return `<span class="discount-badge">🏷 ${label}${amount?' · '+eur(amount):''}</span>`}
 function img(p){return p.photo?`<img class="product-img" src="${p.photo}">`:`<div class="product-img" style="display:grid;place-items:center;color:var(--muted);font-weight:900">${(p.name||'?')[0]}</div>`}
-function renderProducts(){const q=(document.getElementById('searchProduct')?.value||'').toLowerCase();const rows=db.products.filter(p=>!p.shopifyHidden&&!p.hiddenShopify).filter(p=>[p.name,p.brand,p.barcode,p.category,p.season,p.description,p.pyramid].join(' ').toLowerCase().includes(q)).map(p=>`<tr><td>${img(p)}</td><td><b>${p.name}</b><br><span style="color:var(--muted)">${p.brand||''} · ${p.category||''}</span><div style="margin-top:7px">${discountBadge(p)}</div></td><td><span class="badge">${p.barcode||'—'}</span></td><td>${p.size||'—'}</td><td>${p.discountActive?`<span style="text-decoration:line-through;color:var(--muted)">${eur(p.initialPrice||p.price)}</span><br><b>${eur(p.finalPrice||p.price)}</b>`:eur(p.price)}</td><td><b>${p.qty}</b></td><td>${statusBadge(p.qty)}</td><td><div class="action-row"><button class="btn small secondary" onclick="viewProduct('${p.id}')">Visualizza</button><button class="btn small secondary" onclick="editProduct('${p.id}')">Modifica</button><button class="btn small blue" onclick="duplicateProduct('${p.id}')">Duplica</button><button class="btn small red" onclick="deleteProduct('${p.id}')">Elimina</button></div></td></tr>`).join('');document.getElementById('productsTable').innerHTML=rows||`<tr><td colspan="8" class="empty">Nessun prodotto trovato.</td></tr>`}
+function renderProducts(){const q=(document.getElementById('searchProduct')?.value||'').toLowerCase();const rows=db.products.filter(p=>!p.shopifyHidden&&!p.hiddenShopify).filter(p=>[p.name,p.brand,p.barcode,p.category,p.season,p.description].join(' ').toLowerCase().includes(q)).map(p=>`<tr><td>${img(p)}</td><td><b>${p.name}</b><br><span style="color:var(--muted)">${p.brand||''} · ${p.category||''}</span><div style="margin-top:7px">${discountBadge(p)}</div></td><td><span class="badge">${p.barcode||'—'}</span></td><td>${p.size||'—'}</td><td>${p.discountActive?`<span style="text-decoration:line-through;color:var(--muted)">${eur(p.initialPrice||p.price)}</span><br><b>${eur(p.finalPrice||p.price)}</b>`:eur(p.price)}</td><td><b>${p.qty}</b></td><td>${statusBadge(p.qty)}</td><td><div class="action-row"><button class="btn small secondary" onclick="viewProduct('${p.id}')">Visualizza</button><button class="btn small secondary" onclick="editProduct('${p.id}')">Modifica</button><button class="btn small blue" onclick="duplicateProduct('${p.id}')">Duplica</button><button class="btn small red" onclick="deleteProduct('${p.id}')">Elimina</button></div></td></tr>`).join('');document.getElementById('productsTable').innerHTML=rows||`<tr><td colspan="8" class="empty">Nessun prodotto trovato.</td></tr>`}
 function getFilteredSales(){let list=[...db.sales];const from=document.getElementById('filterFrom')?.value;const to=document.getElementById('filterTo')?.value;const payment=document.getElementById('filterPayment')?.value;const q=(document.getElementById('filterSearch')?.value||'').toLowerCase().trim();if(from){const d=new Date(from+'T00:00:00');list=list.filter(s=>new Date(s.date)>=d)}if(to){const d=new Date(to+'T23:59:59');list=list.filter(s=>new Date(s.date)<=d)}if(payment)list=list.filter(s=>(s.payment||'')===payment);if(q)list=list.filter(s=>[s.productName,s.barcode,s.payment,s.orderNumber,s.orderId].join(' ').toLowerCase().includes(q));return list.sort((a,b)=>new Date(b.date)-new Date(a.date))}
 function buildOrdersFromSales(sales){const map=new Map();sales.forEach(s=>{const id=s.orderId||s.id; if(!map.has(id)){map.set(id,{id,date:s.date,payment:s.payment||'',orderNumber:s.orderNumber||('ORD-'+String(s.id).slice(-6).toUpperCase()),discountCode:s.discountCode||'',discountAmount:Number(s.discountAmount)||0,lines:[]})}map.get(id).lines.push(s)});return [...map.values()].map(o=>{o.qty=o.lines.reduce((a,l)=>a+Number(l.qty||0),0);o.products=o.lines.length;o.total=Number(o.lines[0]?.orderTotal||o.lines[0]?.cartFinalTotal)||o.lines.reduce((a,l)=>a+Number(l.total||0),0);return o}).sort((a,b)=>new Date(b.date)-new Date(a.date))}
 function getFilteredOrders(){return buildOrdersFromSales(getFilteredSales())}
@@ -1691,7 +1769,39 @@ function renderHomeAlerts(){
     box.innerHTML=html;
   }catch(e){console.warn('Home definitiva senza codici:',e)}
 }
-function openAddProduct(){stopProductBarcodeScan();document.getElementById('modalTitle').textContent='Nuovo prodotto';document.getElementById('productForm').reset();document.getElementById('productId').value='';document.getElementById('pPhotoData').value='';document.getElementById('pDiscountActive').checked=false;toggleDiscount();renderDynamicOptions();document.getElementById('productModal').classList.add('show');setTimeout(()=>document.getElementById('pName').focus(),100)}
+
+function toggleArchiveSaveButtons(){
+  const b=(document.getElementById('pBrand')?.value||'').trim();
+  const s=(document.getElementById('pSize')?.value||'').trim();
+  const bb=document.getElementById('saveBrandArchiveBtn');
+  const sb=document.getElementById('saveSizeArchiveBtn');
+  if(bb)bb.style.display=b?'inline-flex':'none';
+  if(sb)sb.style.display=s?'inline-flex':'none';
+}
+function saveManualBrandArchive(){
+  const v=(document.getElementById('pBrand')?.value||'').trim();
+  if(!v){toast('Scrivi prima una marca o linea.');return}
+  if(!Array.isArray(settings.productBrands))settings.productBrands=[];
+  if(!settings.productBrands.includes(v))settings.productBrands.push(v);
+  saveSettings();
+  renderDynamicOptions();
+  const inp=document.getElementById('pBrand'); if(inp)inp.value=v;
+  toggleArchiveSaveButtons();
+  toast('Marca/linea salvata nel gestionale.','success');
+}
+function saveManualSizeArchive(){
+  const v=(document.getElementById('pSize')?.value||'').trim();
+  if(!v){toast('Scrivi prima un formato.');return}
+  if(!Array.isArray(settings.productSizes))settings.productSizes=[];
+  if(!settings.productSizes.includes(v))settings.productSizes.push(v);
+  saveSettings();
+  renderDynamicOptions();
+  const inp=document.getElementById('pSize'); if(inp)inp.value=v;
+  toggleArchiveSaveButtons();
+  toast('Formato salvato nel gestionale.','success');
+}
+
+function openAddProduct(){stopProductBarcodeScan();document.getElementById('modalTitle').textContent='Nuovo prodotto';document.getElementById('productForm').reset();document.getElementById('productId').value='';document.getElementById('pPhotoData').value='';const ppd=document.getElementById('pPhotosData');if(ppd)ppd.value='';renderNoorProductPhotoGallery([],0);document.getElementById('pDiscountActive').checked=false;toggleDiscount();renderDynamicOptions();toggleArchiveSaveButtons();document.getElementById('productModal').classList.add('show');setTimeout(()=>document.getElementById('pName').focus(),100)}
 function closeModal(){stopProductBarcodeScan();document.getElementById('productModal').classList.remove('show')}
 
 function syncInitialPriceFromSalePrice(){
@@ -1727,9 +1837,136 @@ function calcProductDiscount(){
   if(amtEl)amtEl.textContent=active?('Totale sconto '+eur(amount)):'Sconto non attivo';
 }
 
-function previewPhoto(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>document.getElementById('pPhotoData').value=r.result;r.readAsDataURL(f)}
-function saveProduct(e){e.preventDefault();const id=document.getElementById('productId').value;const price=Number(pPrice.value)||0;const discountActive=!!document.getElementById('pDiscountActive')?.checked;const initial=discountActive?price:0;const final=discountActive?(Number(pFinalPrice.value)||0):0;const amount=discountActive?Math.max(0,initial-final):0;const data={id:id||uid(),name:pName.value.trim(),brand:pBrand.value.trim(),size:pSize.value.trim(),price:price,cost:Number(pCost.value)||0,qty:Number(pQty.value)||0,barcode:pBarcode.value.trim(),category:pCategory.value,season:pSeason.value,description:pDescription.value.trim(),pyramid:pPyramid.value.trim(),discountActive:discountActive,initialPrice:initial,finalPrice:final,discountAmount:amount,discountPercent:discountActive&&initial>0&&final>0?Math.max(0,(amount/initial)*100):0,photo:pPhotoData.value,notes:pNotes.value.trim()}; if(!data.photo&&id){data.photo=db.products.find(p=>p.id===id)?.photo||''} if(data.barcode&&!isValidEAN13(data.barcode)){toast('Codice non valido: serve un EAN13 corretto da 13 numeri.');return} if(data.barcode&&db.products.some(p=>p.barcode===data.barcode&&p.id!==data.id)){toast('Questo barcode è già associato a un altro prodotto.');return} if(id){db.products=db.products.map(p=>p.id===id?data:p)}else db.products.push(data);closeModal();save();toast('Prodotto salvato.')}
-function editProduct(id){const p=db.products.find(x=>x.id===id);if(!p)return;stopProductBarcodeScan();document.getElementById('modalTitle').textContent='Modifica prodotto';productId.value=p.id;pName.value=p.name||'';pBrand.value=p.brand||'';pSize.value=p.size||'';pPrice.value=p.price||'';pCost.value=p.cost||'';pQty.value=p.qty||0;pBarcode.value=p.barcode||'';pCategory.value=p.category||'';pSeason.value=p.season||'';pDescription.value=p.description||'';pPyramid.value=p.pyramid||'';pDiscountActive.checked=!!p.discountActive;pInitialPrice.value=p.discountActive?(p.price||''):'';pFinalPrice.value=p.discountActive?(p.finalPrice||''):'';pPhotoData.value=p.photo||'';pNotes.value=p.notes||'';toggleDiscount();renderDynamicOptions();document.getElementById('productModal').classList.add('show')}
+let noorPhotoViewerList=[];
+let noorPhotoViewerIndex=0;
+
+function updateNoorPhotoViewer(){
+  const img=document.getElementById('noorPhotoViewerImg');
+  const counter=document.getElementById('noorPhotoCounter');
+  const src=noorPhotoViewerList[noorPhotoViewerIndex]||'';
+  if(img)img.src=src;
+  if(counter)counter.textContent=(noorPhotoViewerList.length?noorPhotoViewerIndex+1:0)+' / '+(noorPhotoViewerList.length||0);
+}
+
+function noorResolvePhotoList(src){
+  try{
+    const p=(db.products||[]).find(x=>String(x.photo||'')===String(src) || (Array.isArray(x.photos)&&x.photos.some(ph=>String(ph)===String(src))));
+    if(p){
+      const list=(Array.isArray(p.photos)&&p.photos.length?p.photos:[p.photo]).filter(Boolean);
+      if(list.length)return list;
+    }
+  }catch(e){}
+  return [src].filter(Boolean);
+}
+
+function openNoorPhotoViewer(src,list){
+  const m=document.getElementById('noorPhotoViewer');
+  if(!src||!m)return;
+  noorPhotoViewerList=(Array.isArray(list)&&list.length?list:noorResolvePhotoList(src)).filter(Boolean);
+  noorPhotoViewerIndex=Math.max(0,noorPhotoViewerList.indexOf(src));
+  updateNoorPhotoViewer();
+  m.classList.add('show');
+}
+function nextNoorPhoto(){
+  if(!noorPhotoViewerList.length)return;
+  noorPhotoViewerIndex=(noorPhotoViewerIndex+1)%noorPhotoViewerList.length;
+  updateNoorPhotoViewer();
+}
+function prevNoorPhoto(){
+  if(!noorPhotoViewerList.length)return;
+  noorPhotoViewerIndex=(noorPhotoViewerIndex-1+noorPhotoViewerList.length)%noorPhotoViewerList.length;
+  updateNoorPhotoViewer();
+}
+function closeNoorPhotoViewer(){
+  const m=document.getElementById('noorPhotoViewer'), img=document.getElementById('noorPhotoViewerImg');
+  if(img)img.src='';
+  if(m)m.classList.remove('show');
+  noorPhotoViewerList=[];noorPhotoViewerIndex=0;
+}
+function getNoorCoverIndex(){
+  const checked=document.querySelector('input[name="noorCoverPhoto"]:checked');
+  return Math.max(0,Number(checked?.value)||0);
+}
+function renderNoorProductPhotoGallery(photos,coverIndex){
+  const box=document.getElementById('pPhotoPreviewGallery');
+  if(!box)return;
+  photos=(photos||[]).filter(Boolean);
+  coverIndex=Math.max(0,Number(coverIndex)||0);
+  if(coverIndex>=photos.length)coverIndex=0;
+  const encoded=encodeURIComponent(JSON.stringify(photos));
+  box.innerHTML=photos.map((src,i)=>`<div class="product-photo-item ${i===coverIndex?'cover':''}"><img class="product-photo-thumb" src="${src}" onclick="openNoorPhotoViewer('${src.replace(/'/g,'&#39;')}',JSON.parse(decodeURIComponent('${encoded}')))" title="Apri foto ${i+1}"><label class="cover-radio"><input type="radio" name="noorCoverPhoto" value="${i}" ${i===coverIndex?'checked':''} onchange="renderNoorProductPhotoGallery(getNoorProductPhotosRaw(),getNoorCoverIndex())"> Copertina</label></div>`).join('');
+}
+function getNoorProductPhotosRaw(existing){
+  let arr=[];
+  try{arr=JSON.parse(document.getElementById('pPhotosData')?.value||'[]')}catch(e){arr=[]}
+  if(arr&&arr.length)return arr.filter(Boolean);
+  if(existing&&Array.isArray(existing.photos)&&existing.photos.length)return existing.photos.filter(Boolean);
+  if(existing&&existing.photo)return [existing.photo];
+  const one=document.getElementById('pPhotoData')?.value||'';
+  return one?[one]:[];
+}
+function getNoorProductPhotos(existing){
+  const arr=getNoorProductPhotosRaw(existing);
+  const idx=getNoorCoverIndex();
+  if(arr.length&&idx>0&&idx<arr.length){
+    const copy=arr.slice();
+    const cover=copy.splice(idx,1)[0];
+    copy.unshift(cover);
+    return copy;
+  }
+  return arr;
+}
+
+function compressNoorProductImage(file,maxW=760,quality=.62){
+  return new Promise((resolve,reject)=>{
+    if(!file){resolve('');return}
+    const reader=new FileReader();
+    reader.onerror=()=>reject(reader.error);
+    reader.onload=()=>{
+      const image=new Image();
+      image.onerror=()=>reject(new Error('Immagine non valida'));
+      image.onload=()=>{
+        let w=image.width,h=image.height;
+        if(w>maxW||h>maxW){
+          const ratio=Math.min(maxW/w,maxW/h);
+          w=Math.round(w*ratio);h=Math.round(h*ratio);
+        }
+        const canvas=document.createElement('canvas');
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(image,0,0,w,h);
+        let data=canvas.toDataURL('image/jpeg',quality);
+        if(data.length>520000)data=canvas.toDataURL('image/jpeg',.50);
+        if(data.length>720000)data=canvas.toDataURL('image/jpeg',.38);
+        resolve(data);
+      };
+      image.src=reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function previewPhoto(e){
+  const files=Array.from(e?.target?.files||[]);
+  if(!files.length)return;
+  const photos=[];
+  const maxPhotos=6;
+  for(const f of files.slice(0,maxPhotos)){
+    try{
+      photos.push(await compressNoorProductImage(f));
+    }catch(err){
+      try{toast('Una foto non è stata caricata.')}catch(_e){}
+    }
+  }
+  const clean=photos.filter(Boolean);
+  const one=document.getElementById('pPhotoData');
+  const multi=document.getElementById('pPhotosData');
+  if(one)one.value=clean[0]||'';
+  if(multi)multi.value=JSON.stringify(clean);
+  if(typeof renderNoorProductPhotoGallery==='function')renderNoorProductPhotoGallery(clean,0);
+  try{toast('Foto caricate e compresse.','success')}catch(_e){}
+}
+
+function saveProduct(e){e.preventDefault();const id=document.getElementById('productId').value;const price=Number(pPrice.value)||0;const discountActive=!!document.getElementById('pDiscountActive')?.checked;const initial=discountActive?price:0;const final=discountActive?(Number(pFinalPrice.value)||0):0;const amount=discountActive?Math.max(0,initial-final):0;const data={id:id||uid(),name:pName.value.trim(),brand:pBrand.value.trim(),size:pSize.value.trim(),price:price,cost:Number(pCost.value)||0,qty:Number(pQty.value)||0,barcode:pBarcode.value.trim(),category:pCategory.value,season:pSeason.value,description:pDescription.value.trim(),discountActive:discountActive,initialPrice:initial,finalPrice:final,discountAmount:amount,discountPercent:discountActive&&initial>0&&final>0?Math.max(0,(amount/initial)*100):0,photo:(getNoorProductPhotos(db.products.find(p=>p.id===id))[0]||''),photos:getNoorProductPhotos(db.products.find(p=>p.id===id)),notes:pNotes.value.trim()}; if(!data.photo&&id){data.photo=db.products.find(p=>p.id===id)?.photo||''} if(data.barcode&&!isValidEAN13(data.barcode)){toast('Codice non valido: serve un EAN13 corretto da 13 numeri.');return} if(data.barcode&&db.products.some(p=>p.barcode===data.barcode&&p.id!==data.id)){toast('Questo barcode è già associato a un altro prodotto.');return} if(id){db.products=db.products.map(p=>p.id===id?data:p)}else db.products.push(data);closeModal();save();toast('Prodotto salvato.')}
+function editProduct(id){const p=db.products.find(x=>x.id===id);if(!p)return;stopProductBarcodeScan();document.getElementById('modalTitle').textContent='Modifica prodotto';productId.value=p.id;pName.value=p.name||'';pBrand.value=p.brand||'';pSize.value=p.size||'';pPrice.value=p.price||'';pCost.value=p.cost||'';pQty.value=p.qty||0;pBarcode.value=p.barcode||'';pCategory.value=p.category||'';pSeason.value=p.season||'';pDescription.value=p.description||'';pDiscountActive.checked=!!p.discountActive;pInitialPrice.value=p.discountActive?(p.price||''):'';pFinalPrice.value=p.discountActive?(p.finalPrice||''):'';pPhotoData.value=p.photo||''; const ppd=document.getElementById('pPhotosData');if(ppd)ppd.value=JSON.stringify(p.photos||[p.photo].filter(Boolean));renderNoorProductPhotoGallery(p.photos||[p.photo].filter(Boolean),0);pNotes.value=p.notes||'';toggleDiscount();renderDynamicOptions();toggleArchiveSaveButtons();document.getElementById('productModal').classList.add('show')}
 function deleteProduct(id){if(!confirm('Eliminare questo prodotto?'))return;db.products=db.products.filter(p=>p.id!==id);save();toast('Prodotto eliminato.')}
 
 function isValidEAN13(code){code=String(code||'').trim();if(!/^\d{13}$/.test(code))return false;const digits=code.split('').map(Number);const check=digits.pop();const sum=digits.reduce((a,d,i)=>a+d*(i%2===0?1:3),0);return (10-(sum%10))%10===check;}
@@ -1740,11 +1977,11 @@ function stopProductBarcodeScan(){if(productScanTimer){clearInterval(productScan
 function closeDetails(){go('stock')}
 function productInitial(p){return (p.name||'?')[0]}
 function productPhotoBlock(p){return p.photo?`<img src="${p.photo}" class="product-page-photo">`:`<div class="product-page-placeholder">${productInitial(p)}</div>`}
-function viewProduct(id){const p=db.products.find(x=>x.id===id); if(!p)return;const sales=db.sales.filter(s=>s.productId===id).sort((a,b)=>new Date(b.date)-new Date(a.date));const sold=sales.reduce((a,s)=>a+s.qty,0);const revenue=sales.reduce((a,s)=>a+s.total,0);const active=!!p.discountActive;const initial=active?(Number(p.initialPrice)||Number(p.price)||0):0;const final=active?(Number(p.finalPrice)||0):0;const amount=active?(Number(p.discountAmount)||Math.max(0,initial-final)):0;const pct=active?(Number(p.discountPercent)|| (initial>0&&final>0?Math.max(0,(amount/initial)*100):0)):0;document.getElementById('productPageContent').innerHTML=`<div class="product-page-head">${productPhotoBlock(p)}<div style="flex:1;min-width:240px"><h2 style="margin:0 0 6px">${p.name||'Prodotto'}</h2><p class="hint">${p.brand||''} · ${p.category||''} · ${p.size||''}</p><div class="kpi-row"><span class="pill">EAN13 ${p.barcode||'—'}</span><span class="pill">Stock ${p.qty}</span><span class="pill">Prezzo ${eur(p.price)}</span><span class="pill">Stagione ${p.season||'—'}</span></div></div></div><div class="detail-grid"><div class="detail-item"><b>Quantità disponibile</b>${p.qty}</div><div class="detail-item"><b>Valore vendita stock</b>${money((p.qty||0)*(p.price||0))}</div><div class="detail-item"><b>Valore costo stock</b>${money((p.qty||0)*(p.cost||0))}</div><div class="detail-item"><b>Venduti</b>${sold}</div><div class="detail-item"><b>Incasso prodotto</b>${eur(revenue)}</div><div class="detail-item"><b>Costo unitario</b>${eur(p.cost||0)}</div><div class="detail-item"><b>Sconto attivo</b>${active?'Sì':'No'}</div><div class="detail-item"><b>Prezzo iniziale</b>${active?eur(initial):'—'}</div><div class="detail-item"><b>Prezzo finale</b>${active&&final?eur(final):'—'}</div><div class="detail-item"><b>Sconto</b>${active?((pct?pct.toFixed(pct%1?1:0)+'%':'0%')+(amount?' · '+eur(amount):'')):'—'}</div><div class="detail-item"><b>Stagione</b>${p.season||'—'}</div><div class="detail-item" style="grid-column:1/-1"><b>Descrizione</b><div class="text-block">${p.description||'—'}</div></div><div class="detail-item" style="grid-column:1/-1"><b>Piramide olfattiva</b><div class="text-block">${p.pyramid||'—'}</div></div><div class="detail-item" style="grid-column:1/-1"><b>Note interne</b><div class="text-block">${p.notes||'—'}</div></div></div><div class="action-row" style="margin-top:14px"><button class="btn secondary" onclick="editProduct('${p.id}')">Modifica</button><button class="btn blue" onclick="duplicateProduct('${p.id}')">Duplica</button><button class="btn red" onclick="deleteProduct('${p.id}')">Elimina</button></div><h2 style="margin-top:22px">Ultime vendite prodotto</h2><div class="table-wrap"><table><thead><tr><th>Data / Ora</th><th>Quantità</th><th>Prezzo</th><th>Pagamento</th><th>Totale</th></tr></thead><tbody>${sales.slice(0,12).map(s=>`<tr><td>${new Date(s.date).toLocaleString('it-IT')}</td><td>${s.qty}</td><td>${eur(s.price)}</td><td>${s.payment||'—'}</td><td><b>${eur(s.total)}</b></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nessuna vendita per questo prodotto.</td></tr>'}</tbody></table></div>`;go('productDetail')}
+function viewProduct(id){const p=db.products.find(x=>x.id===id); if(!p)return;const sales=db.sales.filter(s=>s.productId===id).sort((a,b)=>new Date(b.date)-new Date(a.date));const sold=sales.reduce((a,s)=>a+s.qty,0);const revenue=sales.reduce((a,s)=>a+s.total,0);const active=!!p.discountActive;const initial=active?(Number(p.initialPrice)||Number(p.price)||0):0;const final=active?(Number(p.finalPrice)||0):0;const amount=active?(Number(p.discountAmount)||Math.max(0,initial-final)):0;const pct=active?(Number(p.discountPercent)|| (initial>0&&final>0?Math.max(0,(amount/initial)*100):0)):0;document.getElementById('productPageContent').innerHTML=`<div class="product-page-head">${productPhotoBlock(p)}<div style="flex:1;min-width:240px"><h2 style="margin:0 0 6px">${p.name||'Prodotto'}</h2><p class="hint">${p.brand||''} · ${p.category||''} · ${p.size||''}</p><div class="kpi-row"><span class="pill">EAN13 ${p.barcode||'—'}</span><span class="pill">Stock ${p.qty}</span><span class="pill">Prezzo ${eur(p.price)}</span><span class="pill">Stagione ${p.season||'—'}</span></div></div></div>${(p.photos&&p.photos.length)?`<div class="product-photo-gallery">${p.photos.map(ph=>`<img class="product-photo-thumb" src="${ph}" onclick="openNoorPhotoViewer(\'${ph}\')">`).join("")}</div>`:""}<div class="detail-grid"><div class="detail-item"><b>Quantità disponibile</b>${p.qty}</div><div class="detail-item"><b>Valore vendita stock</b>${money((p.qty||0)*(p.price||0))}</div><div class="detail-item"><b>Valore costo stock</b>${money((p.qty||0)*(p.cost||0))}</div><div class="detail-item"><b>Venduti</b>${sold}</div><div class="detail-item"><b>Incasso prodotto</b>${eur(revenue)}</div><div class="detail-item"><b>Costo unitario</b>${eur(p.cost||0)}</div><div class="detail-item"><b>Sconto attivo</b>${active?'Sì':'No'}</div><div class="detail-item"><b>Prezzo iniziale</b>${active?eur(initial):'—'}</div><div class="detail-item"><b>Prezzo finale</b>${active&&final?eur(final):'—'}</div><div class="detail-item"><b>Sconto</b>${active?((pct?pct.toFixed(pct%1?1:0)+'%':'0%')+(amount?' · '+eur(amount):'')):'—'}</div><div class="detail-item"><b>Stagione</b>${p.season||'—'}</div><div class="detail-item" style="grid-column:1/-1"><b>Descrizione</b><div class="text-block">${p.description||'—'}</div></div><div class="detail-item" style="grid-column:1/-1"><b>Piramide olfattiva</b><div class="text-block">${p.pyramid||'—'}</div></div><div class="detail-item" style="grid-column:1/-1"><b>Note interne</b><div class="text-block">${p.notes||'—'}</div></div></div><div class="action-row" style="margin-top:14px"><button class="btn secondary" onclick="editProduct('${p.id}')">Modifica</button><button class="btn blue" onclick="duplicateProduct('${p.id}')">Duplica</button><button class="btn red" onclick="deleteProduct('${p.id}')">Elimina</button></div><h2 style="margin-top:22px">Ultime vendite prodotto</h2><div class="table-wrap"><table><thead><tr><th>Data / Ora</th><th>Quantità</th><th>Prezzo</th><th>Pagamento</th><th>Totale</th></tr></thead><tbody>${sales.slice(0,12).map(s=>`<tr><td>${new Date(s.date).toLocaleString('it-IT')}</td><td>${s.qty}</td><td>${eur(s.price)}</td><td>${s.payment||'—'}</td><td><b>${eur(s.total)}</b></td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nessuna vendita per questo prodotto.</td></tr>'}</tbody></table></div>`;go('productDetail')}
 function duplicateProduct(id){const p=db.products.find(x=>x.id===id); if(!p)return;const copy={...p,id:uid(),name:(p.name||'Prodotto')+' - copia',barcode:'',qty:Number(p.qty)||0};db.products.push(copy); save(); toast('Prodotto duplicato. Inserisci un nuovo EAN13 nella copia.'); editProduct(copy.id)}
 function currentSellPrice(p){return p&&p.discountActive&&Number(p.finalPrice)>0?Number(p.finalPrice):Number(p?.price)||0}
 function selectProduct(id){const p=db.products.find(x=>x.id===id);if(!p)return;selectedProduct=p;barcodeInput.value=p.barcode||'';renderSalePreview(p)}
-function renderSalePicker(force=false){const box=document.getElementById('saleProductList');if(!box)return;const q=(document.getElementById('saleSearch')?.value||'').toLowerCase();if(!force&&!q){box.innerHTML='';return}const list=db.products.filter(p=>!p.shopifyHidden&&!p.hiddenShopify).filter(p=>[p.name,p.brand,p.barcode,p.category,p.season,p.description,p.pyramid].join(' ').toLowerCase().includes(q)).slice(0,30);box.innerHTML=list.map(p=>`<div class="product-pick"><button style="flex:1;border:0;background:transparent;color:var(--text);text-align:left;cursor:pointer" onclick="selectProduct('${p.id}')"><span><b>${p.name}</b><br><small>${p.brand||''} · ${p.size||''} · ${p.barcode||'senza barcode'}</small><br>${discountBadge(p)}</span></button><span style="text-align:right"><b>${p.qty}</b> pz<br><small>${eur(currentSellPrice(p))}</small></span><button class="btn small gold flash-add" onclick="addFlashToCart('${p.id}')">+ Aggiunta Flash</button></div>`).join('')||'<div class="empty">Nessun prodotto trovato.</div>'}
+function renderSalePicker(force=false){const box=document.getElementById('saleProductList');if(!box)return;const q=(document.getElementById('saleSearch')?.value||'').toLowerCase();if(!force&&!q){box.innerHTML='';return}const list=db.products.filter(p=>!p.shopifyHidden&&!p.hiddenShopify).filter(p=>[p.name,p.brand,p.barcode,p.category,p.season,p.description].join(' ').toLowerCase().includes(q)).slice(0,30);box.innerHTML=list.map(p=>`<div class="product-pick"><button style="flex:1;border:0;background:transparent;color:var(--text);text-align:left;cursor:pointer" onclick="selectProduct('${p.id}')"><span><b>${p.name}</b><br><small>${p.brand||''} · ${p.size||''} · ${p.barcode||'senza barcode'}</small><br>${discountBadge(p)}</span></button><span style="text-align:right"><b>${p.qty}</b> pz<br><small>${eur(currentSellPrice(p))}</small></span><button class="btn small gold flash-add" onclick="addFlashToCart('${p.id}')">+ Aggiunta Flash</button></div>`).join('')||'<div class="empty">Nessun prodotto trovato.</div>'}
 
 let pendingBarcodeAssociation='';
 let pendingBarcodeAssociationProductId='';
@@ -1814,7 +2051,6 @@ async function confirmBarcodeAssociation(){
   try{document.getElementById('barcodeInput').value=code;findByBarcode();}catch(e){}
 }
 
-
 let pendingMissingBarcode='';
 
 function openBarcodeMissingModal(code){
@@ -1872,7 +2108,6 @@ async function associateMissingBarcodeToProduct(id){
   toast('Barcode associato al prodotto.','success');
 }
 
-
 function noorCenterConfirm(message,title){
   return new Promise(function(resolve){
     const overlay=document.getElementById('noorCenterConfirm');
@@ -1880,7 +2115,7 @@ function noorCenterConfirm(message,title){
     const p=document.getElementById('noorCenterConfirmText');
     const y=document.getElementById('noorCenterConfirmYes');
     const n=document.getElementById('noorCenterConfirmNo');
-    if(!overlay||!y||!n){resolve(confirm(message));return;}
+    if(!overlay||!y||!n){try{toast(message||'Conferma richiesta.')}catch(e){} resolve(false);return;}
     if(t)t.textContent=title||'Conferma';
     if(p)p.textContent=message||'Sei sicuro?';
     overlay.classList.add('show');
@@ -1890,7 +2125,6 @@ function noorCenterConfirm(message,title){
     overlay.onclick=function(e){if(e.target===overlay)done(false)};
   });
 }
-
 
 function noorOpenMissingBarcodeAssociation(code){
   code=String(code||'').trim();
@@ -1910,7 +2144,7 @@ function noorOpenMissingBarcodeAssociation(code){
 }
 
 function findByBarcode(){const code=barcodeInput.value.trim();if(!code){toast('Inserisci o scansiona un barcode.');return} if(!isValidEAN13(code)){toast('EAN13 non valido: deve avere 13 numeri corretti.');return}const p=db.products.find(x=>!x.shopifyHidden&&!x.hiddenShopify&&(x.barcode||'').toLowerCase()===code.toLowerCase());if(!p){salePreview.className='sale-preview empty';salePreview.innerHTML='Barcode non trovato nel magazzino.';noorOpenMissingBarcodeAssociation(code);return}selectedProduct=p;renderSalePreview(p)}
-function renderSalePreview(p){salePreview.className='sale-preview';selectedLineDiscountCode=null;const base=currentSellPrice(p);salePreview.innerHTML=`<div class="preview-product">${p.photo?`<img src="${p.photo}">`:`<div style="width:82px;height:82px;border-radius:20px;background:var(--panel2);display:grid;place-items:center;font-size:34px;font-weight:950">${(p.name||'?')[0]}</div>`}<div><h2>${p.name}</h2><p class="hint">${p.brand||''} · ${p.size||''}</p><div class="kpi-row"><span class="pill">Prezzo ${eur(base)}</span><span class="pill">Stock ${p.qty}</span><span class="pill">Barcode ${p.barcode||'—'}</span></div><div class="sale-discount-note">${discountBadge(p)}</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px"><div class="field"><label>Quantità da aggiungere</label><input id="sellQty" type="number" min="1" max="${p.qty}" value="1"></div><div class="field"><label>Prezzo unitario</label><input id="sellPrice" type="number" step="0.01" min="0" value="${base}"></div></div><div class="line-discount-box"><label><b>Codice sconto per questo prodotto</b></label><div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-top:8px"><input id="lineDiscountCode" placeholder="Inserisci codice prima del carrello"><button class="btn small secondary" onclick="applyLineDiscount()">Applica</button><button class="btn small red" onclick="removeLineDiscount()">Rimuovi</button></div><div id="lineDiscountMsg" class="hint">Questo sconto vale solo per il prodotto selezionato. Se applichi uno sconto a tutto il carrello, gli sconti manuali vengono annullati.</div></div><button class="btn gold" style="width:100%;margin-top:14px" onclick="addSelectedToCart()">Aggiungi al carrello</button>`;renderCart()}
+function renderSalePreview(p){salePreview.className='sale-preview';selectedLineDiscountCode=null;const base=currentSellPrice(p);salePreview.innerHTML=`<div class="preview-product">${p.photo?`<img src="${p.photo}" onclick="openNoorPhotoViewer(p.photo,p.photos||[p.photo].filter(Boolean))" style="cursor:pointer">`:`<div style="width:82px;height:82px;border-radius:20px;background:var(--panel2);display:grid;place-items:center;font-size:34px;font-weight:950">${(p.name||'?')[0]}</div>`}<div><h2>${p.name}</h2><p class="hint">${p.brand||''} · ${p.size||''}</p><div class="kpi-row"><span class="pill">Prezzo ${eur(base)}</span><span class="pill">Stock ${p.qty}</span><span class="pill">Barcode ${p.barcode||'—'}</span></div><div class="sale-discount-note">${discountBadge(p)}</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px"><div class="field"><label>Quantità da aggiungere</label><input id="sellQty" type="number" min="1" max="${p.qty}" value="1"></div><div class="field"><label>Prezzo unitario</label><input id="sellPrice" type="number" step="0.01" min="0" value="${base}"></div></div><div class="line-discount-box"><label><b>Codice sconto per questo prodotto</b></label><div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-top:8px"><input id="lineDiscountCode" placeholder="Inserisci codice prima del carrello"><button class="btn small secondary" onclick="applyLineDiscount()">Applica</button><button class="btn small red" onclick="removeLineDiscount()">Rimuovi</button></div><div id="lineDiscountMsg" class="hint">Questo sconto vale solo per il prodotto selezionato. Se applichi uno sconto a tutto il carrello, gli sconti manuali vengono annullati.</div></div><button class="btn gold" style="width:100%;margin-top:14px" onclick="addSelectedToCart()">Aggiungi al carrello</button>`;renderCart()}
 function discountAmountFor(d,base){base=Number(base)||0;if(!d||base<=0)return 0;let amount=d.type==='percent'?base*(Number(d.value)||0)/100:Number(d.value)||0;return Math.max(0,Math.min(base,amount))}
 function applyLineDiscount(){if(!selectedProduct)return;const code=String(document.getElementById('lineDiscountCode')?.value||'').trim().toUpperCase();if(!code){removeLineDiscount();return}const d=getDiscountByCode(code);if(!d){toast('Codice sconto non trovato o non attivo.');return}if(d.rule==='only_clean' && selectedProduct.discountActive){toast('Questo codice vale solo sui prodotti non scontati.');return}const base=currentSellPrice(selectedProduct);const amount=discountAmountFor(d,base);document.getElementById('sellPrice').value=(base-amount).toFixed(2);selectedLineDiscountCode=d.code;const msg=document.getElementById('lineDiscountMsg');if(msg)msg.innerHTML=`<span class="applied-code">✓ ${d.code} applicato a questo prodotto · -${eur(amount)}</span>`;toast('Sconto applicato al prodotto.','success')}
 function removeLineDiscount(){selectedLineDiscountCode=null;if(selectedProduct){const base=currentSellPrice(selectedProduct);const sp=document.getElementById('sellPrice');if(sp)sp.value=base}const msg=document.getElementById('lineDiscountMsg');if(msg)msg.textContent='Sconto manuale rimosso.'}
@@ -2256,7 +2490,7 @@ function printDocument(title,bodyHtml){
   const now=new Date().toLocaleString('it-IT');
   w.document.write(`<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>${escapePrint(title)}</title><style>
     @page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;margin:0;color:#351126;background:#fff} .sheet{padding:8px}.head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:3px solid #f5bfd7;padding-bottom:14px;margin-bottom:18px}.brand{font-size:25px;font-weight:950;color:#b01361}.sub{color:#8f5a72;font-size:12px;margin-top:4px}.badge{display:inline-block;padding:7px 11px;border-radius:999px;background:#fff0f7;color:#9a1554;font-weight:900;font-size:12px;border:1px solid #f4c2d8}.box{border:1px solid #f4c2d8;border-radius:18px;padding:14px;margin:12px 0;background:#fff8fb}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:10px;border-bottom:1px solid #f4c2d8;text-align:left;font-size:12px;vertical-align:top}th{background:#fff0f7;color:#7b254c;text-transform:uppercase;font-size:11px}.total{text-align:right;font-size:24px;font-weight:950;margin-top:16px;color:#3b1027}.muted{color:#8f5a72}.right{text-align:right}.footer{margin-top:22px;padding-top:12px;border-top:1px solid #f4c2d8;font-size:11px;color:#8f5a72}.no-print{margin:0 0 16px;text-align:right}@media print{.no-print{display:none}}
-  
+
 /* FIX stabile carrello + popup ordine responsive */
 .cart-row{grid-template-columns:minmax(0,1fr) 82px auto!important;overflow:hidden}
 .cart-product,.order-product-line{display:flex;align-items:center;gap:10px;min-width:0;max-width:100%}
@@ -2277,68 +2511,9 @@ function printDocument(title,bodyHtml){
 @media(max-width:760px){.settings-list-grid,.default-pay-box{grid-template-columns:1fr}}
 
 </style>
-<style id="noor-v18-tooltip-clean-css">
-/* V18: solo rifiniture CSS su V16 stabile - nessuna logica Home/Firebase modificata */
-#themeBtn.theme-toggle{
-  width:46px!important;min-width:46px!important;height:46px!important;
-  padding:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
-  font-size:0!important;line-height:1!important;border-radius:16px!important;position:relative!important;
-}
-#themeBtn.theme-toggle::before{content:'☀️';font-size:20px;line-height:1;display:block;transform:translateY(0);}
-body.dark #themeBtn.theme-toggle::before{content:'🌙';}
-.header .btn[data-title], .logo[data-title], .noor-side-btn[data-title], .noor-sidebar-toggle[data-title]{position:relative;}
-@media(hover:hover){
-  .header .btn[data-title]:hover::after,
-  .logo[data-title]:hover::after,
-  .noor-sidebar-toggle[data-title]:hover::after,
-  .noor-side-btn[data-title]:hover::after{
-    content:attr(data-title);
-    position:absolute;
-    left:50%;top:calc(100% + 9px);transform:translateX(-50%);
-    background:#fff;color:#3b1027;border:1px solid rgba(143,45,90,.16);
-    box-shadow:0 14px 36px rgba(143,45,90,.16);
-    border-radius:13px;padding:8px 10px;font-size:12px;font-weight:900;line-height:1;white-space:nowrap;
-    z-index:100000;pointer-events:none;letter-spacing:0;
-  }
-  .header .btn[data-title]:hover::before,
-  .logo[data-title]:hover::before,
-  .noor-sidebar-toggle[data-title]:hover::before,
-  .noor-side-btn[data-title]:hover::before{
-    content:'';position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%) rotate(45deg);
-    width:10px;height:10px;background:#fff;border-left:1px solid rgba(143,45,90,.16);border-top:1px solid rgba(143,45,90,.16);
-    z-index:100001;pointer-events:none;
-  }
-  @media(min-width:981px){
-    body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover::after,
-    body.noor-sidebar-collapsed .noor-sidebar-toggle[data-title]:hover::after{
-      left:58px;top:50%;transform:translateY(-50%);
-    }
-    body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover::before,
-    body.noor-sidebar-collapsed .noor-sidebar-toggle[data-title]:hover::before{
-      left:52px;top:50%;transform:translateY(-50%) rotate(45deg);
-    }
-  }
-}
-/* Disattiva il vecchio tooltip laterale nero/nativo: resta solo quello professionale */
-body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover:after{background:#fff!important;color:#3b1027!important;border:1px solid rgba(143,45,90,.16)!important;box-shadow:0 14px 36px rgba(143,45,90,.16)!important;}
-body.dark .header .btn[data-title]:hover::after,
-body.dark .logo[data-title]:hover::after,
-body.dark .noor-sidebar-toggle[data-title]:hover::after,
-body.dark .noor-side-btn[data-title]:hover::after{background:#fff;color:#3b1027;border-color:rgba(143,45,90,.16);}
-body.dark .header .btn[data-title]:hover::before,
-body.dark .logo[data-title]:hover::before,
-body.dark .noor-sidebar-toggle[data-title]:hover::before,
-body.dark .noor-side-btn[data-title]:hover::before{background:#fff;border-color:rgba(143,45,90,.16);}
-</style>
+
 </head><body><div class="sheet"><div class="no-print"><button onclick="window.print()" style="padding:10px 16px;border:0;border-radius:12px;background:#e86aa7;color:white;font-weight:900;cursor:pointer">Stampa / Salva PDF</button></div><div class="head"><div><div class="brand">Noor Profumi Pro</div><div class="sub">${escapePrint(title)} · ${now}</div></div><div class="badge">Documento PDF</div></div>${bodyHtml}<div class="footer">Documento generato dal gestionale Noor Profumi Pro.</div></div><script>setTimeout(()=>window.print(),350)<\/script>
 
-
-
-
-
-
-
-<!-- PATCH NOOR V20: tooltip solo a menu chiuso + tema centrato stabile (solo CSS, niente logica Home) -->
 <style id="noor-v20-tooltip-menu-chiuso-tema-ok">
 #themeBtn.theme-toggle{
   width:46px!important;
@@ -2761,8 +2936,6 @@ load();
 })();
 </script>
 
-
-
 <script>
 /* PATCH STABILE: annullamento parziale quantità articoli ordine */
 (function(){
@@ -2864,7 +3037,6 @@ load();
   };
 })();
 </script>
-
 
 <script id="employee-permissions-clean">
 (function(){
@@ -3032,8 +3204,6 @@ load();
   setTimeout(()=>{ensureRoleSettings();installWraps();renderEmployees();applyEmployeePermissions();},200);
 })();
 </script>
-
-
 
 <script id="warehouse-module-clean">
 (function(){
@@ -3390,182 +3560,10 @@ load();
     const w=window.open('','_blank'); if(!w){notify('Popup bloccato dal browser.');return;}
     const name=esc(settings?.appName||'Noor Splendori');
     w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>body{font-family:Arial,sans-serif;color:#3b1027;padding:28px}h1{margin:0 0 6px}.muted{color:#8f5a72}.box{border:1px solid #f2c6da;border-radius:18px;padding:14px;margin:12px 0}.row{display:flex;justify-content:space-between;border-bottom:1px solid #f7dcea;padding:8px 0}.total{font-size:26px;font-weight:900}.chip{display:inline-block;background:#fff0f7;border:1px solid #f2c6da;border-radius:999px;padding:7px 10px;margin:4px}</style>
-<style id="noor-v18-tooltip-clean-css">
-/* V18: solo rifiniture CSS su V16 stabile - nessuna logica Home/Firebase modificata */
-#themeBtn.theme-toggle{
-  width:46px!important;min-width:46px!important;height:46px!important;
-  padding:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
-  font-size:0!important;line-height:1!important;border-radius:16px!important;position:relative!important;
-}
-#themeBtn.theme-toggle::before{content:'☀️';font-size:20px;line-height:1;display:block;transform:translateY(0);}
-body.dark #themeBtn.theme-toggle::before{content:'🌙';}
-.header .btn[data-title], .logo[data-title], .noor-side-btn[data-title], .noor-sidebar-toggle[data-title]{position:relative;}
-@media(hover:hover){
-  .header .btn[data-title]:hover::after,
-  .logo[data-title]:hover::after,
-  .noor-sidebar-toggle[data-title]:hover::after,
-  .noor-side-btn[data-title]:hover::after{
-    content:attr(data-title);
-    position:absolute;
-    left:50%;top:calc(100% + 9px);transform:translateX(-50%);
-    background:#fff;color:#3b1027;border:1px solid rgba(143,45,90,.16);
-    box-shadow:0 14px 36px rgba(143,45,90,.16);
-    border-radius:13px;padding:8px 10px;font-size:12px;font-weight:900;line-height:1;white-space:nowrap;
-    z-index:100000;pointer-events:none;letter-spacing:0;
-  }
-  .header .btn[data-title]:hover::before,
-  .logo[data-title]:hover::before,
-  .noor-sidebar-toggle[data-title]:hover::before,
-  .noor-side-btn[data-title]:hover::before{
-    content:'';position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%) rotate(45deg);
-    width:10px;height:10px;background:#fff;border-left:1px solid rgba(143,45,90,.16);border-top:1px solid rgba(143,45,90,.16);
-    z-index:100001;pointer-events:none;
-  }
-  @media(min-width:981px){
-    body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover::after,
-    body.noor-sidebar-collapsed .noor-sidebar-toggle[data-title]:hover::after{
-      left:58px;top:50%;transform:translateY(-50%);
-    }
-    body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover::before,
-    body.noor-sidebar-collapsed .noor-sidebar-toggle[data-title]:hover::before{
-      left:52px;top:50%;transform:translateY(-50%) rotate(45deg);
-    }
-  }
-}
-/* Disattiva il vecchio tooltip laterale nero/nativo: resta solo quello professionale */
-body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover:after{background:#fff!important;color:#3b1027!important;border:1px solid rgba(143,45,90,.16)!important;box-shadow:0 14px 36px rgba(143,45,90,.16)!important;}
-body.dark .header .btn[data-title]:hover::after,
-body.dark .logo[data-title]:hover::after,
-body.dark .noor-sidebar-toggle[data-title]:hover::after,
-body.dark .noor-side-btn[data-title]:hover::after{background:#fff;color:#3b1027;border-color:rgba(143,45,90,.16);}
-body.dark .header .btn[data-title]:hover::before,
-body.dark .logo[data-title]:hover::before,
-body.dark .noor-sidebar-toggle[data-title]:hover::before,
-body.dark .noor-side-btn[data-title]:hover::before{background:#fff;border-color:rgba(143,45,90,.16);}
-</style>
+
 </head><body><h1>${name}</h1><div class="muted">${esc(title)}</div>${body}<script>setTimeout(()=>window.print(),300)<\/script>
 
-<!-- PATCH NOOR V20: tooltip solo a menu chiuso + tema centrato stabile (solo CSS, niente logica Home) -->
-<style id="noor-v20-tooltip-menu-chiuso-tema-ok">
-#themeBtn.theme-toggle{
-  width:46px!important;
-  min-width:46px!important;
-  height:46px!important;
-  padding:0!important;
-  display:inline-flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  position:relative!important;
-  overflow:visible!important;
-  border-radius:16px!important;
-  line-height:1!important;
-  font-size:0!important;
-  text-align:center!important;
-  flex:0 0 46px!important;
-}
-#themeBtn.theme-toggle::before,
-#themeBtn.theme-toggle:hover::before,
-#themeBtn.theme-toggle:focus::before,
-#themeBtn.theme-toggle:active::before{
-  content:'☀️'!important;
-  position:absolute!important;
-  left:50%!important;
-  top:50%!important;
-  transform:translate(-50%,-50%)!important;
-  display:block!important;
-  width:auto!important;
-  height:auto!important;
-  margin:0!important;
-  padding:0!important;
-  font-size:21px!important;
-  line-height:1!important;
-  opacity:1!important;
-  visibility:visible!important;
-  background:transparent!important;
-  border:0!important;
-  box-shadow:none!important;
-  pointer-events:none!important;
-}
-body.dark #themeBtn.theme-toggle::before,
-body.dark #themeBtn.theme-toggle:hover::before,
-body.dark #themeBtn.theme-toggle:focus::before,
-body.dark #themeBtn.theme-toggle:active::before{
-  content:'🌙'!important;
-}
-#themeBtn.theme-toggle[data-title]:hover::after{
-  content:attr(data-title)!important;
-  position:absolute!important;
-  right:0!important;
-  top:calc(100% + 10px)!important;
-  transform:none!important;
-  background:#fff!important;
-  color:#3b1027!important;
-  border:1px solid rgba(143,45,90,.16)!important;
-  box-shadow:0 14px 36px rgba(143,45,90,.16)!important;
-  border-radius:12px!important;
-  padding:8px 10px!important;
-  font-size:12px!important;
-  font-weight:900!important;
-  line-height:1!important;
-  white-space:nowrap!important;
-  z-index:100000!important;
-  pointer-events:none!important;
-}
-@media(min-width:981px){
-  body:not(.noor-sidebar-collapsed) .noor-sidebar [data-title]:hover::after,
-  body:not(.noor-sidebar-collapsed) .noor-sidebar [data-title]:hover::before{
-    content:none!important;
-    display:none!important;
-  }
-  body.noor-sidebar-collapsed .noor-sidebar .noor-side-btn[data-title]:hover::after,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-toggle[data-title]:hover::after,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-profile-btn[data-title]:hover::after{
-    content:attr(data-title)!important;
-    position:absolute!important;
-    left:58px!important;
-    top:50%!important;
-    right:auto!important;
-    bottom:auto!important;
-    transform:translateY(-50%)!important;
-    background:#fff!important;
-    color:#3b1027!important;
-    border:1px solid rgba(143,45,90,.16)!important;
-    box-shadow:0 14px 36px rgba(143,45,90,.16)!important;
-    border-radius:12px!important;
-    padding:8px 10px!important;
-    font-size:12px!important;
-    font-weight:900!important;
-    line-height:1!important;
-    white-space:nowrap!important;
-    z-index:100000!important;
-    pointer-events:none!important;
-    letter-spacing:0!important;
-  }
-  body.noor-sidebar-collapsed .noor-sidebar .noor-side-btn[data-title]:hover::before,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-toggle[data-title]:hover::before,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-profile-btn[data-title]:hover::before{
-    content:''!important;
-    position:absolute!important;
-    left:52px!important;
-    top:50%!important;
-    right:auto!important;
-    bottom:auto!important;
-    width:10px!important;
-    height:10px!important;
-    transform:translateY(-50%) rotate(45deg)!important;
-    background:#fff!important;
-    border-left:1px solid rgba(143,45,90,.16)!important;
-    border-bottom:1px solid rgba(143,45,90,.16)!important;
-    border-top:0!important;
-    border-right:0!important;
-    box-shadow:none!important;
-    border-radius:1px!important;
-    display:block!important;
-    z-index:100001!important;
-    pointer-events:none!important;
-  }
-}
-</style>
+
 
 </body></html>`);
     w.document.close();
@@ -3583,8 +3581,6 @@ body.dark #themeBtn.theme-toggle:active::before{
   setTimeout(boot,350);setTimeout(boot,1200);
 })();
 </script>
-
-
 
 <script id="noor-closures-smart-step1">
 /* STEP 1 - Chiusure intelligenti: vendite dopo mezzanotte, conguaglio, modifica/elimina chiusura.
@@ -3741,7 +3737,6 @@ body.dark #themeBtn.theme-toggle:active::before{
   setTimeout(()=>{try{if(typeof window.renderClosures==='function') window.renderClosures();}catch(e){}},700);
 })();
 </script>
-
 
 <script id="noor-closures-smart-step1-date-recovery">
 /* STEP 1B - Modifica/integra chiusura con giornata da recuperare selezionabile.
@@ -3980,182 +3975,10 @@ body.dark #themeBtn.theme-toggle:active::before{
     const footer=esc(s.pdfFooterMessage||'Documento generato dal gestionale Noor Profumi Pro.');
     const printButton='<div class="no-print"><button onclick="window.print()" style="padding:10px 16px;border:0;border-radius:12px;background:#e86aa7;color:white;font-weight:900;cursor:pointer">Stampa / Salva PDF</button></div>';
     const html='<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>'+esc(title)+'</title><style>@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;margin:0;color:#351126;background:#fff}.sheet{padding:8px}.head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;border-bottom:3px solid #f5bfd7;padding-bottom:14px;margin-bottom:18px}.brand{font-size:25px;font-weight:950;color:#b01361}.sub{color:#8f5a72;font-size:12px;margin-top:4px}.badge{display:inline-block;padding:7px 11px;border-radius:999px;background:#fff0f7;color:#9a1554;font-weight:900;font-size:12px;border:1px solid #f4c2d8}.box{border:1px solid #f4c2d8;border-radius:18px;padding:14px;margin:12px 0;background:#fff8fb}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:10px;border-bottom:1px solid #f4c2d8;text-align:left;font-size:12px;vertical-align:middle}th{background:#fff0f7;color:#7b254c;text-transform:uppercase;font-size:11px}.total{text-align:right;font-size:24px;font-weight:950;margin-top:16px;color:#3b1027}.muted{color:#8f5a72}.right{text-align:right}.footer{margin-top:22px;padding-top:12px;border-top:1px solid #f4c2d8;font-size:11px;color:#8f5a72}.no-print{margin:0 0 16px;text-align:right}.prod{display:flex;align-items:center;gap:10px}@media print{.no-print{display:none}}</style>
-<style id="noor-v18-tooltip-clean-css">
-/* V18: solo rifiniture CSS su V16 stabile - nessuna logica Home/Firebase modificata */
-#themeBtn.theme-toggle{
-  width:46px!important;min-width:46px!important;height:46px!important;
-  padding:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
-  font-size:0!important;line-height:1!important;border-radius:16px!important;position:relative!important;
-}
-#themeBtn.theme-toggle::before{content:'☀️';font-size:20px;line-height:1;display:block;transform:translateY(0);}
-body.dark #themeBtn.theme-toggle::before{content:'🌙';}
-.header .btn[data-title], .logo[data-title], .noor-side-btn[data-title], .noor-sidebar-toggle[data-title]{position:relative;}
-@media(hover:hover){
-  .header .btn[data-title]:hover::after,
-  .logo[data-title]:hover::after,
-  .noor-sidebar-toggle[data-title]:hover::after,
-  .noor-side-btn[data-title]:hover::after{
-    content:attr(data-title);
-    position:absolute;
-    left:50%;top:calc(100% + 9px);transform:translateX(-50%);
-    background:#fff;color:#3b1027;border:1px solid rgba(143,45,90,.16);
-    box-shadow:0 14px 36px rgba(143,45,90,.16);
-    border-radius:13px;padding:8px 10px;font-size:12px;font-weight:900;line-height:1;white-space:nowrap;
-    z-index:100000;pointer-events:none;letter-spacing:0;
-  }
-  .header .btn[data-title]:hover::before,
-  .logo[data-title]:hover::before,
-  .noor-sidebar-toggle[data-title]:hover::before,
-  .noor-side-btn[data-title]:hover::before{
-    content:'';position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%) rotate(45deg);
-    width:10px;height:10px;background:#fff;border-left:1px solid rgba(143,45,90,.16);border-top:1px solid rgba(143,45,90,.16);
-    z-index:100001;pointer-events:none;
-  }
-  @media(min-width:981px){
-    body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover::after,
-    body.noor-sidebar-collapsed .noor-sidebar-toggle[data-title]:hover::after{
-      left:58px;top:50%;transform:translateY(-50%);
-    }
-    body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover::before,
-    body.noor-sidebar-collapsed .noor-sidebar-toggle[data-title]:hover::before{
-      left:52px;top:50%;transform:translateY(-50%) rotate(45deg);
-    }
-  }
-}
-/* Disattiva il vecchio tooltip laterale nero/nativo: resta solo quello professionale */
-body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover:after{background:#fff!important;color:#3b1027!important;border:1px solid rgba(143,45,90,.16)!important;box-shadow:0 14px 36px rgba(143,45,90,.16)!important;}
-body.dark .header .btn[data-title]:hover::after,
-body.dark .logo[data-title]:hover::after,
-body.dark .noor-sidebar-toggle[data-title]:hover::after,
-body.dark .noor-side-btn[data-title]:hover::after{background:#fff;color:#3b1027;border-color:rgba(143,45,90,.16);}
-body.dark .header .btn[data-title]:hover::before,
-body.dark .logo[data-title]:hover::before,
-body.dark .noor-sidebar-toggle[data-title]:hover::before,
-body.dark .noor-side-btn[data-title]:hover::before{background:#fff;border-color:rgba(143,45,90,.16);}
-</style>
+
 </head><body><div class="sheet">'+printButton+'<div class="head"><div>'+logo+'<div class="brand">'+appName+'</div><div class="sub">'+esc(title)+' · '+esc(now)+'</div>'+(company?'<div class="sub">'+company+'</div>':'')+'</div><div class="badge">Documento PDF</div></div>'+bodyHtml+'<div class="footer">'+footer+'</div></div>
 
-<!-- PATCH NOOR V20: tooltip solo a menu chiuso + tema centrato stabile (solo CSS, niente logica Home) -->
-<style id="noor-v20-tooltip-menu-chiuso-tema-ok">
-#themeBtn.theme-toggle{
-  width:46px!important;
-  min-width:46px!important;
-  height:46px!important;
-  padding:0!important;
-  display:inline-flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  position:relative!important;
-  overflow:visible!important;
-  border-radius:16px!important;
-  line-height:1!important;
-  font-size:0!important;
-  text-align:center!important;
-  flex:0 0 46px!important;
-}
-#themeBtn.theme-toggle::before,
-#themeBtn.theme-toggle:hover::before,
-#themeBtn.theme-toggle:focus::before,
-#themeBtn.theme-toggle:active::before{
-  content:'☀️'!important;
-  position:absolute!important;
-  left:50%!important;
-  top:50%!important;
-  transform:translate(-50%,-50%)!important;
-  display:block!important;
-  width:auto!important;
-  height:auto!important;
-  margin:0!important;
-  padding:0!important;
-  font-size:21px!important;
-  line-height:1!important;
-  opacity:1!important;
-  visibility:visible!important;
-  background:transparent!important;
-  border:0!important;
-  box-shadow:none!important;
-  pointer-events:none!important;
-}
-body.dark #themeBtn.theme-toggle::before,
-body.dark #themeBtn.theme-toggle:hover::before,
-body.dark #themeBtn.theme-toggle:focus::before,
-body.dark #themeBtn.theme-toggle:active::before{
-  content:'🌙'!important;
-}
-#themeBtn.theme-toggle[data-title]:hover::after{
-  content:attr(data-title)!important;
-  position:absolute!important;
-  right:0!important;
-  top:calc(100% + 10px)!important;
-  transform:none!important;
-  background:#fff!important;
-  color:#3b1027!important;
-  border:1px solid rgba(143,45,90,.16)!important;
-  box-shadow:0 14px 36px rgba(143,45,90,.16)!important;
-  border-radius:12px!important;
-  padding:8px 10px!important;
-  font-size:12px!important;
-  font-weight:900!important;
-  line-height:1!important;
-  white-space:nowrap!important;
-  z-index:100000!important;
-  pointer-events:none!important;
-}
-@media(min-width:981px){
-  body:not(.noor-sidebar-collapsed) .noor-sidebar [data-title]:hover::after,
-  body:not(.noor-sidebar-collapsed) .noor-sidebar [data-title]:hover::before{
-    content:none!important;
-    display:none!important;
-  }
-  body.noor-sidebar-collapsed .noor-sidebar .noor-side-btn[data-title]:hover::after,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-toggle[data-title]:hover::after,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-profile-btn[data-title]:hover::after{
-    content:attr(data-title)!important;
-    position:absolute!important;
-    left:58px!important;
-    top:50%!important;
-    right:auto!important;
-    bottom:auto!important;
-    transform:translateY(-50%)!important;
-    background:#fff!important;
-    color:#3b1027!important;
-    border:1px solid rgba(143,45,90,.16)!important;
-    box-shadow:0 14px 36px rgba(143,45,90,.16)!important;
-    border-radius:12px!important;
-    padding:8px 10px!important;
-    font-size:12px!important;
-    font-weight:900!important;
-    line-height:1!important;
-    white-space:nowrap!important;
-    z-index:100000!important;
-    pointer-events:none!important;
-    letter-spacing:0!important;
-  }
-  body.noor-sidebar-collapsed .noor-sidebar .noor-side-btn[data-title]:hover::before,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-toggle[data-title]:hover::before,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-profile-btn[data-title]:hover::before{
-    content:''!important;
-    position:absolute!important;
-    left:52px!important;
-    top:50%!important;
-    right:auto!important;
-    bottom:auto!important;
-    width:10px!important;
-    height:10px!important;
-    transform:translateY(-50%) rotate(45deg)!important;
-    background:#fff!important;
-    border-left:1px solid rgba(143,45,90,.16)!important;
-    border-bottom:1px solid rgba(143,45,90,.16)!important;
-    border-top:0!important;
-    border-right:0!important;
-    box-shadow:none!important;
-    border-radius:1px!important;
-    display:block!important;
-    z-index:100001!important;
-    pointer-events:none!important;
-  }
-}
-</style>
+
 
 </body></html>';
     w.document.open(); w.document.write(html); w.document.close();
@@ -4286,182 +4109,10 @@ body.dark #themeBtn.theme-toggle:active::before{
     }).join('');
     var total=Number(o.total||0)||((o.lines||[]).reduce(function(a,l){return a+Number(l.total||0)},0));
     var html='<!doctype html><html><head><meta charset="utf-8"><title>Ricevuta '+esc(o.orderNumber||o.id)+'</title><style>body{font-family:Arial,sans-serif;margin:0;background:#fff;color:#111}.receipt{width:80mm;max-width:100%;padding:14px;margin:0 auto}.head{text-align:center;border-bottom:1px dashed #999;padding-bottom:10px;margin-bottom:10px}.brand{font-size:20px;font-weight:900}.muted{font-size:12px;color:#555}.r-row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed #ddd;padding:9px 0}.total{display:flex;justify-content:space-between;font-size:20px;font-weight:900;margin-top:12px;padding-top:12px;border-top:2px solid #111}.footer{text-align:center;margin-top:18px;font-size:12px}.pay{margin-top:10px;font-size:13px}@media print{.receipt{width:80mm}.no-print{display:none}}</style>
-<style id="noor-v18-tooltip-clean-css">
-/* V18: solo rifiniture CSS su V16 stabile - nessuna logica Home/Firebase modificata */
-#themeBtn.theme-toggle{
-  width:46px!important;min-width:46px!important;height:46px!important;
-  padding:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
-  font-size:0!important;line-height:1!important;border-radius:16px!important;position:relative!important;
-}
-#themeBtn.theme-toggle::before{content:'☀️';font-size:20px;line-height:1;display:block;transform:translateY(0);}
-body.dark #themeBtn.theme-toggle::before{content:'🌙';}
-.header .btn[data-title], .logo[data-title], .noor-side-btn[data-title], .noor-sidebar-toggle[data-title]{position:relative;}
-@media(hover:hover){
-  .header .btn[data-title]:hover::after,
-  .logo[data-title]:hover::after,
-  .noor-sidebar-toggle[data-title]:hover::after,
-  .noor-side-btn[data-title]:hover::after{
-    content:attr(data-title);
-    position:absolute;
-    left:50%;top:calc(100% + 9px);transform:translateX(-50%);
-    background:#fff;color:#3b1027;border:1px solid rgba(143,45,90,.16);
-    box-shadow:0 14px 36px rgba(143,45,90,.16);
-    border-radius:13px;padding:8px 10px;font-size:12px;font-weight:900;line-height:1;white-space:nowrap;
-    z-index:100000;pointer-events:none;letter-spacing:0;
-  }
-  .header .btn[data-title]:hover::before,
-  .logo[data-title]:hover::before,
-  .noor-sidebar-toggle[data-title]:hover::before,
-  .noor-side-btn[data-title]:hover::before{
-    content:'';position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%) rotate(45deg);
-    width:10px;height:10px;background:#fff;border-left:1px solid rgba(143,45,90,.16);border-top:1px solid rgba(143,45,90,.16);
-    z-index:100001;pointer-events:none;
-  }
-  @media(min-width:981px){
-    body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover::after,
-    body.noor-sidebar-collapsed .noor-sidebar-toggle[data-title]:hover::after{
-      left:58px;top:50%;transform:translateY(-50%);
-    }
-    body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover::before,
-    body.noor-sidebar-collapsed .noor-sidebar-toggle[data-title]:hover::before{
-      left:52px;top:50%;transform:translateY(-50%) rotate(45deg);
-    }
-  }
-}
-/* Disattiva il vecchio tooltip laterale nero/nativo: resta solo quello professionale */
-body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover:after{background:#fff!important;color:#3b1027!important;border:1px solid rgba(143,45,90,.16)!important;box-shadow:0 14px 36px rgba(143,45,90,.16)!important;}
-body.dark .header .btn[data-title]:hover::after,
-body.dark .logo[data-title]:hover::after,
-body.dark .noor-sidebar-toggle[data-title]:hover::after,
-body.dark .noor-side-btn[data-title]:hover::after{background:#fff;color:#3b1027;border-color:rgba(143,45,90,.16);}
-body.dark .header .btn[data-title]:hover::before,
-body.dark .logo[data-title]:hover::before,
-body.dark .noor-sidebar-toggle[data-title]:hover::before,
-body.dark .noor-side-btn[data-title]:hover::before{background:#fff;border-color:rgba(143,45,90,.16);}
-</style>
+
 </head><body><div class="receipt"><div class="head"><div class="brand">'+esc(company)+'</div><div class="muted">'+esc(phone)+' '+esc(email)+'</div><div class="muted">'+esc(vat)+'</div></div><div class="muted">Data: '+esc(new Date(o.date||Date.now()).toLocaleString('it-IT'))+'</div><div class="muted">Ordine: '+esc(o.orderNumber||o.id)+'</div><div class="pay">Pagamento: <b>'+esc(o.payment||'—')+'</b></div>'+rows+'<div class="total"><span>Totale</span><span>'+money(total)+'</span></div><div class="footer">Grazie per il tuo acquisto</div><div class="no-print" style="text-align:center;margin-top:14px"><button onclick="window.print()">Stampa</button></div></div>
 
-<!-- PATCH NOOR V20: tooltip solo a menu chiuso + tema centrato stabile (solo CSS, niente logica Home) -->
-<style id="noor-v20-tooltip-menu-chiuso-tema-ok">
-#themeBtn.theme-toggle{
-  width:46px!important;
-  min-width:46px!important;
-  height:46px!important;
-  padding:0!important;
-  display:inline-flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  position:relative!important;
-  overflow:visible!important;
-  border-radius:16px!important;
-  line-height:1!important;
-  font-size:0!important;
-  text-align:center!important;
-  flex:0 0 46px!important;
-}
-#themeBtn.theme-toggle::before,
-#themeBtn.theme-toggle:hover::before,
-#themeBtn.theme-toggle:focus::before,
-#themeBtn.theme-toggle:active::before{
-  content:'☀️'!important;
-  position:absolute!important;
-  left:50%!important;
-  top:50%!important;
-  transform:translate(-50%,-50%)!important;
-  display:block!important;
-  width:auto!important;
-  height:auto!important;
-  margin:0!important;
-  padding:0!important;
-  font-size:21px!important;
-  line-height:1!important;
-  opacity:1!important;
-  visibility:visible!important;
-  background:transparent!important;
-  border:0!important;
-  box-shadow:none!important;
-  pointer-events:none!important;
-}
-body.dark #themeBtn.theme-toggle::before,
-body.dark #themeBtn.theme-toggle:hover::before,
-body.dark #themeBtn.theme-toggle:focus::before,
-body.dark #themeBtn.theme-toggle:active::before{
-  content:'🌙'!important;
-}
-#themeBtn.theme-toggle[data-title]:hover::after{
-  content:attr(data-title)!important;
-  position:absolute!important;
-  right:0!important;
-  top:calc(100% + 10px)!important;
-  transform:none!important;
-  background:#fff!important;
-  color:#3b1027!important;
-  border:1px solid rgba(143,45,90,.16)!important;
-  box-shadow:0 14px 36px rgba(143,45,90,.16)!important;
-  border-radius:12px!important;
-  padding:8px 10px!important;
-  font-size:12px!important;
-  font-weight:900!important;
-  line-height:1!important;
-  white-space:nowrap!important;
-  z-index:100000!important;
-  pointer-events:none!important;
-}
-@media(min-width:981px){
-  body:not(.noor-sidebar-collapsed) .noor-sidebar [data-title]:hover::after,
-  body:not(.noor-sidebar-collapsed) .noor-sidebar [data-title]:hover::before{
-    content:none!important;
-    display:none!important;
-  }
-  body.noor-sidebar-collapsed .noor-sidebar .noor-side-btn[data-title]:hover::after,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-toggle[data-title]:hover::after,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-profile-btn[data-title]:hover::after{
-    content:attr(data-title)!important;
-    position:absolute!important;
-    left:58px!important;
-    top:50%!important;
-    right:auto!important;
-    bottom:auto!important;
-    transform:translateY(-50%)!important;
-    background:#fff!important;
-    color:#3b1027!important;
-    border:1px solid rgba(143,45,90,.16)!important;
-    box-shadow:0 14px 36px rgba(143,45,90,.16)!important;
-    border-radius:12px!important;
-    padding:8px 10px!important;
-    font-size:12px!important;
-    font-weight:900!important;
-    line-height:1!important;
-    white-space:nowrap!important;
-    z-index:100000!important;
-    pointer-events:none!important;
-    letter-spacing:0!important;
-  }
-  body.noor-sidebar-collapsed .noor-sidebar .noor-side-btn[data-title]:hover::before,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-toggle[data-title]:hover::before,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-profile-btn[data-title]:hover::before{
-    content:''!important;
-    position:absolute!important;
-    left:52px!important;
-    top:50%!important;
-    right:auto!important;
-    bottom:auto!important;
-    width:10px!important;
-    height:10px!important;
-    transform:translateY(-50%) rotate(45deg)!important;
-    background:#fff!important;
-    border-left:1px solid rgba(143,45,90,.16)!important;
-    border-bottom:1px solid rgba(143,45,90,.16)!important;
-    border-top:0!important;
-    border-right:0!important;
-    box-shadow:none!important;
-    border-radius:1px!important;
-    display:block!important;
-    z-index:100001!important;
-    pointer-events:none!important;
-  }
-}
-</style>
+
 
 </body></html>';
     var w=window.open('','_blank','width=420,height=760');
@@ -4626,182 +4277,10 @@ body.dark #themeBtn.theme-toggle:active::before{
     var o=getOrder(orderId); if(!o){toastMsg('Ordine non trovato per lo scontrino.');return;}
     var text=buildReceiptText(o);
     var html='<!doctype html><html><head><meta charset="utf-8"><title>Scontrino '+receiptNo(o)+'</title><style>body{margin:0;background:#f5f5f5}.paper{width:80mm;max-width:100%;margin:0 auto;background:white;padding:10px 8px;color:#000}pre{font:12px/1.35 "Courier New",monospace;white-space:pre-wrap;margin:0}.actions{display:flex;gap:8px;justify-content:center;padding:12px}.actions button{padding:9px 13px;border:1px solid #bbb;border-radius:8px;background:#fff;cursor:pointer}@media print{body{background:white}.paper{width:80mm;margin:0;padding:0}.actions{display:none}}</style>
-<style id="noor-v18-tooltip-clean-css">
-/* V18: solo rifiniture CSS su V16 stabile - nessuna logica Home/Firebase modificata */
-#themeBtn.theme-toggle{
-  width:46px!important;min-width:46px!important;height:46px!important;
-  padding:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
-  font-size:0!important;line-height:1!important;border-radius:16px!important;position:relative!important;
-}
-#themeBtn.theme-toggle::before{content:'☀️';font-size:20px;line-height:1;display:block;transform:translateY(0);}
-body.dark #themeBtn.theme-toggle::before{content:'🌙';}
-.header .btn[data-title], .logo[data-title], .noor-side-btn[data-title], .noor-sidebar-toggle[data-title]{position:relative;}
-@media(hover:hover){
-  .header .btn[data-title]:hover::after,
-  .logo[data-title]:hover::after,
-  .noor-sidebar-toggle[data-title]:hover::after,
-  .noor-side-btn[data-title]:hover::after{
-    content:attr(data-title);
-    position:absolute;
-    left:50%;top:calc(100% + 9px);transform:translateX(-50%);
-    background:#fff;color:#3b1027;border:1px solid rgba(143,45,90,.16);
-    box-shadow:0 14px 36px rgba(143,45,90,.16);
-    border-radius:13px;padding:8px 10px;font-size:12px;font-weight:900;line-height:1;white-space:nowrap;
-    z-index:100000;pointer-events:none;letter-spacing:0;
-  }
-  .header .btn[data-title]:hover::before,
-  .logo[data-title]:hover::before,
-  .noor-sidebar-toggle[data-title]:hover::before,
-  .noor-side-btn[data-title]:hover::before{
-    content:'';position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%) rotate(45deg);
-    width:10px;height:10px;background:#fff;border-left:1px solid rgba(143,45,90,.16);border-top:1px solid rgba(143,45,90,.16);
-    z-index:100001;pointer-events:none;
-  }
-  @media(min-width:981px){
-    body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover::after,
-    body.noor-sidebar-collapsed .noor-sidebar-toggle[data-title]:hover::after{
-      left:58px;top:50%;transform:translateY(-50%);
-    }
-    body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover::before,
-    body.noor-sidebar-collapsed .noor-sidebar-toggle[data-title]:hover::before{
-      left:52px;top:50%;transform:translateY(-50%) rotate(45deg);
-    }
-  }
-}
-/* Disattiva il vecchio tooltip laterale nero/nativo: resta solo quello professionale */
-body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover:after{background:#fff!important;color:#3b1027!important;border:1px solid rgba(143,45,90,.16)!important;box-shadow:0 14px 36px rgba(143,45,90,.16)!important;}
-body.dark .header .btn[data-title]:hover::after,
-body.dark .logo[data-title]:hover::after,
-body.dark .noor-sidebar-toggle[data-title]:hover::after,
-body.dark .noor-side-btn[data-title]:hover::after{background:#fff;color:#3b1027;border-color:rgba(143,45,90,.16);}
-body.dark .header .btn[data-title]:hover::before,
-body.dark .logo[data-title]:hover::before,
-body.dark .noor-sidebar-toggle[data-title]:hover::before,
-body.dark .noor-side-btn[data-title]:hover::before{background:#fff;border-color:rgba(143,45,90,.16);}
-</style>
+
 </head><body><div class="paper"><pre>'+text.replace(/[&<>]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]})+'</pre></div><div class="actions"><button onclick="window.print()">Stampa</button><button onclick="window.close()">Chiudi</button></div>
 
-<!-- PATCH NOOR V20: tooltip solo a menu chiuso + tema centrato stabile (solo CSS, niente logica Home) -->
-<style id="noor-v20-tooltip-menu-chiuso-tema-ok">
-#themeBtn.theme-toggle{
-  width:46px!important;
-  min-width:46px!important;
-  height:46px!important;
-  padding:0!important;
-  display:inline-flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  position:relative!important;
-  overflow:visible!important;
-  border-radius:16px!important;
-  line-height:1!important;
-  font-size:0!important;
-  text-align:center!important;
-  flex:0 0 46px!important;
-}
-#themeBtn.theme-toggle::before,
-#themeBtn.theme-toggle:hover::before,
-#themeBtn.theme-toggle:focus::before,
-#themeBtn.theme-toggle:active::before{
-  content:'☀️'!important;
-  position:absolute!important;
-  left:50%!important;
-  top:50%!important;
-  transform:translate(-50%,-50%)!important;
-  display:block!important;
-  width:auto!important;
-  height:auto!important;
-  margin:0!important;
-  padding:0!important;
-  font-size:21px!important;
-  line-height:1!important;
-  opacity:1!important;
-  visibility:visible!important;
-  background:transparent!important;
-  border:0!important;
-  box-shadow:none!important;
-  pointer-events:none!important;
-}
-body.dark #themeBtn.theme-toggle::before,
-body.dark #themeBtn.theme-toggle:hover::before,
-body.dark #themeBtn.theme-toggle:focus::before,
-body.dark #themeBtn.theme-toggle:active::before{
-  content:'🌙'!important;
-}
-#themeBtn.theme-toggle[data-title]:hover::after{
-  content:attr(data-title)!important;
-  position:absolute!important;
-  right:0!important;
-  top:calc(100% + 10px)!important;
-  transform:none!important;
-  background:#fff!important;
-  color:#3b1027!important;
-  border:1px solid rgba(143,45,90,.16)!important;
-  box-shadow:0 14px 36px rgba(143,45,90,.16)!important;
-  border-radius:12px!important;
-  padding:8px 10px!important;
-  font-size:12px!important;
-  font-weight:900!important;
-  line-height:1!important;
-  white-space:nowrap!important;
-  z-index:100000!important;
-  pointer-events:none!important;
-}
-@media(min-width:981px){
-  body:not(.noor-sidebar-collapsed) .noor-sidebar [data-title]:hover::after,
-  body:not(.noor-sidebar-collapsed) .noor-sidebar [data-title]:hover::before{
-    content:none!important;
-    display:none!important;
-  }
-  body.noor-sidebar-collapsed .noor-sidebar .noor-side-btn[data-title]:hover::after,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-toggle[data-title]:hover::after,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-profile-btn[data-title]:hover::after{
-    content:attr(data-title)!important;
-    position:absolute!important;
-    left:58px!important;
-    top:50%!important;
-    right:auto!important;
-    bottom:auto!important;
-    transform:translateY(-50%)!important;
-    background:#fff!important;
-    color:#3b1027!important;
-    border:1px solid rgba(143,45,90,.16)!important;
-    box-shadow:0 14px 36px rgba(143,45,90,.16)!important;
-    border-radius:12px!important;
-    padding:8px 10px!important;
-    font-size:12px!important;
-    font-weight:900!important;
-    line-height:1!important;
-    white-space:nowrap!important;
-    z-index:100000!important;
-    pointer-events:none!important;
-    letter-spacing:0!important;
-  }
-  body.noor-sidebar-collapsed .noor-sidebar .noor-side-btn[data-title]:hover::before,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-toggle[data-title]:hover::before,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-profile-btn[data-title]:hover::before{
-    content:''!important;
-    position:absolute!important;
-    left:52px!important;
-    top:50%!important;
-    right:auto!important;
-    bottom:auto!important;
-    width:10px!important;
-    height:10px!important;
-    transform:translateY(-50%) rotate(45deg)!important;
-    background:#fff!important;
-    border-left:1px solid rgba(143,45,90,.16)!important;
-    border-bottom:1px solid rgba(143,45,90,.16)!important;
-    border-top:0!important;
-    border-right:0!important;
-    box-shadow:none!important;
-    border-radius:1px!important;
-    display:block!important;
-    z-index:100001!important;
-    pointer-events:none!important;
-  }
-}
-</style>
+
 
 </body></html>';
     var win=window.open('','_blank','width=420,height=760'); if(!win){toastMsg('Popup bloccato: abilita i popup per stampare.');return;}
@@ -4821,7 +4300,6 @@ body.dark #themeBtn.theme-toggle:active::before{
   setTimeout(addReceiptSettingsUI,500); setTimeout(addReceiptSettingsUI,1500);
 })();
 </script>
-
 
 <style id="logout-central-fix-css">
   .logout-confirm-overlay{position:fixed;inset:0;z-index:60000;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(40,8,26,.46);backdrop-filter:blur(10px)}
@@ -5173,7 +4651,6 @@ window.rendergestionaleAccessLogs=async function(){
   }
 };
 
-
 const SECTION_ROUTES={home:'/',products:'/prodotti',sell:'/vendi',history:'/storico',stock:'/stock',drafts:'/bozze',employees:'/dipendenti',settings:'/impostazioni',discounts:'/sconti',accessLogs:'/controllo-accessi'};
 const ROUTE_SECTIONS=Object.fromEntries(Object.entries(SECTION_ROUTES).map(([k,v])=>[v,k]));
 function sectionFromLocation(){
@@ -5372,9 +4849,6 @@ setTimeout(()=>{
 },20000);
 </script>
 
-
-
-<!-- NOOR FIX SAFE: MENU MOBILE + LOGOUT - inserito fuori dagli script -->
 <style id="noor-safe-menu-logout-css">
   .header,.header-inner,.top-actions,.menu-wrap{overflow:visible!important;}
   .menu-wrap{position:relative!important;z-index:65000!important;}
@@ -5484,7 +4958,6 @@ setTimeout(()=>{
   setTimeout(install,300);setTimeout(install,1000);setTimeout(install,2500);
 })();
 </script>
-
 
 <style id="noor-employee-firebase-bridge-css">
   #empPasswordBridgeWrap .hint{font-size:12px;text-transform:none;letter-spacing:0;font-weight:700;margin-top:4px}
@@ -5608,8 +5081,6 @@ setTimeout(()=>{
   setTimeout(install,500);setTimeout(install,1500);setTimeout(install,3000);
 })();
 </script>
-
-
 
 <style id="noor-roles-menu-personal-final-css">
 #employeeRoleDashboard{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:14px 0 16px}
@@ -6007,13 +5478,13 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
       category: getEl('pCategory')?.value || '',
       season: getEl('pSeason')?.value || '',
       description: (getEl('pDescription')?.value || '').trim(),
-      pyramid: (getEl('pPyramid')?.value || '').trim(),
       discountActive: discountActive,
       initialPrice: initial,
       finalPrice: finalPrice,
       discountAmount: amount,
       discountPercent: discountActive && initial > 0 && finalPrice > 0 ? Math.max(0, (amount / initial) * 100) : 0,
-      photo: getEl('pPhotoData')?.value || (existing?.photo || ''),
+      photo: (getNoorProductPhotos(existing)[0] || ''),
+      photos: getNoorProductPhotos(existing),
       notes: (getEl('pNotes')?.value || '').trim()
     };
     return cleanProductForFirestore(data);
@@ -6151,7 +5622,6 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
   setTimeout(bootProductsOnline, 1800);
 })();
 </script>
-
 
 <script id="noor-orders-firestore-step1">
 /*
@@ -6446,7 +5916,6 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
 })();
 </script>
 
-
 <script id="noor-discounts-firestore-safe-final">
 /* Noor Splendori - Sconti online Firestore SAFE FINAL */
 (function(){
@@ -6583,9 +6052,6 @@ body.dark #noorDeleteEmployeeOverlay .noor-delete-card{background:linear-gradien
 })();
 </script>
 
-
-
-<!-- PATCH FINALE NOOR - Home compatta, menu ordinato, profilo completo, Home senza codici -->
 <style id="noor-final-home-profile-menu-css">
   #homeWelcomeAccessBox{margin:0 0 14px;padding:0;overflow:hidden;background:linear-gradient(135deg,rgba(255,255,255,.96),rgba(255,240,247,.96));border:1px solid var(--line);border-radius:22px;box-shadow:0 10px 26px rgba(143,45,90,.08)}
   .noor-welcome-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 15px}
@@ -6643,8 +6109,6 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 auth.onAuthStateChanged(()=>setTimeout(boot,200));setTimeout(boot,600);setTimeout(boot,1800);
 </script>
 
-
-<!-- PATCH NOOR DEFINITIVA: Loghi online persistenti + annullo ordine online + Home sempre senza codici -->
 <style id="noor-online-logo-final-css">
   .login-logo.has-image{background:transparent!important;padding:0;overflow:hidden}
   .login-logo.has-image img{width:100%;height:100%;object-fit:contain;display:block}
@@ -6992,15 +6456,13 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, runTransaction, serverTim
   }
   function boot(){ addLoginLogoControls(); applyOnlineIdentity(identityCache); renderHomeNoCodesFinal(); }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot); else boot();
-  setTimeout(boot,400); setTimeout(boot,1400); 
+  setTimeout(boot,400); setTimeout(boot,1400);
   loadIdentityOnce();
   onAuthStateChanged(auth,()=>{setTimeout(()=>{bootIdentity();},250);});
   bootIdentity();
 })();
 </script>
 
-
-<!-- PATCH NOOR: cataloghi online (magazzini, formato, marca/linea) senza modificare Home -->
 <script type="module" id="noor-cataloghi-online-pulito">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
@@ -7149,9 +6611,6 @@ import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from "https://
 })();
 </script>
 
-
-
-<!-- PATCH NOOR: soglie e preferenze online sicure - NON modifica la Home -->
 <script type="module" id="noor-preferenze-online-sicure-no-home">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
@@ -7439,8 +6898,6 @@ import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from "https://
 })();
 </script>
 
-
-
 <script id="noor-fix-original-price-clear-detected-final">
 /* Fix vendita: prezzo originale = prezzo vendita pieno; pulizia prodotto rilevato dopo aggiunta */
 (function(){
@@ -7578,8 +7035,6 @@ import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from "https://
   setTimeout(function(){ try{ if(typeof renderCart==='function') renderCart(); addClearButtonToPreview(); }catch(e){} },300);
 })();
 </script>
-
-
 
 <script id="noor-receipt-pdf-discount-lines-final">
 /* Ricevutina cliente reale + PDF ordine con prezzo originale, sconto e prezzo finale. Non tocca Home. */
@@ -7777,59 +7232,6 @@ import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from "https://
     var txt=buildReceiptText(o);
     var esc=txt.replace(/[&<>]/g,function(ch){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[ch];});
     var htmlDoc='<!doctype html><html><head><meta charset="utf-8"><title>Ricevuta '+html(receiptNo(o))+'</title><style>body{margin:0;background:#f5f5f5}.paper{width:80mm;max-width:100%;margin:0 auto;background:#fff;padding:10px 8px;color:#000}pre{font:12px/1.35 "Courier New",monospace;white-space:pre-wrap;margin:0}.actions{display:flex;gap:8px;justify-content:center;padding:12px}.actions button{padding:9px 13px;border:1px solid #bbb;border-radius:8px;background:#fff;cursor:pointer}@media print{body{background:#fff}.paper{width:80mm;margin:0;padding:0}.actions{display:none}}</style>
-<style id="noor-v18-tooltip-clean-css">
-/* V18: solo rifiniture CSS su V16 stabile - nessuna logica Home/Firebase modificata */
-#themeBtn.theme-toggle{
-  width:46px!important;min-width:46px!important;height:46px!important;
-  padding:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
-  font-size:0!important;line-height:1!important;border-radius:16px!important;position:relative!important;
-}
-#themeBtn.theme-toggle::before{content:'☀️';font-size:20px;line-height:1;display:block;transform:translateY(0);}
-body.dark #themeBtn.theme-toggle::before{content:'🌙';}
-.header .btn[data-title], .logo[data-title], .noor-side-btn[data-title], .noor-sidebar-toggle[data-title]{position:relative;}
-@media(hover:hover){
-  .header .btn[data-title]:hover::after,
-  .logo[data-title]:hover::after,
-  .noor-sidebar-toggle[data-title]:hover::after,
-  .noor-side-btn[data-title]:hover::after{
-    content:attr(data-title);
-    position:absolute;
-    left:50%;top:calc(100% + 9px);transform:translateX(-50%);
-    background:#fff;color:#3b1027;border:1px solid rgba(143,45,90,.16);
-    box-shadow:0 14px 36px rgba(143,45,90,.16);
-    border-radius:13px;padding:8px 10px;font-size:12px;font-weight:900;line-height:1;white-space:nowrap;
-    z-index:100000;pointer-events:none;letter-spacing:0;
-  }
-  .header .btn[data-title]:hover::before,
-  .logo[data-title]:hover::before,
-  .noor-sidebar-toggle[data-title]:hover::before,
-  .noor-side-btn[data-title]:hover::before{
-    content:'';position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%) rotate(45deg);
-    width:10px;height:10px;background:#fff;border-left:1px solid rgba(143,45,90,.16);border-top:1px solid rgba(143,45,90,.16);
-    z-index:100001;pointer-events:none;
-  }
-  @media(min-width:981px){
-    body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover::after,
-    body.noor-sidebar-collapsed .noor-sidebar-toggle[data-title]:hover::after{
-      left:58px;top:50%;transform:translateY(-50%);
-    }
-    body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover::before,
-    body.noor-sidebar-collapsed .noor-sidebar-toggle[data-title]:hover::before{
-      left:52px;top:50%;transform:translateY(-50%) rotate(45deg);
-    }
-  }
-}
-/* Disattiva il vecchio tooltip laterale nero/nativo: resta solo quello professionale */
-body.noor-sidebar-collapsed .noor-side-btn[data-title]:hover:after{background:#fff!important;color:#3b1027!important;border:1px solid rgba(143,45,90,.16)!important;box-shadow:0 14px 36px rgba(143,45,90,.16)!important;}
-body.dark .header .btn[data-title]:hover::after,
-body.dark .logo[data-title]:hover::after,
-body.dark .noor-sidebar-toggle[data-title]:hover::after,
-body.dark .noor-side-btn[data-title]:hover::after{background:#fff;color:#3b1027;border-color:rgba(143,45,90,.16);}
-body.dark .header .btn[data-title]:hover::before,
-body.dark .logo[data-title]:hover::before,
-body.dark .noor-sidebar-toggle[data-title]:hover::before,
-body.dark .noor-side-btn[data-title]:hover::before{background:#fff;border-color:rgba(143,45,90,.16);}
-</style>
 
 
 <style id="noor-v21-tooltip-icone-menu-chiuso-ok">
@@ -7956,127 +7358,7 @@ body.dark #themeBtn.theme-toggle:active::before{
 </style>
 </head><body><div class="paper"><pre>'+esc+'</pre></div><div class="actions"><button onclick="window.print()">Stampa ricevuta</button><button onclick="window.close()">Chiudi</button></div>
 
-<!-- PATCH NOOR V20: tooltip solo a menu chiuso + tema centrato stabile (solo CSS, niente logica Home) -->
-<style id="noor-v20-tooltip-menu-chiuso-tema-ok">
-#themeBtn.theme-toggle{
-  width:46px!important;
-  min-width:46px!important;
-  height:46px!important;
-  padding:0!important;
-  display:inline-flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  position:relative!important;
-  overflow:visible!important;
-  border-radius:16px!important;
-  line-height:1!important;
-  font-size:0!important;
-  text-align:center!important;
-  flex:0 0 46px!important;
-}
-#themeBtn.theme-toggle::before,
-#themeBtn.theme-toggle:hover::before,
-#themeBtn.theme-toggle:focus::before,
-#themeBtn.theme-toggle:active::before{
-  content:'☀️'!important;
-  position:absolute!important;
-  left:50%!important;
-  top:50%!important;
-  transform:translate(-50%,-50%)!important;
-  display:block!important;
-  width:auto!important;
-  height:auto!important;
-  margin:0!important;
-  padding:0!important;
-  font-size:21px!important;
-  line-height:1!important;
-  opacity:1!important;
-  visibility:visible!important;
-  background:transparent!important;
-  border:0!important;
-  box-shadow:none!important;
-  pointer-events:none!important;
-}
-body.dark #themeBtn.theme-toggle::before,
-body.dark #themeBtn.theme-toggle:hover::before,
-body.dark #themeBtn.theme-toggle:focus::before,
-body.dark #themeBtn.theme-toggle:active::before{
-  content:'🌙'!important;
-}
-#themeBtn.theme-toggle[data-title]:hover::after{
-  content:attr(data-title)!important;
-  position:absolute!important;
-  right:0!important;
-  top:calc(100% + 10px)!important;
-  transform:none!important;
-  background:#fff!important;
-  color:#3b1027!important;
-  border:1px solid rgba(143,45,90,.16)!important;
-  box-shadow:0 14px 36px rgba(143,45,90,.16)!important;
-  border-radius:12px!important;
-  padding:8px 10px!important;
-  font-size:12px!important;
-  font-weight:900!important;
-  line-height:1!important;
-  white-space:nowrap!important;
-  z-index:100000!important;
-  pointer-events:none!important;
-}
-@media(min-width:981px){
-  body:not(.noor-sidebar-collapsed) .noor-sidebar [data-title]:hover::after,
-  body:not(.noor-sidebar-collapsed) .noor-sidebar [data-title]:hover::before{
-    content:none!important;
-    display:none!important;
-  }
-  body.noor-sidebar-collapsed .noor-sidebar .noor-side-btn[data-title]:hover::after,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-toggle[data-title]:hover::after,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-profile-btn[data-title]:hover::after{
-    content:attr(data-title)!important;
-    position:absolute!important;
-    left:58px!important;
-    top:50%!important;
-    right:auto!important;
-    bottom:auto!important;
-    transform:translateY(-50%)!important;
-    background:#fff!important;
-    color:#3b1027!important;
-    border:1px solid rgba(143,45,90,.16)!important;
-    box-shadow:0 14px 36px rgba(143,45,90,.16)!important;
-    border-radius:12px!important;
-    padding:8px 10px!important;
-    font-size:12px!important;
-    font-weight:900!important;
-    line-height:1!important;
-    white-space:nowrap!important;
-    z-index:100000!important;
-    pointer-events:none!important;
-    letter-spacing:0!important;
-  }
-  body.noor-sidebar-collapsed .noor-sidebar .noor-side-btn[data-title]:hover::before,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-toggle[data-title]:hover::before,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-profile-btn[data-title]:hover::before{
-    content:''!important;
-    position:absolute!important;
-    left:52px!important;
-    top:50%!important;
-    right:auto!important;
-    bottom:auto!important;
-    width:10px!important;
-    height:10px!important;
-    transform:translateY(-50%) rotate(45deg)!important;
-    background:#fff!important;
-    border-left:1px solid rgba(143,45,90,.16)!important;
-    border-bottom:1px solid rgba(143,45,90,.16)!important;
-    border-top:0!important;
-    border-right:0!important;
-    box-shadow:none!important;
-    border-radius:1px!important;
-    display:block!important;
-    z-index:100001!important;
-    pointer-events:none!important;
-  }
-}
-</style>
+
 
 </body></html>';
     var win=window.open('','_blank','width=420,height=760'); if(!win){notify('Popup bloccato: abilita i popup per stampare.');return;}
@@ -8095,9 +7377,6 @@ body.dark #themeBtn.theme-toggle:active::before{
 })();
 </script>
 
-
-
-<!-- PATCH NOOR: Ordini annullati con nota, utente e permessi - Home invariata -->
 <style id="noor-cancelled-orders-style-clean">
 .cancelled-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin:12px 0}.cancelled-list{display:grid;gap:12px}.cancelled-card{border:1px solid var(--line);background:var(--panel2);border-radius:22px;padding:14px}.cancelled-head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}.cancelled-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.cancelled-note{margin-top:10px;padding:10px 12px;border-radius:16px;background:var(--panel);border:1px solid var(--line);line-height:1.45}.cancelled-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.cancel-note-box{margin-top:12px;border:1px solid var(--line);background:var(--panel2);border-radius:18px;padding:12px}.cancel-note-box textarea{min-height:92px}.cancelled-admin-only.hidden{display:none!important}@media(max-width:620px){.cancelled-toolbar{display:grid}.cancelled-head{display:grid}.cancelled-actions .btn{width:100%}}
 </style>
@@ -8206,8 +7485,6 @@ import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, 
 })();
 </script>
 
-
-<!-- PATCH NOOR: Riconferma ordini annullati online + permessi lista annullati -->
 <script type="module" id="noor-cancelled-orders-restore-online">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
@@ -8385,10 +7662,9 @@ import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, 
   function renderCleanHome(){try{const box=$('homeAlerts'); if(!box||!window.db) return; const products=Array.isArray(db.products)?db.products:[]; const sales=Array.isArray(db.sales)?db.sales:[]; const max=(typeof getLowStockMax==='function'?getLowStockMax():5); const low=products.filter(p=>Number(p.qty)<=Number(max)).sort((a,b)=>Number(a.qty)-Number(b.qty)).slice(0,6); const last=sales.slice().sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)).slice(0,5); const total=last.reduce((a,s)=>a+Number(s.total||0),0); let h='<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">'; h+='<div class="card panel home-stock-card"><div class="home-stock-head"><div><h2>📦 Scorte basse</h2><p class="hint">Esauriti e prodotti sotto soglia</p></div><span class="home-stock-total">Soglia '+esc(max)+' pz</span></div>'+(low.length?'<div class="home-stock-list">'+low.map(p=>{const n=p.name||'Prodotto';return '<div class="home-stock-item"><div class="home-stock-photo">'+img(p,n)+'</div><div><div class="home-stock-name">'+esc(n)+'</div><div class="home-stock-meta">'+esc(p.brand||p.line||'Noor Profumi')+' · '+esc(p.size||p.format||'Formato —')+'</div><div style="margin-top:6px">'+(typeof statusBadge==='function'?statusBadge(p.qty):'<span class="badge">'+esc(p.qty)+' pz</span>')+'</div><div class="home-stock-actions"><button class="btn small secondary" onclick="event.stopPropagation();viewProduct(\''+esc(p.id)+'\')">Apri</button><button class="btn small secondary" onclick="event.stopPropagation();editProduct(\''+esc(p.id)+'\')">Modifica</button></div></div><div class="home-stock-qty">'+esc(Number(p.qty)||0)+'<span>pezzi</span></div></div>'}).join('')+'</div>':'<div class="home-empty-stock">Tutto ok: nessun prodotto sotto la soglia impostata.</div>')+'</div>'; h+='<div class="card panel home-sales-card"><div class="home-sales-head"><div><h2>🧾 Ultime vendite</h2><p class="hint">Movimenti recenti registrati</p></div><span class="home-sales-total">Totale '+money(total)+'</span></div>'+(last.length?'<div class="home-sales-list">'+last.map(s=>{const n=s.productName||'Prodotto'; const p=products.find(x=>String(x.id)===String(s.productId)); const d=new Date(s.date||Date.now()); return '<div class="home-sale-item"><div class="home-sale-icon">'+img(p,n)+'</div><div><div class="home-sale-name">'+esc(n)+'</div><div class="home-sale-meta">'+esc(d.toLocaleDateString('it-IT'))+' · '+esc(d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}))+' · Quantità '+esc(s.qty||1)+'</div></div><div class="home-sale-total">'+money(s.total||0)+'<br><span class="home-sale-pay">'+esc(s.payment||'Pagamento —')+'</span></div></div>'}).join('')+'</div>':'<div class="home-empty-sales">Nessuna vendita recente.</div>')+'</div></div>'; box.innerHTML=h;}catch(e){console.warn('Home pulita:',e)}}
   window.renderHomeAlerts=renderCleanHome; const old=window.renderAll; if(typeof old==='function'){window.renderAll=function(){const r=old.apply(this,arguments); setTimeout(renderCleanHome,0); return r}}
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(renderCleanHome,300)); else setTimeout(renderCleanHome,300);
-  setTimeout(renderCleanHome,1200); 
+  setTimeout(renderCleanHome,1200);
 })();
 </script>
-
 
 <script id="noor-home-clean-verified-final">
 (function(){
@@ -8416,12 +7692,10 @@ import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, 
   window.renderHomeAlerts=cleanHome;
   var old=window.renderAll; if(typeof old==='function'&&!old.__homeCleanVerified){var wrap=function(){var r=old.apply(this,arguments); setTimeout(cleanHome,0); return r}; wrap.__homeCleanVerified=true; window.renderAll=wrap}
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){setTimeout(cleanHome,300)}); else setTimeout(cleanHome,300);
-  setTimeout(cleanHome,1000); setTimeout(cleanHome,2500); 
+  setTimeout(cleanHome,1000); setTimeout(cleanHome,2500);
 })();
 </script>
 
-
-<!-- PATCH FINALE NOOR: Home senza codici + foto profilo stabile + annullati sync online -->
 <script type="module" id="noor-final-home-photo-cancelled-sync">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
@@ -8663,8 +7937,6 @@ document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{renderStableHom
 })();
 </script>
 
-
-<!-- PATCH NOOR: cambio pagamento ordine persistente online senza toccare Home -->
 <script type="module" id="noor-fix-pagamento-ordine-online-no-home">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import { getFirestore, doc, getDoc, updateDoc, collection, query, where, limit, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
@@ -8709,9 +7981,6 @@ window.saveOrderPayment=async function(){
 };
 </script>
 
-
-
-<!-- PATCH NOOR: popup blocco vendite chiuso al refresh + logo accesso salvato online subito -->
 <style id="noor-step2-popup-closed-login-logo-online-css">
   #closureStep2Panel.noor-step2b-ready.noor-step2b-collapsed .noor-step2b-body{display:none!important;}
   #closureStep2Panel.noor-step2b-ready.noor-step2b-collapsed .noor-step2b-arrow{transform:rotate(-90deg)!important;}
@@ -9053,7 +8322,6 @@ import { getFirestore, doc, getDoc, runTransaction, serverTimestamp } from "http
 })();
 </script>
 
-
 <script id="noor-professional-sidebar-v6-script">
 (function(){
   if(window.__NOOR_PROFESSIONAL_SIDEBAR_V6__) return;
@@ -9195,8 +8463,6 @@ import { getFirestore, doc, getDoc, runTransaction, serverTimestamp } from "http
 })();
 </script>
 
-
-<!-- PATCH NOOR V11: ricerca sotto Benvenuto + profilo sidebar/home - sicura -->
 <style id="noor-v11-profile-search-style">
   .noor-search-icon-pro{
     width:22px;height:22px;border-radius:999px;display:inline-block;position:relative;flex:0 0 22px;
@@ -9268,8 +8534,6 @@ import { getFirestore, doc, getDoc, runTransaction, serverTimestamp } from "http
 })();
 </script>
 
-
-<!-- PATCH NOOR V12: profilo più professionale + Gestione dati espandibile -->
 <style id="noor-v12-profile-data-style">
 @media(min-width:981px){
   .noor-sidebar-profile-btn{min-height:64px!important;padding:11px!important;border-radius:20px!important;gap:12px!important;background:linear-gradient(135deg,rgba(255,211,230,.74),rgba(255,255,255,.62))!important;box-shadow:0 10px 24px rgba(143,45,90,.08)!important;}
@@ -9327,131 +8591,9 @@ import { getFirestore, doc, getDoc, runTransaction, serverTimestamp } from "http
 
 
 
-<!-- PATCH NOOR V20: tooltip solo a menu chiuso + tema centrato stabile (solo CSS, niente logica Home) -->
-<style id="noor-v20-tooltip-menu-chiuso-tema-ok">
-#themeBtn.theme-toggle{
-  width:46px!important;
-  min-width:46px!important;
-  height:46px!important;
-  padding:0!important;
-  display:inline-flex!important;
-  align-items:center!important;
-  justify-content:center!important;
-  position:relative!important;
-  overflow:visible!important;
-  border-radius:16px!important;
-  line-height:1!important;
-  font-size:0!important;
-  text-align:center!important;
-  flex:0 0 46px!important;
-}
-#themeBtn.theme-toggle::before,
-#themeBtn.theme-toggle:hover::before,
-#themeBtn.theme-toggle:focus::before,
-#themeBtn.theme-toggle:active::before{
-  content:'☀️'!important;
-  position:absolute!important;
-  left:50%!important;
-  top:50%!important;
-  transform:translate(-50%,-50%)!important;
-  display:block!important;
-  width:auto!important;
-  height:auto!important;
-  margin:0!important;
-  padding:0!important;
-  font-size:21px!important;
-  line-height:1!important;
-  opacity:1!important;
-  visibility:visible!important;
-  background:transparent!important;
-  border:0!important;
-  box-shadow:none!important;
-  pointer-events:none!important;
-}
-body.dark #themeBtn.theme-toggle::before,
-body.dark #themeBtn.theme-toggle:hover::before,
-body.dark #themeBtn.theme-toggle:focus::before,
-body.dark #themeBtn.theme-toggle:active::before{
-  content:'🌙'!important;
-}
-#themeBtn.theme-toggle[data-title]:hover::after{
-  content:attr(data-title)!important;
-  position:absolute!important;
-  right:0!important;
-  top:calc(100% + 10px)!important;
-  transform:none!important;
-  background:#fff!important;
-  color:#3b1027!important;
-  border:1px solid rgba(143,45,90,.16)!important;
-  box-shadow:0 14px 36px rgba(143,45,90,.16)!important;
-  border-radius:12px!important;
-  padding:8px 10px!important;
-  font-size:12px!important;
-  font-weight:900!important;
-  line-height:1!important;
-  white-space:nowrap!important;
-  z-index:100000!important;
-  pointer-events:none!important;
-}
-@media(min-width:981px){
-  body:not(.noor-sidebar-collapsed) .noor-sidebar [data-title]:hover::after,
-  body:not(.noor-sidebar-collapsed) .noor-sidebar [data-title]:hover::before{
-    content:none!important;
-    display:none!important;
-  }
-  body.noor-sidebar-collapsed .noor-sidebar .noor-side-btn[data-title]:hover::after,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-toggle[data-title]:hover::after,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-profile-btn[data-title]:hover::after{
-    content:attr(data-title)!important;
-    position:absolute!important;
-    left:58px!important;
-    top:50%!important;
-    right:auto!important;
-    bottom:auto!important;
-    transform:translateY(-50%)!important;
-    background:#fff!important;
-    color:#3b1027!important;
-    border:1px solid rgba(143,45,90,.16)!important;
-    box-shadow:0 14px 36px rgba(143,45,90,.16)!important;
-    border-radius:12px!important;
-    padding:8px 10px!important;
-    font-size:12px!important;
-    font-weight:900!important;
-    line-height:1!important;
-    white-space:nowrap!important;
-    z-index:100000!important;
-    pointer-events:none!important;
-    letter-spacing:0!important;
-  }
-  body.noor-sidebar-collapsed .noor-sidebar .noor-side-btn[data-title]:hover::before,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-toggle[data-title]:hover::before,
-  body.noor-sidebar-collapsed .noor-sidebar .noor-sidebar-profile-btn[data-title]:hover::before{
-    content:''!important;
-    position:absolute!important;
-    left:52px!important;
-    top:50%!important;
-    right:auto!important;
-    bottom:auto!important;
-    width:10px!important;
-    height:10px!important;
-    transform:translateY(-50%) rotate(45deg)!important;
-    background:#fff!important;
-    border-left:1px solid rgba(143,45,90,.16)!important;
-    border-bottom:1px solid rgba(143,45,90,.16)!important;
-    border-top:0!important;
-    border-right:0!important;
-    box-shadow:none!important;
-    border-radius:1px!important;
-    display:block!important;
-    z-index:100001!important;
-    pointer-events:none!important;
-  }
-}
-</style>
-
 </body>
 </html>
-<!-- PATCH NOOR: Filtro ordini annullati + immagini prodotto + popup pulito -->
+
 <style id="noor-cancelled-orders-ui-polish-style">
 .cancelled-filter-box{margin:12px 0 14px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
 .cancelled-filter-box input{width:100%}
@@ -9534,7 +8676,6 @@ body.dark #themeBtn.theme-toggle:active::before{
 })();
 </script>
 
-<!-- PATCH NOOR: Ordini annullati testo pulito + foto profilo online utenti -->
 <style id="noor-user-photo-cancelled-clean-css">
 .cancelled-help-box{margin:12px 0 14px;padding:12px 14px;border-radius:18px;border:1px solid rgba(242,184,75,.35);background:rgba(242,184,75,.12);font-size:13px;font-weight:850;color:var(--text);line-height:1.45}
 .cancelled-help-box b{display:block;margin-bottom:4px}
@@ -9679,8 +8820,6 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-aut
 })();
 </script>
 
-
-<!-- PATCH FINALE: foto profilo realmente online + accesso annullati per tutti + riconferma ordine persistente -->
 <style id="noor-final-fixes-profile-cancelled-style">
   .noor-welcome-avatar{overflow:hidden!important}
   .noor-welcome-avatar img{width:100%;height:100%;object-fit:cover;display:block;border-radius:15px}
@@ -9847,7 +8986,7 @@ import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSn
   onAuthStateChanged(auth,user=>{startProfileListeners(user); if(user){startAllUsersPhotoListener(); setTimeout(()=>{applyProfilePhotoToUI();},500);}});
   function boot(){startAllUsersPhotoListener();applyProfilePhotoToUI();cleanCancelledTextFinal();}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,500));else setTimeout(boot,500);
-  setTimeout(boot,1500); 
+  setTimeout(boot,1500);
 })();
 </script>
 
@@ -10028,8 +9167,6 @@ import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSn
 })();
 </script>
 
-
-<!-- PATCH FINALE NOOR: Home stabile, senza codici, con scorte basse e ultime vendite -->
 <style id="noor-home-stable-final-css">
   #homeDataLoadingBox{margin:14px 0;padding:14px 16px;border:1px solid var(--line);border-radius:20px;background:var(--panel2);color:var(--muted);font-weight:850;text-align:center;}
   #homeWelcomeAccessBox img{display:block!important;}
@@ -10247,8 +9384,6 @@ import { getFirestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSn
 })();
 </script>
 
-
-<!-- PATCH NOOR FINALE VERIFICATA: toggle valore silenzioso, messaggi puliti, logo accesso online -->
 <script id="noor-final-no-popup-toggle-home-safe">
 (function(){
   'use strict';
@@ -10348,8 +9483,6 @@ import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "https://
 })();
 </script>
 
-
-<!-- PATCH NOOR: Benvenuto unico stabile - NON tocca homeAlerts/Situazione veloce -->
 <style id="noor-welcome-single-final-css">
   #homeWelcomeAccessBox{display:block!important;min-height:74px!important;margin:0 0 14px!important;}
   /* Nasconde la vecchia box provvisoria che creava il lampeggio/duplicazione */
@@ -10468,7 +9601,6 @@ import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "https://
 })();
 </script>
 
-<!-- PATCH NOOR: tasto valore magazzino e tema silenziosi - NON tocca Home/Situazione veloce -->
 <script id="noor-silent-money-theme-final">
 (function(){
   'use strict';
@@ -10790,9 +9922,6 @@ import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "https://
 })();
 </script>
 
-
-
-<!-- PATCH NOOR STEP 2: popup chiusura, blocco vendite, permesso e filtro chiusure - Home non toccata -->
 <style id="noor-closures-step2-style">
 .noor-closure-step2-panel{margin-top:16px;border:1px solid var(--line);background:var(--panel2);border-radius:24px;padding:16px}
 .noor-closure-step2-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:12px}
@@ -11134,7 +10263,6 @@ import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "https://
   window.addEventListener("load", function(){ setTimeout(boot,250); setTimeout(boot,1200); });
 })();
 
-
 /* PATCH NOOR STEP 2B: freccia blocco popup + chiusure eliminate - JS sicuro dentro main script */
 (function(){
   'use strict';
@@ -11285,7 +10413,6 @@ import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "https://
   setTimeout(tick,500); setTimeout(tick,1500);
 })();
 </script>
-
 
 <script id="noor-shopify-csv-importer">
 /*
@@ -11674,7 +10801,6 @@ import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "https://
 })();
 </script>
 
-
 <script id="noor-home-limiti-menu-fix-reale">
 (function(){
   function byId(id){ return document.getElementById(id); }
@@ -11806,8 +10932,6 @@ import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "https://
 })();
 </script>
 
-
-<!-- PATCH NOOR V5 DEFINITIVA: Home con limiti bloccati, pulsanti rapidi e menu Shopify pulito -->
 <script id="noor-home-limits-v5-lock-final">
 (function(){
   'use strict';
@@ -12064,7 +11188,7 @@ import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from "https://
   }catch(e){}
 })();
 </script>
-<!-- PATCH NOOR SICURA: Carico / Scarico merce + storico - non modifica Home, Dashboard, Storico, Chiusure o stampe -->
+
 <style id="noor-stock-movement-safe-css">
   .noor-move-modal-card{width:min(920px,100%)}
   .noor-move-toolbar{display:grid;grid-template-columns:1fr auto;gap:10px;margin:12px 0}
@@ -12542,10 +11666,6 @@ import { getFirestore, doc, setDoc, collection, addDoc, serverTimestamp, getDocs
 })();
 </script>
 
-
-
-
-<!-- PATCH NOOR V16 SICURA: solo stile/funzioni sidebar, inserita a fine file per non stampare codice in Home -->
 <style id="noor-v16-safe-sidebar-refine-css">
 @media(min-width:981px){
   .noor-sidebar{padding-top:10px!important;padding-bottom:10px!important;}
@@ -12616,7 +11736,6 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙';}
   setInterval(run,3000);
 })();
 
-
 /* NOOR FIX: popup barcode non trovato anche dalla ricerca prodotti */
 (function(){
   function isEAN13Local(v){return /^\d{13}$/.test(String(v||'').trim());}
@@ -12659,7 +11778,7 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙';}
   }
   document.addEventListener('DOMContentLoaded',function(){
     attachProductSearchBarcodePopup();
-    
+
   });
 })();
 /* Noor: EAN13 non trovato apre associazione prodotto */
@@ -12696,8 +11815,6 @@ body.dark #themeBtn.theme-toggle::before{content:'🌙';}
     setTimeout(attachMissingBarcodeAssociation,700);
   });
 })();
-
-
 
 /* Noor mobile clean click fix */
 (function(){
